@@ -17,7 +17,7 @@
 - [x] **Task 1.05** — Extend RBA scraper to also cover Bulletin housing articles and Financial Stability Review (FSR) PDFs
 - [x] **Task 1.06** — Implement `src/ingest/scrapers/ahuri.py` — scrape AHURI final reports index at `ahuri.edu.au/research/final-reports`
 - [x] **Task 1.07** — Implement `src/ingest/scrapers/grattan.py` — scrape Grattan Institute housing topic page
-- [ ] **Task 1.08** — Define `sources.jsonl` schema (`{title, publisher, date, url, category}`) and merge all scraper outputs into a single `data/raw/sources.jsonl` with ~100 entries
+- [x] **Task 1.08** — Define `sources.jsonl` schema (`{title, publisher, date, url, category}`) and merge all scraper outputs into a single `data/raw/sources.jsonl` with ~100 entries
 
 ### Day 2 — Remaining scrapers + bulk download
 

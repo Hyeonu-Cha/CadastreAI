@@ -31,6 +31,13 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Bulletin + FSR scrapers tracked separately as Task 1.05 (not touched here)
   - Syntax-checked with `py_compile`; not run live yet (deps not installed on dev machine)
 
+- [x] **Task 1.08** — Unified sources.jsonl collector (2026-04-19)
+  - `scripts/collect_sources.py`: orchestrates `rba.scrape_all`, `ahuri.scrape`, `grattan.scrape`; merges + dedupes by URL; writes `data/raw/sources.jsonl`
+  - Schema documented at top of script: `{title, publisher, url, date?, category?, extra?}`
+  - Also emits `sources.stats.json` with totals + per-publisher counts for README generation later
+  - `--only rba ahuri grattan` flag to subset scrapers; per-scraper failures logged + skipped
+  - Target ~100 entries after Day-1 scrapers; full 250–350 comes in Day 2 once remaining sources land
+
 - [x] **Task 1.07** — Grattan Institute housing scraper (2026-04-19)
   - `src/ingest/scrapers/grattan.py`: walks `grattan.edu.au/topics/housing/` and subsequent `page/N/` pagination, captures publication titles, URLs, and any date string found in the surrounding card text
   - Skips obvious non-publication URLs (`/topics/`, `/people/`, `/about/`, `/category/`, `/tag/`, `/news/`, `/events/`, `/contact/`)
