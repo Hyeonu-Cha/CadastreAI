@@ -30,3 +30,11 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Added runtime deps to `pyproject.toml`: `httpx`, `beautifulsoup4`, `lxml`
   - Bulletin + FSR scrapers tracked separately as Task 1.05 (not touched here)
   - Syntax-checked with `py_compile`; not run live yet (deps not installed on dev machine)
+
+- [x] **Task 1.05** — RBA Bulletin + FSR scrapers (2026-04-19)
+  - Extended `rba.py` with `scrape_bulletin()` and `scrape_fsr()` alongside `scrape_rdp()`
+  - Bulletin: walks the main index → each `YYYY/{mon}` issue page → collects article links matching `bulletin/YYYY/mon/*.html`, filters titles via `matches_housing`
+  - FSR: walks the main index → each issue page → collects all `.pdf` links under `/fsr/` (the whole review is housing-relevant, so no title filter)
+  - Refactored CLI to `python -m src.ingest.scrapers.rba {rdp|bulletin|fsr|all} --out …`; `all` runs every scraper and dedupes
+  - Date normalization: `YYYY-mon` for Bulletin/FSR, `YYYY` for RDPs
+  - Syntax-checked; live HTML structure not verified (dev machine lacks deps/network)
