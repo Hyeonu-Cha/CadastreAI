@@ -11,3 +11,9 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Added `.env.example` with `ANTHROPIC_API_KEY`, `QDRANT_URL/API_KEY`, LangSmith + Phoenix placeholders
   - Extended `.gitignore` to cover Python artifacts, `.env`, and `data/raw/`
   - Note: `uv` / `poetry` not installed on this machine; kept `pyproject.toml` tool-agnostic so either can adopt it later
+
+- [x] **Task 1.02** — Create repository directory skeleton (2026-04-19)
+  - Added `src/` package with subpackages: `ingest/` (+ `scrapers/`), `index/`, `training/`, `retrieval/`, `tools/`, `agent/`, `eval/`, `app/` — each with `__init__.py` so they import as Python packages
+  - Added `data/{raw,processed,eval,training}/` (raw is gitignored; others carry `.gitkeep`)
+  - Added top-level `notebooks/`, `scripts/`, `docs/`, `results/` with `.gitkeep` where empty
+  - `docs/` left empty for now (blog draft / architecture diagrams land here later)
