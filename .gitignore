@@ -1,1 +1,18 @@
 .claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Build / tooling
+dist/
+build/
+.ruff_cache/
+.pytest_cache/
+
+# Data (large / gitignored)
+data/raw/
