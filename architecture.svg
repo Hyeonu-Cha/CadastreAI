@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" width="900" height="620" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <!-- Gradients matching logo -->
+    <linearGradient id="primary" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a5f"/>
+      <stop offset="100%" stop-color="#2d5a8f"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="cool" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0891b2"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+
+    <!-- Arrow marker -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowAccent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#d97706"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" font-size="18" font-weight="700" fill="#1e3a5f">
+    CadastreAI — System Architecture
+  </text>
+  <text x="450" y="50" text-anchor="middle" font-size="12" fill="#64748b">
+    Hybrid RAG + Fine-tuned Retriever + Agentic Tool-Use over AU Housing Data
+  </text>
+
+  <!-- ====== Layer 1: User ====== -->
+  <g>
+    <rect x="300" y="75" width="300" height="55" rx="8" fill="white" stroke="#1e3a5f" stroke-width="2"/>
+    <text x="450" y="98" text-anchor="middle" font-size="14" font-weight="600" fill="#1e3a5f">
+      Streamlit Web UI
+    </text>
+    <text x="450" y="118" text-anchor="middle" font-size="11" fill="#64748b">
+      Persona selector · Chat · Reasoning trace · Inline charts
+    </text>
+  </g>
+
+  <!-- Arrow down -->
+  <line x1="450" y1="130" x2="450" y2="165" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ====== Layer 2: LangGraph Agent ====== -->
+  <g>
+    <rect x="130" y="170" width="640" height="130" rx="10" fill="#f8fafc" stroke="#1e3a5f" stroke-width="2" stroke-dasharray="4 2"/>
+    <text x="450" y="192" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3a5f">
+      LangGraph Agent — Multi-step Reasoning
+    </text>
+
+    <!-- Agent nodes -->
+    <g>
+      <rect x="155" y="210" width="105" height="65" rx="6" fill="url(#primary)"/>
+      <text x="207" y="235" text-anchor="middle" font-size="11" font-weight="600" fill="white">Classify</text>
+      <text x="207" y="251" text-anchor="middle" font-size="9" fill="#cbd5e1">persona,</text>
+      <text x="207" y="263" text-anchor="middle" font-size="9" fill="#cbd5e1">complexity</text>
+    </g>
+    <line x1="260" y1="243" x2="280" y2="243" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <g>
+      <rect x="285" y="210" width="105" height="65" rx="6" fill="url(#primary)"/>
+      <text x="337" y="235" text-anchor="middle" font-size="11" font-weight="600" fill="white">Decompose</text>
+      <text x="337" y="251" text-anchor="middle" font-size="9" fill="#cbd5e1">2–4 atomic</text>
+      <text x="337" y="263" text-anchor="middle" font-size="9" fill="#cbd5e1">sub-questions</text>
+    </g>
+    <line x1="390" y1="243" x2="410" y2="243" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <g>
+      <rect x="415" y="210" width="105" height="65" rx="6" fill="url(#accent)"/>
+      <text x="467" y="233" text-anchor="middle" font-size="11" font-weight="600" fill="white">Retrieve</text>
+      <text x="467" y="245" text-anchor="middle" font-size="11" font-weight="600" fill="white">/ Tool Call</text>
+      <text x="467" y="261" text-anchor="middle" font-size="9" fill="#fef3c7">router</text>
+    </g>
+    <line x1="520" y1="243" x2="540" y2="243" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <g>
+      <rect x="545" y="210" width="105" height="65" rx="6" fill="url(#primary)"/>
+      <text x="597" y="235" text-anchor="middle" font-size="11" font-weight="600" fill="white">Reflect</text>
+      <text x="597" y="251" text-anchor="middle" font-size="9" fill="#cbd5e1">gaps?</text>
+      <text x="597" y="263" text-anchor="middle" font-size="9" fill="#cbd5e1">loop or finish</text>
+    </g>
+    <line x1="650" y1="243" x2="670" y2="243" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <g>
+      <rect x="675" y="210" width="80" height="65" rx="6" fill="url(#primary)"/>
+      <text x="715" y="235" text-anchor="middle" font-size="11" font-weight="600" fill="white">Synthesize</text>
+      <text x="715" y="251" text-anchor="middle" font-size="9" fill="#cbd5e1">cited</text>
+      <text x="715" y="263" text-anchor="middle" font-size="9" fill="#cbd5e1">answer</text>
+    </g>
+
+    <!-- Loop-back arrow from Reflect to Retrieve -->
+    <path d="M 597 275 Q 597 295 500 295 Q 467 295 467 280" fill="none" stroke="#d97706" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#arrowAccent)"/>
+    <text x="500" y="291" text-anchor="middle" font-size="9" fill="#d97706" font-style="italic">iterate</text>
+  </g>
+
+  <!-- Arrows from agent to data layer -->
+  <line x1="300" y1="300" x2="220" y2="345" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="450" y1="300" x2="450" y2="345" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="600" y1="300" x2="680" y2="345" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ====== Layer 3: Data & Tool Sources ====== -->
+  <g>
+    <!-- Hybrid Retrieval -->
+    <rect x="80" y="350" width="260" height="150" rx="10" fill="white" stroke="#0891b2" stroke-width="2"/>
+    <text x="210" y="372" text-anchor="middle" font-size="13" font-weight="700" fill="#0891b2">
+      Hybrid Retrieval
+    </text>
+
+    <rect x="100" y="385" width="100" height="40" rx="4" fill="#ecfeff" stroke="#0891b2" stroke-width="1"/>
+    <text x="150" y="402" text-anchor="middle" font-size="10" font-weight="600" fill="#0e7490">BM25</text>
+    <text x="150" y="416" text-anchor="middle" font-size="9" fill="#64748b">sparse</text>
+
+    <rect x="220" y="385" width="100" height="40" rx="4" fill="#ecfeff" stroke="#0891b2" stroke-width="1"/>
+    <text x="270" y="402" text-anchor="middle" font-size="10" font-weight="600" fill="#0e7490">Dense (fine-tuned)</text>
+    <text x="270" y="416" text-anchor="middle" font-size="9" fill="#64748b">bge-au-housing-v1</text>
+
+    <rect x="100" y="435" width="220" height="30" rx="4" fill="#cffafe" stroke="#0891b2" stroke-width="1"/>
+    <text x="210" y="454" text-anchor="middle" font-size="10" font-weight="600" fill="#0e7490">Reciprocal Rank Fusion</text>
+
+    <rect x="100" y="472" width="220" height="22" rx="4" fill="url(#cool)"/>
+    <text x="210" y="487" text-anchor="middle" font-size="10" font-weight="600" fill="white">BGE Reranker v2-m3</text>
+  </g>
+
+  <!-- Live Tools -->
+  <g>
+    <rect x="360" y="350" width="180" height="150" rx="10" fill="white" stroke="#d97706" stroke-width="2"/>
+    <text x="450" y="372" text-anchor="middle" font-size="13" font-weight="700" fill="#d97706">
+      Live Data Tools
+    </text>
+
+    <text x="450" y="395" text-anchor="middle" font-size="10" fill="#1e3a5f">📊 RBA stats (F1, F6)</text>
+    <text x="450" y="413" text-anchor="middle" font-size="10" fill="#1e3a5f">🏘️ ABS property index</text>
+    <text x="450" y="431" text-anchor="middle" font-size="10" fill="#1e3a5f">🏗️ ABS building approvals</text>
+    <text x="450" y="449" text-anchor="middle" font-size="10" fill="#1e3a5f">🔑 SQM vacancy &amp; rents</text>
+    <text x="450" y="467" text-anchor="middle" font-size="10" fill="#1e3a5f">📈 Chart generator</text>
+    <text x="450" y="485" text-anchor="middle" font-size="10" fill="#1e3a5f">🧮 Yield &amp; stamp-duty calc</text>
+  </g>
+
+  <!-- LLM -->
+  <g>
+    <rect x="560" y="350" width="180" height="150" rx="10" fill="white" stroke="#1e3a5f" stroke-width="2"/>
+    <text x="650" y="372" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3a5f">
+      LLM
+    </text>
+
+    <rect x="580" y="390" width="140" height="44" rx="6" fill="url(#primary)"/>
+    <text x="650" y="409" text-anchor="middle" font-size="11" font-weight="600" fill="white">Claude Sonnet 4.5</text>
+    <text x="650" y="424" text-anchor="middle" font-size="9" fill="#cbd5e1">reasoning + synthesis</text>
+
+    <rect x="580" y="442" width="140" height="44" rx="6" fill="#e0e7ff" stroke="#475569" stroke-width="1"/>
+    <text x="650" y="461" text-anchor="middle" font-size="11" font-weight="600" fill="#1e3a5f">Claude Haiku 4.5</text>
+    <text x="650" y="476" text-anchor="middle" font-size="9" fill="#475569">classify · cheap steps</text>
+  </g>
+
+  <!-- Corpus -->
+  <g>
+    <!-- Arrow from hybrid retrieval to vector DB -->
+    <line x1="210" y1="500" x2="210" y2="530" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <rect x="80" y="535" width="260" height="70" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+    <text x="210" y="558" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3a5f">
+      Qdrant Vector DB
+    </text>
+    <text x="210" y="578" text-anchor="middle" font-size="10" fill="#475569">
+      ~50k chunks · 768-dim · hybrid payload
+    </text>
+    <text x="210" y="595" text-anchor="middle" font-size="9" fill="#64748b">
+      corpus: RBA · AHURI · CoreLogic · Grattan · SQM · ABS · APRA
+    </text>
+  </g>
+
+  <!-- Live Tools source annotation -->
+  <g>
+    <line x1="450" y1="500" x2="450" y2="530" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="360" y="535" width="180" height="70" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+    <text x="450" y="558" text-anchor="middle" font-size="12" font-weight="700" fill="#92400e">
+      AU Public APIs
+    </text>
+    <text x="450" y="576" text-anchor="middle" font-size="10" fill="#78350f">
+      RBA · ABS.Stat · SQM
+    </text>
+    <text x="450" y="592" text-anchor="middle" font-size="9" fill="#92400e">
+      cached 24h · timestamped
+    </text>
+  </g>
+</svg>
