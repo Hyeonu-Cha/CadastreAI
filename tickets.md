@@ -13,7 +13,7 @@
 - [x] **Task 1.01** — Initialize Python project (`uv init` or `poetry init`), create `pyproject.toml`, add `.env.example`, set Python 3.11+
 - [x] **Task 1.02** — Create repository directory skeleton (`src/ingest`, `src/index`, `src/training`, `src/retrieval`, `src/tools`, `src/agent`, `src/eval`, `src/app`, `data/{raw,processed,eval,training}`, `notebooks/`, `scripts/`, `docs/`)
 - [x] **Task 1.03** — Write `docker-compose.yml` with Qdrant service (+ optional Phoenix tracing)
-- [ ] **Task 1.04** — Implement `src/ingest/scrapers/rba.py` — discover all RDP PDF links from `rba.gov.au/publications/rdp/`, filter by housing keywords (housing, dwelling, property, mortgage, rent)
+- [x] **Task 1.04** — Implement `src/ingest/scrapers/rba.py` — discover all RDP PDF links from `rba.gov.au/publications/rdp/`, filter by housing keywords (housing, dwelling, property, mortgage, rent)
 - [ ] **Task 1.05** — Extend RBA scraper to also cover Bulletin housing articles and Financial Stability Review (FSR) PDFs
 - [ ] **Task 1.06** — Implement `src/ingest/scrapers/ahuri.py` — scrape AHURI final reports index at `ahuri.edu.au/research/final-reports`
 - [ ] **Task 1.07** — Implement `src/ingest/scrapers/grattan.py` — scrape Grattan Institute housing topic page

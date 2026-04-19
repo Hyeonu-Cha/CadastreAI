@@ -22,3 +22,11 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - `docker-compose.yml` defines `qdrant` (v1.12.4) on ports 6333/6334 with persistent `qdrant_storage` volume and optional API-key auth via `QDRANT_API_KEY`
   - TCP healthcheck on 6333
   - `phoenix` service gated behind `tracing` profile (run with `docker compose --profile tracing up`) for agent-trajectory debugging later in Week 3
+
+- [x] **Task 1.04** — RBA RDP scraper (2026-04-19)
+  - `src/ingest/scrapers/common.py`: shared `Source` dataclass, `HOUSING_KEYWORDS`, `matches_housing()`, `slugify()`, `write_jsonl()`, polite `USER_AGENT`
+  - `src/ingest/scrapers/rba.py`: fetches the RDP index at `rba.gov.au/publications/rdp/` via `httpx`, parses year headings + paper list items, keeps only housing-keyword-matching titles, emits JSONL of `Source` records
+  - CLI entrypoint: `python -m src.ingest.scrapers.rba --out data/raw/rba_rdp.jsonl`
+  - Added runtime deps to `pyproject.toml`: `httpx`, `beautifulsoup4`, `lxml`
+  - Bulletin + FSR scrapers tracked separately as Task 1.05 (not touched here)
+  - Syntax-checked with `py_compile`; not run live yet (deps not installed on dev machine)
