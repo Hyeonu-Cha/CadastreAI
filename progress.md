@@ -17,3 +17,8 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Added `data/{raw,processed,eval,training}/` (raw is gitignored; others carry `.gitkeep`)
   - Added top-level `notebooks/`, `scripts/`, `docs/`, `results/` with `.gitkeep` where empty
   - `docs/` left empty for now (blog draft / architecture diagrams land here later)
+
+- [x] **Task 1.03** — Docker Compose with Qdrant + optional Phoenix (2026-04-19)
+  - `docker-compose.yml` defines `qdrant` (v1.12.4) on ports 6333/6334 with persistent `qdrant_storage` volume and optional API-key auth via `QDRANT_API_KEY`
+  - TCP healthcheck on 6333
+  - `phoenix` service gated behind `tracing` profile (run with `docker compose --profile tracing up`) for agent-trajectory debugging later in Week 3
