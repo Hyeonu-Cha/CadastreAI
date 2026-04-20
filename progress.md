@@ -31,6 +31,15 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Bulletin + FSR scrapers tracked separately as Task 1.05 (not touched here)
   - Syntax-checked with `py_compile`; not run live yet (deps not installed on dev machine)
 
+- [x] **Task 1.11** — Domain + PropTrack quarterly reports scraper (2026-04-20)
+  - `src/ingest/scrapers/domain_proptrack.py`: covers two publishers in one module since they follow the same structural pattern
+  - Domain: `domain.com.au/research/` with `/page/N/` pagination; required-prefix filter pins article paths to `/research/`
+  - PropTrack: tries `proptrack.com.au/insights/` first, falls back to `realestate.com.au/insights/proptrack/` (mirror for some reports); required-prefix is dynamically derived from the resolved listing path
+  - Shared `_walk_pages()` helper factors pagination + dedupe between the two sub-scrapers
+  - `scrape()` runs both sub-scrapers and tolerates either failing (logs + continues)
+  - CLI supports `python -m src.ingest.scrapers.domain_proptrack {domain|proptrack|all} --out …`
+  - Gemini review: no blocking issues; noted cross-cutting follow-ups (promote `_dedupe` helper from `rba.py` to `common.py`, tighten `_DATE_RE`, narrow the date-search block)
+
 - [x] **Task 1.10** — SQM Research press-releases scraper (2026-04-20)
   - `src/ingest/scrapers/sqm.py`: scrapes sqmresearch.com.au press-releases index (tries `/press-releases.php`, `/news.php`, `/media-releases.php` in order)
   - `_looks_like_report()` accepts direct PDFs, press/media-release slugs, and ISO-date-bearing paths; rejects nav/account/contact prefixes and static assets
