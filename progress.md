@@ -31,6 +31,15 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Bulletin + FSR scrapers tracked separately as Task 1.05 (not touched here)
   - Syntax-checked with `py_compile`; not run live yet (deps not installed on dev machine)
 
+- [x] **Task 1.09** — CoreLogic / Cotality news-research scraper (2026-04-20)
+  - `src/ingest/scrapers/corelogic.py`: handles the CoreLogic → Cotality rebrand with `discover_base()` which tries `cotality.com/au/news-research`, `cotality.com/news-research`, `corelogic.com.au/au/news-research`, `corelogic.com.au/news-research` in order and uses the first 200 response
+  - No keyword filter (news-research listing is wholly housing-relevant); dedupes by URL
+  - `_is_article_path()` excludes nav/product/contact/about paths while accepting `/au/<slug>/` style article URLs
+  - 0.8s delay between page fetches, `--max-pages` default 25, `/page/N/` pagination convention
+  - Gemini code review (via gemini CLI) flagged no blocking issues; noted future improvements: tighter CSS selectors over `find_all("a")`, more precise date regex
+  - Syntax-checked; not run live (no network/deps on dev machine yet)
+  - **Workflow change:** from this ticket onward, merging via GitHub PR instead of local fast-forward, with gemini code review on each PR
+
 - [x] **Task 1.08** — Unified sources.jsonl collector (2026-04-19)
   - `scripts/collect_sources.py`: orchestrates `rba.scrape_all`, `ahuri.scrape`, `grattan.scrape`; merges + dedupes by URL; writes `data/raw/sources.jsonl`
   - Schema documented at top of script: `{title, publisher, url, date?, category?, extra?}`
