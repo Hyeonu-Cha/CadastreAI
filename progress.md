@@ -31,6 +31,14 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Bulletin + FSR scrapers tracked separately as Task 1.05 (not touched here)
   - Syntax-checked with `py_compile`; not run live yet (deps not installed on dev machine)
 
+- [x] **Task 1.12** — Treasury + Productivity Commission housing scraper (2026-04-20)
+  - `src/ingest/scrapers/treasury_pc.py`: scrapes Treasury (`treasury.gov.au/policy-topics/housing`) and Productivity Commission (`pc.gov.au/topics/housing` with `/inquiries/completed` fallback) — both Drupal sites
+  - Applies `matches_housing` keyword filter (unlike specialist scrapers) because both publishers cover far more than housing
+  - **Drupal 0-indexed pagination:** loop page 1 → landing URL, page 2 → `?page=1`, page 3 → `?page=2`, etc. Initial version incorrectly jumped from page 1 to `?page=2`, skipping the real second page (caught by gemini review and fixed pre-merge)
+  - Parent-block narrowed to `[article, li, tr]` (dropped `div`/`section`) so a single "housing" mention in a page header can't leak unrelated links through the keyword filter
+  - Known limitation: Treasury `/policy-topics/housing` is a topic hub, not a full paginated list — the hub links out to search-result pages at `/publications?topic=...` which this scraper does NOT follow. Flagged for a future improvement ticket
+  - Gemini review: initial pagination bug fixed on second review; remaining notes (date regex breadth, segment-count permissiveness) logged for cross-cutting cleanup
+
 - [x] **Task 1.11** — Domain + PropTrack quarterly reports scraper (2026-04-20)
   - `src/ingest/scrapers/domain_proptrack.py`: covers two publishers in one module since they follow the same structural pattern
   - Domain: `domain.com.au/research/` with `/page/N/` pagination; required-prefix filter pins article paths to `/research/`
