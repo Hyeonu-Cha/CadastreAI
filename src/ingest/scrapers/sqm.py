@@ -1,10 +1,11 @@
 """Scraper for SQM Research press releases and reports.
 
 SQM Research publishes monthly housing indices (vacancy rates, asking
-rents/prices, stock on market, distressed listings) through press releases
-on https://sqmresearch.com.au/. The index lives at
-`/press-releases.php`; each release links to an individual press-release
-page (usually `press-release-YYYY-MM-DD-<slug>.php`) and/or a direct PDF.
+rents/prices, stock on market, distressed listings) as PDFs linked from
+https://sqmresearch.com.au/media — a single long page containing every
+press release ever issued (~350+ items), so no pagination is needed. The
+older `/press-releases.php` endpoint is gone; `/media` is the canonical
+archive.
 
 SQM's output is wholly housing-focused so no keyword filter is applied.
 
@@ -28,6 +29,8 @@ log = logging.getLogger(__name__)
 
 BASE = "https://sqmresearch.com.au"
 LISTING_CANDIDATES = (
+    "/media",
+    # historical paths, kept as fallbacks in case /media is restructured
     "/press-releases.php",
     "/news.php",
     "/media-releases.php",

@@ -1,10 +1,13 @@
 """Scraper for AHURI Final Reports.
 
-AHURI (Australian Housing and Urban Research Institute) publishes all final
-reports under https://www.ahuri.edu.au/research/final-reports with a
-paginated listing UI (`?page=N`). Each list item links to a report detail
-page which in turn links to the PDF. We capture the detail-page URL plus
-title/year from the list; PDF resolution happens in the downloader.
+AHURI (Australian Housing and Urban Research Institute) publishes all
+final reports under its research library at
+https://www.ahuri.edu.au/research/research-library with a paginated
+listing UI (Drupal-style `?page=N`, 0-indexed: bare URL = page 0,
+`?page=1` = page 2, …). Each list item links to a report detail page
+(`/research/final-reports/<N>`) which in turn links to the PDF. We
+capture the detail-page URL plus title/year from the list; PDF
+resolution happens in the downloader.
 
 The entire AHURI corpus is housing-relevant, so we do not apply the
 `matches_housing` keyword filter (unlike RBA's broader catalogue).
@@ -28,7 +31,7 @@ from src.ingest.scrapers.common import USER_AGENT, Source, write_jsonl
 log = logging.getLogger(__name__)
 
 BASE = "https://www.ahuri.edu.au"
-LISTING_URL = f"{BASE}/research/final-reports"
+LISTING_URL = f"{BASE}/research/research-library"
 PUBLISHER = "AHURI"
 CATEGORY = "final-report"
 

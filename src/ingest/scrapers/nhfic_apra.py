@@ -48,11 +48,15 @@ HA_PUBLISHER = "Housing Australia (NHFIC)"
 HA_CATEGORY = "government"
 
 APRA_BASE = "https://www.apra.gov.au"
-APRA_LISTING_CANDIDATES = (
-    "/publications",
-    "/publications/",
-    "/statistics",
-    "/authorised-deposit-taking-institutions",
+# APRA's public /publications page redirects to /news-and-publications,
+# which is a category hub rendered server-side with only 8 top-level
+# category tiles — walking the listing yields zero individual items.
+# The live sitemap at /sitemap.xml is a sitemapindex that points at two
+# paginated sub-sitemaps; those list every public page on the site, and
+# we keyword-filter the slugs for housing/mortgage/lending relevance.
+APRA_SITEMAP_URLS = (
+    f"{APRA_BASE}/sitemap.xml?page=1",
+    f"{APRA_BASE}/sitemap.xml?page=2",
 )
 APRA_PUBLISHER = "APRA"
 APRA_CATEGORY = "regulatory-statistics"
@@ -271,29 +275,66 @@ def scrape_housing_australia(*, max_pages: int = 15, delay_s: float = 0.8) -> li
     return unique
 
 
+_SITEMAP_LOC_RE = re.compile(r"<loc>([^<]+)</loc>")
+
+
+def _slug_to_title(path: str) -> str:
+    tail = path.rstrip("/").rsplit("/", 1)[-1]
+    return tail.replace("-", " ").replace("_", " ").strip().title()
+
+
 def scrape_apra(*, max_pages: int = 15, delay_s: float = 0.8) -> list[Source]:
-    with _client() as client:
-        listing_url = _discover(client, APRA_BASE, APRA_LISTING_CANDIDATES)
-        log.info("APRA listing: %s", listing_url)
-        sources = _walk_pages(
-            listing_url=listing_url,
-            allowed_netloc="apra.gov.au",
-            publisher=APRA_PUBLISHER,
-            category=APRA_CATEGORY,
-            apply_keyword_filter=True,  # APRA covers insurance/super too
-            client=client,
-            max_pages=max_pages,
-            delay_s=delay_s,
-        )
+    """Discover APRA housing-adjacent pages via the internal sitemap.
+
+    max_pages / delay_s are accepted for signature compatibility; this
+    function only issues two HTTP requests (one per sitemap chunk).
+    """
+    sources: list[Source] = []
     seen: set[str] = set()
-    unique: list[Source] = []
-    for s in sources:
-        if s.url in seen:
-            continue
-        seen.add(s.url)
-        unique.append(s)
-    log.info("Total unique APRA items: %d", len(unique))
-    return unique
+    with _client() as client:
+        for sitemap_url in APRA_SITEMAP_URLS:
+            log.info("Fetching APRA sitemap %s", sitemap_url)
+            try:
+                resp = client.get(sitemap_url)
+                resp.raise_for_status()
+            except httpx.HTTPError as e:
+                log.warning("  failed: %s", e)
+                continue
+            urls = _SITEMAP_LOC_RE.findall(resp.text)
+            log.info("  %d URLs", len(urls))
+            for url in urls:
+                # Sitemap entries sometimes return the internal Drupal
+                # preview host (prod.apra.shared.skpr.live) instead of the
+                # public domain; pin the netloc to the public host so
+                # downloader URL validation doesn't choke.
+                parsed = urlparse(url)
+                if parsed.netloc and parsed.netloc != "www.apra.gov.au":
+                    parsed = parsed._replace(netloc="www.apra.gov.au")
+                public = parsed.geturl()
+                if "apra.gov.au" not in parsed.netloc:
+                    continue
+                path = parsed.path
+                if not path or path == "/":
+                    continue
+                title = _slug_to_title(path)
+                if len(title) < 6:
+                    continue
+                if not matches_housing(title):
+                    continue
+                if public in seen:
+                    continue
+                seen.add(public)
+                sources.append(
+                    Source(
+                        title=title,
+                        publisher=APRA_PUBLISHER,
+                        url=public,
+                        date=None,
+                        category=APRA_CATEGORY,
+                    )
+                )
+    log.info("Total unique APRA items: %d", len(sources))
+    return sources
 
 
 def scrape(*, max_pages: int = 15, delay_s: float = 0.8) -> list[Source]:
