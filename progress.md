@@ -31,6 +31,14 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Bulletin + FSR scrapers tracked separately as Task 1.05 (not touched here)
   - Syntax-checked with `py_compile`; not run live yet (deps not installed on dev machine)
 
+- [x] **Task 1.13** — NHFIC / Housing Australia + APRA scraper (2026-04-20)
+  - `src/ingest/scrapers/nhfic_apra.py`: two P2 publishers covering mortgage-market + guarantee-scheme material
+  - Housing Australia (formerly NHFIC): tries `/research`, `/publications`, `/resources` — wholly housing agency, no keyword filter
+  - APRA: tries `/publications`, `/statistics`, `/authorised-deposit-taking-institutions` — covers banking/insurance/super too, so `matches_housing` filter IS applied
+  - Drupal 0-indexed pagination (same pattern as Task 1.12): page 1 → landing, page N≥2 → `?page=N-1`
+  - **Pagination guard strengthened over Task 1.12:** now requires ≥2 new URLs per page to continue walking. If only 0–1 new items show up on a given page, the scraper assumes the main pager is exhausted and only a sidebar is rotating — it captures the lone new item (if any) and stops. Caught by gemini review as HIGH — without this guard a rotating "Recent Publications" sidebar would drag every run to `max_pages`
+  - Also tightened parent-block to `[article, li, tr]` to avoid header-level keyword leakage (same fix as Task 1.12)
+
 - [x] **Task 1.12** — Treasury + Productivity Commission housing scraper (2026-04-20)
   - `src/ingest/scrapers/treasury_pc.py`: scrapes Treasury (`treasury.gov.au/policy-topics/housing`) and Productivity Commission (`pc.gov.au/topics/housing` with `/inquiries/completed` fallback) — both Drupal sites
   - Applies `matches_housing` keyword filter (unlike specialist scrapers) because both publishers cover far more than housing
