@@ -4,7 +4,12 @@ Both publishers release quarterly housing reports (house price reports,
 rental reports, market reports) that are core references for AU housing
 analysis.
 
-- Domain: https://www.domain.com.au/research/
+- Domain: https://www.domain.com.au/research/ — NOTE: all /research*
+  paths currently time out against any User-Agent (including browser UAs),
+  implying WAF/bot-detection. Without a headless browser we cannot reach
+  it; the discover_listing step fails and Domain yields zero sources. Kept
+  in the module so a future fix (playwright, proxy, API key) drops in
+  without further plumbing.
 - PropTrack: https://www.proptrack.com.au/insights/ (also mirrored at
   https://www.realestate.com.au/insights/proptrack/ for some reports)
 

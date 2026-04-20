@@ -48,14 +48,22 @@ TREASURY_PUBLISHER = "Australian Treasury"
 TREASURY_CATEGORY = "government"
 
 PC_BASE = "https://www.pc.gov.au"
-PC_LISTING_CANDIDATES = (
-    "/topics/housing",
-    "/topics/housing/",
-    "/ongoing/housing",
-    "/inquiries/completed",
-)
+# The PC site is now an SPA — the /inquiries-and-research listing renders
+# its items via client-side JS, so static HTML scraping yields ~zero
+# results. Fall back to walking the sitemap, which lists every inquiry
+# and speech page. We filter housing-relevant entries by URL path.
+PC_SITEMAP_URL = f"{PC_BASE}/sitemap.xml"
 PC_PUBLISHER = "Productivity Commission"
 PC_CATEGORY = "government"
+# Only URLs whose path starts with one of these are candidates. Excludes
+# boilerplate (privacy, contact, etc.) and the raw /node/<id> URLs.
+_PC_KEEP_PATH_PREFIXES = (
+    "/inquiries-and-research/",
+    "/ongoing/",
+    "/media-speeches/",
+    "/closing-the-gap-data/",
+    "/competitive-neutrality/",
+)
 
 _DATE_RE = re.compile(
     r"(\d{1,2}\s+[A-Za-z]+\s+\d{4}|[A-Za-z]+\s+\d{1,2},\s*\d{4}|\b(19|20)\d{2}\b)"
@@ -263,32 +271,66 @@ def scrape_treasury(*, max_pages: int = 15, delay_s: float = 0.8) -> list[Source
     return unique
 
 
+_SITEMAP_LOC_RE = re.compile(r"<loc>([^<]+)</loc>")
+
+
+def _deslugify(path: str) -> str:
+    """Turn the final slug of a URL into a readable title."""
+    tail = path.rstrip("/").rsplit("/", 1)[-1]
+    return tail.replace("-", " ").replace("_", " ").strip().title()
+
+
 def scrape_pc(*, max_pages: int = 15, delay_s: float = 0.8) -> list[Source]:
+    """Walk the PC sitemap and keep housing-relevant URLs.
+
+    max_pages / delay_s are accepted for signature compatibility with the
+    other scrapers but not meaningfully used — the sitemap is a single
+    fetch. We apply the `matches_housing` keyword filter to each URL's
+    final slug (de-slugified) since sitemap entries have no surrounding
+    prose context.
+    """
     with _client() as client:
-        listing_url = _discover(client, PC_BASE, PC_LISTING_CANDIDATES)
-        log.info("PC housing listing: %s", listing_url)
-        # If we fell back to the generic /inquiries/completed page, we MUST
-        # keyword-filter. If we're on /topics/housing the filter is still
-        # cheap insurance.
-        sources = _walk_pages(
-            listing_url=listing_url,
-            allowed_netloc="pc.gov.au",
-            publisher=PC_PUBLISHER,
-            category=PC_CATEGORY,
-            apply_keyword_filter=True,
-            client=client,
-            max_pages=max_pages,
-            delay_s=delay_s,
-        )
-    seen: set[str] = set()
-    unique: list[Source] = []
-    for s in sources:
-        if s.url in seen:
-            continue
-        seen.add(s.url)
-        unique.append(s)
-    log.info("Total unique PC items: %d", len(unique))
-    return unique
+        log.info("Fetching PC sitemap %s", PC_SITEMAP_URL)
+        try:
+            resp = client.get(PC_SITEMAP_URL)
+            resp.raise_for_status()
+        except httpx.HTTPError as e:
+            log.warning("PC sitemap fetch failed (%s); returning zero sources", e)
+            return []
+        urls = _SITEMAP_LOC_RE.findall(resp.text)
+        log.info("  sitemap has %d URLs", len(urls))
+
+        sources: list[Source] = []
+        seen: set[str] = set()
+        for url in urls:
+            parsed = urlparse(url)
+            if "pc.gov.au" not in parsed.netloc:
+                continue
+            path = parsed.path
+            if not any(path.startswith(p) for p in _PC_KEEP_PATH_PREFIXES):
+                continue
+            slug_title = _deslugify(path)
+            if len(slug_title) < 4:
+                continue
+            # Keyword-filter on the slug; matches_housing catches "housing",
+            # "rental", "homelessness", etc. Without this we'd keep every
+            # inquiry-and-research page (~1800+ items, mostly unrelated).
+            if not matches_housing(slug_title):
+                continue
+            if url in seen:
+                continue
+            seen.add(url)
+            sources.append(
+                Source(
+                    title=slug_title,
+                    publisher=PC_PUBLISHER,
+                    url=url,
+                    date=None,
+                    category=PC_CATEGORY,
+                )
+            )
+    log.info("Total unique PC items: %d", len(sources))
+    return sources
 
 
 def scrape(*, max_pages: int = 15, delay_s: float = 0.8) -> list[Source]:
