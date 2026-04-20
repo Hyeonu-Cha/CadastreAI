@@ -31,6 +31,15 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Bulletin + FSR scrapers tracked separately as Task 1.05 (not touched here)
   - Syntax-checked with `py_compile`; not run live yet (deps not installed on dev machine)
 
+- [x] **Task 1.10** — SQM Research press-releases scraper (2026-04-20)
+  - `src/ingest/scrapers/sqm.py`: scrapes sqmresearch.com.au press-releases index (tries `/press-releases.php`, `/news.php`, `/media-releases.php` in order)
+  - `_looks_like_report()` accepts direct PDFs, press/media-release slugs, and ISO-date-bearing paths; rejects nav/account/contact prefixes and static assets
+  - Title fallback: for anchor-less PDF links (common on SQM), derives title from the URL stem
+  - Pagination guard: stops when `?page=N` returns identical URLs to page 1 (SQM's PHP template ignores the query param in most layouts) — prevents infinite loops
+  - No keyword filter (SQM output is wholly housing-focused)
+  - Gemini review: no blocking issues; noted fragility in `discover_listing` length heuristic and broad `_DATE_RE`
+  - Syntax-checked
+
 - [x] **Task 1.09** — CoreLogic / Cotality news-research scraper (2026-04-20)
   - `src/ingest/scrapers/corelogic.py`: handles the CoreLogic → Cotality rebrand with `discover_base()` which tries `cotality.com/au/news-research`, `cotality.com/news-research`, `corelogic.com.au/au/news-research`, `corelogic.com.au/news-research` in order and uses the first 200 response
   - No keyword filter (news-research listing is wholly housing-relevant); dedupes by URL

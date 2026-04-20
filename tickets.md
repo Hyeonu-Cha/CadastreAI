@@ -21,8 +21,8 @@
 
 ### Day 2 — Remaining scrapers + bulk download
 
-- [ ] **Task 1.09** — Implement `src/ingest/scrapers/corelogic.py` — scrape CoreLogic/Cotality news & research index
-- [ ] **Task 1.10** — Implement `src/ingest/scrapers/sqm.py` — scrape SQM Research monthly reports index
+- [x] **Task 1.09** — Implement `src/ingest/scrapers/corelogic.py` — scrape CoreLogic/Cotality news & research index
+- [x] **Task 1.10** — Implement `src/ingest/scrapers/sqm.py` — scrape SQM Research monthly reports index
 - [ ] **Task 1.11** — Implement `src/ingest/scrapers/domain_proptrack.py` — scrape Domain research + PropTrack insights quarterly reports
 - [ ] **Task 1.12** — Implement `src/ingest/scrapers/treasury_pc.py` — Treasury + Productivity Commission housing pages
 - [ ] **Task 1.13** — Implement `src/ingest/scrapers/nhfic_apra.py` — NHFIC/Housing Australia + APRA quarterly stats (P2)
