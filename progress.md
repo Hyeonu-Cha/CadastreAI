@@ -31,6 +31,16 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Bulletin + FSR scrapers tracked separately as Task 1.05 (not touched here)
   - Syntax-checked with `py_compile`; not run live yet (deps not installed on dev machine)
 
+- [x] **Task 1.14** — Polite concurrent downloader (2026-04-20)
+  - `src/ingest/download.py`: async downloader that reads `data/raw/sources.jsonl` and writes `data/raw/{publisher_slug}/{yyyy-mm}_{slug}.pdf`
+  - Global concurrency cap via `asyncio.Semaphore` (default 4); per-host serialization + 1.0s min-delay via `_HostGate` async context manager — every outgoing request (both HTML landing page and follow-up PDF fetch) passes through the gate
+  - Streams responses directly to a `.part` sidecar via `client.stream()` + `aiter_bytes()`; file writes offloaded via `asyncio.to_thread` so the event loop stays responsive; atomic rename on success
+  - Direct-PDF URLs stream from the initial response without buffering or double-downloading. HTML landing pages: body is consumed once (`resp.aread()`), parsed for the first `.pdf` link, followed in a second streamed request
+  - Retries with exponential backoff + jitter (default 3 attempts, 1.5s base); 404s short-circuit without retry
+  - Resume: skips targets that already exist non-empty; emits `{in_path}.download.json` report with ok/skipped/failed counts + failure list
+  - CLI: `python -m src.ingest.download --in data/raw/sources.jsonl --out-dir data/raw --concurrency 4 --per-host-delay-s 1.0`
+  - Gemini review caught three real issues pre-merge: host-gate leak on the second request, blocking file I/O inside the event loop, and full-body buffering before content-type check. Each fixed and re-reviewed clean
+
 - [x] **Task 1.13** — NHFIC / Housing Australia + APRA scraper (2026-04-20)
   - `src/ingest/scrapers/nhfic_apra.py`: two P2 publishers covering mortgage-market + guarantee-scheme material
   - Housing Australia (formerly NHFIC): tries `/research`, `/publications`, `/resources` — wholly housing agency, no keyword filter
