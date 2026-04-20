@@ -249,6 +249,12 @@ async def _download_one(
             except httpx.HTTPError as e:
                 last_error = repr(e)
                 err = last_error
+            except (ValueError, OSError) as e:
+                # Malformed URL (e.g. a scraped href that turned out to
+                # be a local filesystem path), bad unicode, path-too-long
+                # on Windows, etc. — bail on this task without retry so a
+                # single poisoned entry can't crash the whole batch.
+                return DownloadResult(task=task, status="failed", error=repr(e))
 
         if err is None:
             return DownloadResult(task=task, status="ok", path=target)

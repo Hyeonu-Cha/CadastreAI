@@ -31,6 +31,15 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Bulletin + FSR scrapers tracked separately as Task 1.05 (not touched here)
   - Syntax-checked with `py_compile`; not run live yet (deps not installed on dev machine)
 
+- [x] **Task 1.15** — Bulk download run: 351 PDFs collected (2026-04-20)
+  - Extended `scripts/collect_sources.py` to include the 5 new scrapers (corelogic, sqm, domain_proptrack, treasury_pc, nhfic_apra)
+  - Live scraper run produced `data/raw/sources.jsonl` with **646 unique source URLs** across 6 working publishers: RBA 304, PropTrack 218, CoreLogic/Cotality 72, Housing Australia (NHFIC) 29, Treasury 15, Grattan 8
+  - Five scrapers returned 0 in this run and need investigation (AHURI, Domain, SQM, APRA, PC — site structures shifted since scrapers were written); filed as follow-up debugging tickets
+  - Full download run: **292 OK + 59 skipped = 351 PDFs saved** (hits the 250–350 target). 295 failures, 293 of which are "no pdf link found" — these are HTML-only web articles (mostly PropTrack & CoreLogic/Cotality) that need a different parsing path in Task 1.16
+  - **Critical bug found + fixed during the run:** one PropTrack page contained a leaked local filesystem path (`/C:/Users/eleanor.creagh/Downloads/...`) as a PDF href. `urljoin` produced an unparseable URL and the raised `ValueError` propagated out of the async gather, crashing the whole batch. Fixed `_download_one` to catch `ValueError` and `OSError` (Windows path-length, malformed URL) as per-task failures. Rerunning resumed from 40/646 thanks to the skip-existing logic
+  - On-disk layout at `data/raw/{publisher-slug}/{yyyy-mm}_{slug}.pdf` matches the Task 1.14 spec
+  - `data/raw/` is gitignored; the commit only carries the collector update + the downloader resilience fix
+
 - [x] **Task 1.14** — Polite concurrent downloader (2026-04-20)
   - `src/ingest/download.py`: async downloader that reads `data/raw/sources.jsonl` and writes `data/raw/{publisher_slug}/{yyyy-mm}_{slug}.pdf`
   - Global concurrency cap via `asyncio.Semaphore` (default 4); per-host serialization + 1.0s min-delay via `_HostGate` async context manager — every outgoing request (both HTML landing page and follow-up PDF fetch) passes through the gate

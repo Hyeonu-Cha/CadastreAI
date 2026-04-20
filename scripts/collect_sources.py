@@ -22,7 +22,16 @@ import logging
 from dataclasses import asdict
 from pathlib import Path
 
-from src.ingest.scrapers import ahuri, grattan, rba
+from src.ingest.scrapers import (
+    ahuri,
+    corelogic,
+    domain_proptrack,
+    grattan,
+    nhfic_apra,
+    rba,
+    sqm,
+    treasury_pc,
+)
 from src.ingest.scrapers.common import Source, write_jsonl
 
 log = logging.getLogger(__name__)
@@ -31,6 +40,11 @@ SCRAPERS = {
     "rba": rba.scrape_all,
     "ahuri": ahuri.scrape,
     "grattan": grattan.scrape,
+    "corelogic": corelogic.scrape,
+    "sqm": sqm.scrape,
+    "domain_proptrack": domain_proptrack.scrape,
+    "treasury_pc": treasury_pc.scrape,
+    "nhfic_apra": nhfic_apra.scrape,
 }
 
 
