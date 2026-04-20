@@ -31,6 +31,16 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Bulletin + FSR scrapers tracked separately as Task 1.05 (not touched here)
   - Syntax-checked with `py_compile`; not run live yet (deps not installed on dev machine)
 
+- [x] **Task 1.16** — Install docling; implement `src/ingest/parse.py` (2026-04-20)
+  - `src/ingest/parse.py`: walks `data/raw/{publisher}/*.pdf`, converts each via docling's `DocumentConverter.convert()` + `export_to_markdown()`, writes `data/processed/{publisher}/{stem}.md` preserving headings (`##`), paragraphs, and GitHub-flavored tables
+  - Single converter instance reused across PDFs (model load is the bottleneck); lazy-imported at call time so `--help` stays instant
+  - Resume: skips existing non-empty `.md` targets; `--force` flag to reparse
+  - Failures logged to `data/processed/parse.failures.jsonl` (JSON lines of `{pdf_path, publisher, error}`) for the Task 1.17 pymupdf4llm fallback to retry
+  - Added `docling>=2.0` as a `[project.optional-dependencies].parse` extra — heavy (pulls torch + vision models, ~1–2 GB on first run), kept optional so scraper-only users aren't forced into it
+  - Smoke test on 3 PDFs: 3/3 OK, ~25s/PDF, output markdown preserves `## headings` + paragraph flow; images are emitted as `<!-- image -->` placeholders (docling default)
+  - **Full parsing run deferred** — at ~25 s/PDF × 351 PDFs ≈ 2.5 h, that's a long unattended run; coded the pipeline now, will kick off the full run in a follow-up session or let Task 1.17 (pymupdf4llm fallback) land first so the whole pipeline can run end-to-end
+  - Gemini review: no blocking issues; minor suggestions (`rglob` instead of level-by-level iteration, append-mode for failures log) deferred
+
 - [x] **Task 1.15** — Bulk download run: 351 PDFs collected (2026-04-20)
   - Extended `scripts/collect_sources.py` to include the 5 new scrapers (corelogic, sqm, domain_proptrack, treasury_pc, nhfic_apra)
   - Live scraper run produced `data/raw/sources.jsonl` with **646 unique source URLs** across 6 working publishers: RBA 304, PropTrack 218, CoreLogic/Cotality 72, Housing Australia (NHFIC) 29, Treasury 15, Grattan 8

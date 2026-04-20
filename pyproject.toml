@@ -13,6 +13,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Heavy parsing deps — pulled in by `pip install .[parse]`. docling brings
+# torch + vision models (~1-2 GB on first model download); kept optional
+# so scraper/downloader-only users aren't forced to install them.
+parse = [
+    "docling>=2.0",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
