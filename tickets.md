@@ -26,7 +26,7 @@
 - [x] **Task 1.11** — Implement `src/ingest/scrapers/domain_proptrack.py` — scrape Domain research + PropTrack insights quarterly reports
 - [x] **Task 1.12** — Implement `src/ingest/scrapers/treasury_pc.py` — Treasury + Productivity Commission housing pages
 - [x] **Task 1.13** — Implement `src/ingest/scrapers/nhfic_apra.py` — NHFIC/Housing Australia + APRA quarterly stats (P2)
-- [ ] **Task 1.14** — Write polite concurrent downloader (`src/ingest/download.py`) with rate limiting, retries, resume-on-failure; output `data/raw/{publisher}/{yyyy-mm}_{slug}.pdf`
+- [x] **Task 1.14** — Write polite concurrent downloader (`src/ingest/download.py`) with rate limiting, retries, resume-on-failure; output `data/raw/{publisher}/{yyyy-mm}_{slug}.pdf`
 - [ ] **Task 1.15** — Run bulk download targeting 250–350 PDFs (~2–5 GB) and verify counts per publisher
 
 ### Day 3 — Parsing + chunking
