@@ -33,11 +33,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import logging
 import random
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -141,6 +142,34 @@ def _target_stem(task: DownloadTask, out_dir: Path) -> Path:
     prefix = _date_prefix(task.date)
     slug = slugify(task.title, max_len=80) or "untitled"
     return out_dir / pub_slug / f"{prefix}_{slug}"
+
+
+def _compute_unique_stems(
+    tasks: list[DownloadTask], out_dir: Path
+) -> list[Path]:
+    """Map each task to a target stem, guaranteeing no two share one.
+
+    Several scrapers produce Source records whose filename components
+    collide — most notably the RBA FSR scraper, where each chapter's
+    anchor text is generic "Download PDF" so every chapter of an issue
+    slugifies to `{year}-00_download-pdf`. Before this guard, 252 URLs
+    (including 206 RBA chapters) silently overwrote each other on disk.
+
+    Rule: if a stem is claimed by more than one task, every one of them
+    gets an 8-char MD5 suffix derived from its source URL so each lands
+    at a unique path. Non-colliding stems are left alone so filenames
+    stay readable for the common case.
+    """
+    raw_stems = [_target_stem(t, out_dir) for t in tasks]
+    counts: Counter[str] = Counter(str(s) for s in raw_stems)
+    resolved: list[Path] = []
+    for task, stem in zip(tasks, raw_stems, strict=True):
+        if counts[str(stem)] > 1:
+            h = hashlib.md5(task.url.encode("utf-8")).hexdigest()[:8]
+            resolved.append(stem.parent / f"{stem.name}_{h}")
+        else:
+            resolved.append(stem)
+    return resolved
 
 
 class _HostGate:
@@ -256,14 +285,13 @@ async def _fetch_and_save(
 async def _download_one(
     task: DownloadTask,
     *,
-    out_dir: Path,
+    stem: Path,
     client: httpx.AsyncClient,
     gate: _HostGate,
     sem: asyncio.Semaphore,
     max_retries: int,
     backoff_s: float,
 ) -> DownloadResult:
-    stem = _target_stem(task, out_dir)
     for suffix in (".pdf", ".html"):
         existing = stem.with_suffix(suffix)
         if existing.exists() and existing.stat().st_size > 0:
@@ -319,6 +347,16 @@ async def _run(
     sem = asyncio.Semaphore(concurrency)
     gate = _HostGate(min_delay_s=per_host_delay_s)
     headers = {"User-Agent": USER_AGENT}
+    stems = _compute_unique_stems(tasks, out_dir)
+    collision_count = sum(
+        1 for s, t in zip(stems, tasks, strict=True)
+        if s != _target_stem(t, out_dir)
+    )
+    if collision_count:
+        log.info(
+            "disambiguated %d tasks whose target stems collided "
+            "(appended URL-hash suffix)", collision_count,
+        )
     async with httpx.AsyncClient(
         headers=headers,
         timeout=timeout_s,
@@ -327,14 +365,14 @@ async def _run(
         coros = [
             _download_one(
                 t,
-                out_dir=out_dir,
+                stem=stem,
                 client=client,
                 gate=gate,
                 sem=sem,
                 max_retries=max_retries,
                 backoff_s=backoff_s,
             )
-            for t in tasks
+            for t, stem in zip(tasks, stems, strict=True)
         ]
         results: list[DownloadResult] = []
         for idx, fut in enumerate(asyncio.as_completed(coros), start=1):
