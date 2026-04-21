@@ -18,6 +18,7 @@ dependencies = [
 # so scraper/downloader-only users aren't forced to install them.
 parse = [
     "docling>=2.0",
+    "pymupdf4llm>=0.0.17",
 ]
 dev = [
     "pytest>=8.0",

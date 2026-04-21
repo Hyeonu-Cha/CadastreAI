@@ -31,6 +31,17 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Bulletin + FSR scrapers tracked separately as Task 1.05 (not touched here)
   - Syntax-checked with `py_compile`; not run live yet (deps not installed on dev machine)
 
+- [x] **Task 1.17** — `pymupdf4llm` fallback parser for docling failures (2026-04-21)
+  - `src/ingest/parse_fallback.py`: reads `data/processed/parse.failures.jsonl` produced by `src.ingest.parse`, retries each failed PDF with `pymupdf4llm.to_markdown()`, writes successful conversions to the same `data/processed/{publisher}/{stem}.md` layout as the docling path
+  - `convert_pdf()` lazy-imports `pymupdf4llm` so `--help` / other code paths don't pay the PyMuPDF load cost
+  - Skips targets that already have a non-empty `.md` (consistent with `parse.py`); `--force` flag to overwrite
+  - Empty-markdown output is treated as a failure (pymupdf4llm occasionally returns `""` on heavily scan-only PDFs)
+  - Remaining failures written to `data/processed/parse.failures.final.jsonl` for manual review — that's the end of the automated parsing funnel
+  - CLI: `python -m src.ingest.parse_fallback --failures data/processed/parse.failures.jsonl --raw-dir data/raw --out-dir data/processed [--limit N] [--force]`
+  - Added `pymupdf4llm>=0.0.17` to the `[parse]` optional-dependencies alongside docling; pulls in PyMuPDF + onnxruntime + pymupdf-layout but no torch/vision models
+  - Smoke test: 3/3 PDFs converted, 104k–524k chars each, headings and paragraph structure preserved (tables often degrade to plain paragraphs — expected trade-off for recovering scan/encrypted/malformed-stream PDFs that docling can't process)
+  - Motivation: docling's `standard_pdf_pipeline` crashed with `std::bad_alloc` on an image-heavy multi-page PDF during the full parse run, killing the process before any failures file could be written; pymupdf4llm is lightweight enough to serve as a no-torch backstop
+
 - [x] **Task 1.16** — Install docling; implement `src/ingest/parse.py` (2026-04-20)
   - `src/ingest/parse.py`: walks `data/raw/{publisher}/*.pdf`, converts each via docling's `DocumentConverter.convert()` + `export_to_markdown()`, writes `data/processed/{publisher}/{stem}.md` preserving headings (`##`), paragraphs, and GitHub-flavored tables
   - Single converter instance reused across PDFs (model load is the bottleneck); lazy-imported at call time so `--help` stays instant
