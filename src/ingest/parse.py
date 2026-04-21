@@ -1,10 +1,11 @@
-"""Convert downloaded PDFs to markdown using docling.
+"""Convert downloaded PDFs and HTML articles to markdown using docling.
 
-Walks `data/raw/{publisher}/*.pdf` and writes markdown to
+Walks `data/raw/{publisher}/*.{pdf,html}` and writes markdown to
 `data/processed/{publisher}/{same-stem}.md`, preserving document
 structure — headings (`#` / `##` / `###`), paragraph flow, and tables
 (rendered as GitHub-flavored markdown tables by docling's
-`export_to_markdown`).
+`export_to_markdown`). docling handles both formats natively via a
+single `DocumentConverter` instance.
 
 Failures (scan-only PDFs with no text, encrypted files, docling
 exceptions) are logged to `data/processed/parse.failures.jsonl` so the
@@ -39,24 +40,26 @@ class ParseFailure:
     error: str
 
 
-def _discover_pdfs(raw_dir: Path) -> list[Path]:
-    pdfs: list[Path] = []
+def _discover_docs(raw_dir: Path) -> list[Path]:
+    """Return all .pdf and .html files under publisher subdirectories."""
+    docs: list[Path] = []
     for pub_dir in sorted(p for p in raw_dir.iterdir() if p.is_dir()):
         if pub_dir.name in _SKIP_DIRS:
             continue
-        pdfs.extend(sorted(pub_dir.glob("*.pdf")))
-    return pdfs
+        for pattern in ("*.pdf", "*.html"):
+            docs.extend(sorted(pub_dir.glob(pattern)))
+    return docs
 
 
-def _target_md(pdf: Path, raw_dir: Path, out_dir: Path) -> Path:
-    # data/raw/{publisher}/{stem}.pdf → data/processed/{publisher}/{stem}.md
-    rel = pdf.relative_to(raw_dir)
+def _target_md(doc: Path, raw_dir: Path, out_dir: Path) -> Path:
+    # data/raw/{publisher}/{stem}.{pdf|html} → data/processed/{publisher}/{stem}.md
+    rel = doc.relative_to(raw_dir)
     return (out_dir / rel).with_suffix(".md")
 
 
-def convert_pdf(pdf: Path, *, converter) -> str:
-    """Run docling on a single PDF and return the markdown body."""
-    result = converter.convert(str(pdf))
+def convert_doc(doc: Path, *, converter) -> str:
+    """Run docling on a single PDF or HTML file and return markdown."""
+    result = converter.convert(str(doc))
     return result.document.export_to_markdown()
 
 
@@ -75,51 +78,51 @@ def parse_all(
 
     converter = DocumentConverter()
 
-    pdfs = _discover_pdfs(raw_dir)
+    docs = _discover_docs(raw_dir)
     if limit:
-        pdfs = pdfs[:limit]
-    log.info("Discovered %d PDFs under %s", len(pdfs), raw_dir)
+        docs = docs[:limit]
+    log.info("Discovered %d documents under %s", len(docs), raw_dir)
 
     ok = 0
     skipped = 0
     failures: list[ParseFailure] = []
-    for idx, pdf in enumerate(pdfs, start=1):
-        target = _target_md(pdf, raw_dir, out_dir)
+    for idx, doc in enumerate(docs, start=1):
+        target = _target_md(doc, raw_dir, out_dir)
         if target.exists() and target.stat().st_size > 0 and not force:
             skipped += 1
-            if idx % 25 == 0 or idx == len(pdfs):
+            if idx % 25 == 0 or idx == len(docs):
                 log.info(
                     "progress %d/%d  ok=%d skipped=%d failed=%d",
-                    idx, len(pdfs), ok, skipped, len(failures),
+                    idx, len(docs), ok, skipped, len(failures),
                 )
             continue
 
         target.parent.mkdir(parents=True, exist_ok=True)
         start = time.monotonic()
         try:
-            md = convert_pdf(pdf, converter=converter)
+            md = convert_doc(doc, converter=converter)
         except Exception as e:  # noqa: BLE001 — docling raises many different errors
             failures.append(
                 ParseFailure(
-                    pdf_path=str(pdf),
-                    publisher=pdf.parent.name,
+                    pdf_path=str(doc),
+                    publisher=doc.parent.name,
                     error=f"{type(e).__name__}: {e}",
                 )
             )
-            log.warning("FAIL %s — %s", pdf.name, e)
+            log.warning("FAIL %s — %s", doc.name, e)
         else:
             target.write_text(md, encoding="utf-8")
             ok += 1
             elapsed = time.monotonic() - start
             log.info(
                 "[%d/%d] %s — %d chars in %.1fs",
-                idx, len(pdfs), pdf.name, len(md), elapsed,
+                idx, len(docs), doc.name, len(md), elapsed,
             )
 
-        if idx % 25 == 0 or idx == len(pdfs):
+        if idx % 25 == 0 or idx == len(docs):
             log.info(
                 "progress %d/%d  ok=%d skipped=%d failed=%d",
-                idx, len(pdfs), ok, skipped, len(failures),
+                idx, len(docs), ok, skipped, len(failures),
             )
 
     return ok, skipped, failures

@@ -1,8 +1,16 @@
 """Polite concurrent downloader for entries in `data/raw/sources.jsonl`.
 
-Reads a sources.jsonl file and downloads each entry's PDF to
-`data/raw/{publisher_slug}/{yyyy-mm}_{slug}.pdf`. Direct PDF URLs are
-fetched as-is; HTML landing pages are parsed for the first PDF link.
+Reads a sources.jsonl file and downloads each entry's document to
+`data/raw/{publisher_slug}/{yyyy-mm}_{slug}.{pdf,html}`. Three resolution
+paths:
+
+1. Direct PDF URL (or response content-type is PDF) → save as `.pdf`.
+2. HTML landing page with a PDF link in-body → follow link, save PDF.
+3. HTML page with no PDF link → save the HTML body as `.html`. Many
+   PropTrack / CoreLogic / Domain articles are pure HTML (no companion
+   PDF); dropping them as "no pdf link found" was shrinking the
+   investor/homebuyer corpus by ~20%. docling parses HTML too, so
+   downstream chunking handles both.
 
 Politeness features:
 
@@ -30,10 +38,10 @@ import logging
 import random
 import time
 from collections import defaultdict
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncIterator
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -121,11 +129,18 @@ def _date_prefix(date: str | None) -> str:
     return "unknown"
 
 
-def _target_path(task: DownloadTask, out_dir: Path) -> Path:
+def _target_stem(task: DownloadTask, out_dir: Path) -> Path:
+    """Return the target path without an extension.
+
+    The extension is chosen at download time: `.pdf` when a PDF is
+    retrieved, `.html` when we fall back to saving the landing page
+    body. Callers should `.with_suffix(".pdf" | ".html")` before touching
+    the filesystem.
+    """
     pub_slug = slugify(task.publisher, max_len=40) or "unknown"
     prefix = _date_prefix(task.date)
     slug = slugify(task.title, max_len=80) or "untitled"
-    return out_dir / pub_slug / f"{prefix}_{slug}.pdf"
+    return out_dir / pub_slug / f"{prefix}_{slug}"
 
 
 class _HostGate:
@@ -179,21 +194,27 @@ async def _stream_response_to_file(
     await asyncio.to_thread(part.replace, target)
 
 
+_MIN_HTML_BYTES = 1024
+
+
 async def _fetch_and_save(
     task: DownloadTask,
     *,
-    target: Path,
+    stem: Path,
     client: httpx.AsyncClient,
     gate: _HostGate,
-) -> str | None:
-    """Resolve and download the PDF for `task` to `target`.
+) -> tuple[Path | None, str | None]:
+    """Resolve and download the document for `task`.
 
-    Returns None on success, or an error string on failure. Each HTTP
-    request — including the second request when we follow a landing
-    page to its PDF — passes through the host gate, so the per-host
-    delay is always respected. The initial request is opened as a
-    stream so a direct-PDF URL is piped to disk without buffering the
-    whole body in memory.
+    Returns (saved_path, error). On success, `saved_path` is the actual
+    file written (suffix `.pdf` or `.html`) and `error` is None. On
+    failure, `saved_path` is None and `error` is a short string.
+
+    Each HTTP request — including the second request when we follow a
+    landing page to its PDF — passes through the host gate, so the
+    per-host delay is always respected. The initial request is opened
+    as a stream so a direct-PDF URL is piped to disk without buffering
+    the whole body in memory.
     """
     url = task.url
     async with gate.at(url):
@@ -201,8 +222,9 @@ async def _fetch_and_save(
             resp.raise_for_status()
             content_type = resp.headers.get("content-type", "").lower()
             if "pdf" in content_type or url.lower().endswith(".pdf"):
+                target = stem.with_suffix(".pdf")
                 await _stream_response_to_file(resp, target=target)
-                return None
+                return target, None
             # HTML landing page — read body now (small) so we can close
             # this response before making the follow-up request.
             html = (await resp.aread()).decode(resp.encoding or "utf-8", errors="replace")
@@ -215,9 +237,20 @@ async def _fetch_and_save(
             async with gate.at(pdf_url):
                 async with client.stream("GET", pdf_url) as pdf_resp:
                     pdf_resp.raise_for_status()
+                    target = stem.with_suffix(".pdf")
                     await _stream_response_to_file(pdf_resp, target=target)
-            return None
-    return "no pdf link found"
+            return target, None
+
+    # No PDF link in the page — save the HTML body so docling can parse
+    # the article directly. Guard against tiny "empty shell" pages
+    # (login redirects, JS-only containers) that would produce zero
+    # useful markdown downstream.
+    if len(html.encode("utf-8", errors="replace")) < _MIN_HTML_BYTES:
+        return None, "no pdf link found; html body too small to save"
+    target = stem.with_suffix(".html")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    await asyncio.to_thread(target.write_text, html, "utf-8")
+    return target, None
 
 
 async def _download_one(
@@ -230,16 +263,19 @@ async def _download_one(
     max_retries: int,
     backoff_s: float,
 ) -> DownloadResult:
-    target = _target_path(task, out_dir)
-    if target.exists() and target.stat().st_size > 0:
-        return DownloadResult(task=task, status="skipped", path=target)
+    stem = _target_stem(task, out_dir)
+    for suffix in (".pdf", ".html"):
+        existing = stem.with_suffix(suffix)
+        if existing.exists() and existing.stat().st_size > 0:
+            return DownloadResult(task=task, status="skipped", path=existing)
 
     last_error: str | None = None
     for attempt in range(1, max_retries + 1):
         async with sem:
+            saved: Path | None = None
             try:
-                err = await _fetch_and_save(
-                    task, target=target, client=client, gate=gate
+                saved, err = await _fetch_and_save(
+                    task, stem=stem, client=client, gate=gate
                 )
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 404:
@@ -256,10 +292,10 @@ async def _download_one(
                 # single poisoned entry can't crash the whole batch.
                 return DownloadResult(task=task, status="failed", error=repr(e))
 
-        if err is None:
-            return DownloadResult(task=task, status="ok", path=target)
+        if err is None and saved is not None:
+            return DownloadResult(task=task, status="ok", path=saved)
 
-        last_error = err
+        last_error = err or last_error
         if attempt < max_retries:
             await asyncio.sleep(
                 backoff_s * (2 ** (attempt - 1)) + random.uniform(0, 0.3)

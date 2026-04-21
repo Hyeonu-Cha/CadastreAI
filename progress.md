@@ -31,6 +31,16 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Bulletin + FSR scrapers tracked separately as Task 1.05 (not touched here)
   - Syntax-checked with `py_compile`; not run live yet (deps not installed on dev machine)
 
+- [x] **Follow-up (Task 1.14/1.15/1.16)** — HTML-article download + parse path (2026-04-21)
+  - External review flagged the "no pdf link found" failures (293/646 on the first bulk run, ~20% of sources) as a corpus-shape problem, not a bug: PropTrack/CoreLogic/Domain publish a large share of their content as pure HTML articles with no companion PDF. Dropping them skewed the corpus towards RBA research papers and undermined the homebuyer/investor personas
+  - `src/ingest/download.py`: `_target_path` → `_target_stem` (returns Path without suffix). `_fetch_and_save` now returns `(saved_path, error)` so the caller knows whether a `.pdf` or `.html` landed. New fallback branch: if the landing page response is HTML and no in-body PDF link is found, save the HTML body as `.html` instead of failing with "no pdf link found". Guard: skip saving if body is <1 KB (login walls / JS-only shells would produce zero useful markdown downstream)
+  - `_download_one` skip-check widened to cover both `.pdf` and `.html` targets so a partial rerun doesn't re-download either form
+  - `src/ingest/parse.py`: `_discover_pdfs` → `_discover_docs` (globs both `*.pdf` and `*.html`). `convert_pdf` → `convert_doc`. docling's `DocumentConverter.convert()` dispatches on extension, so PDF and HTML go through the same code path
+  - `src/ingest/parse_fallback.py`: skip non-PDF entries in the failures file (pymupdf4llm is PDF-only; HTML docling failures need a different retry path, which is out of scope for now — they pass through to `parse.failures.final.jsonl` unchanged)
+  - Smoke test on 5 PropTrack sources: 5/5 OK — one URL was a landing page with a real PDF link (followed and saved as `.pdf`), four were pure HTML articles (saved as `.html`). docling converted the HTML article cleanly to 12.9k chars of structured markdown with headings, images-as-placeholders, and author/date metadata intact
+  - Also fixed a pre-existing `UP035` lint warning (`from typing import AsyncIterator` → `from collections.abc import AsyncIterator`) while I was in the file
+  - Deferred: the reviewer's related note about `_date_prefix → "unknown"` filename collisions (two undated PDFs with the same slug silently overwrite each other). Real concern — the PropTrack smoke test had three `unknown_*.html` files in one directory — but easier to fix as a one-liner hash-suffix patch separately so this PR stays tightly scoped
+
 - [x] **Task 1.17** — `pymupdf4llm` fallback parser for docling failures (2026-04-21)
   - `src/ingest/parse_fallback.py`: reads `data/processed/parse.failures.jsonl` produced by `src.ingest.parse`, retries each failed PDF with `pymupdf4llm.to_markdown()`, writes successful conversions to the same `data/processed/{publisher}/{stem}.md` layout as the docling path
   - `convert_pdf()` lazy-imports `pymupdf4llm` so `--help` / other code paths don't pay the PyMuPDF load cost
