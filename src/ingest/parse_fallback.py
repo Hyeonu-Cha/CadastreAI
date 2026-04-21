@@ -107,6 +107,13 @@ def fallback_all(
 
     for idx, fail in enumerate(failures, start=1):
         pdf = Path(fail.pdf_path)
+        if pdf.suffix.lower() != ".pdf":
+            # pymupdf4llm is PDF-only. HTML docling failures have no
+            # retry path here — pass them through to the final failures
+            # file unchanged so they surface in manual review.
+            still_failing.append(fail)
+            log.info("SKIP %s (not a pdf)", pdf.name)
+            continue
         if not pdf.exists():
             still_failing.append(
                 ParseFailure(
