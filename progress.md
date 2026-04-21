@@ -31,6 +31,12 @@ Tracks completed tickets with short notes. See `tickets.md` for the full backlog
   - Bulletin + FSR scrapers tracked separately as Task 1.05 (not touched here)
   - Syntax-checked with `py_compile`; not run live yet (deps not installed on dev machine)
 
+- [x] **Follow-up (Task 1.14)** — Filename collision guard in downloader (2026-04-21)
+  - After the HTML-fallback landed and the full download re-ran, 40 stems collided across 292 tasks, silently dropping **252 URLs** on disk — 206 of them RBA FSR chapters (each issue's 22 chapter anchors all read "Download PDF", slugifying identically to `{year}-00_download-pdf`). PropTrack 36, APRA 5, PC 3, AHURI 2 rounded out the loss
+  - `src/ingest/download.py`: new `_compute_unique_stems()` pre-scans all tasks, detects stems claimed by more than one task, appends an 8-char MD5-of-URL suffix to every colliding member (non-colliding stems stay short for readability). `_download_one` now takes its resolved `stem` as a parameter instead of recomputing from the task; `_run` logs the collision count at startup
+  - Verified on the real `sources.jsonl`: 1430 tasks → 1430 unique stems (292 got a hash suffix). Sample RBA FSR: `2025-00_download-pdf_de1b1545.pdf`, `2025-00_download-pdf_79e8fc1f.pdf`, …
+  - Without this, anything fed to the Task 1.16/1.17 parsers was built on a corpus that had silently lost 17% of its RBA FSR content — parse metrics would have looked fine but downstream retrieval recall on financial-stability topics would have been quietly hollowed out
+
 - [x] **Follow-up (Task 1.14/1.15/1.16)** — HTML-article download + parse path (2026-04-21)
   - External review flagged the "no pdf link found" failures (293/646 on the first bulk run, ~20% of sources) as a corpus-shape problem, not a bug: PropTrack/CoreLogic/Domain publish a large share of their content as pure HTML articles with no companion PDF. Dropping them skewed the corpus towards RBA research papers and undermined the homebuyer/investor personas
   - `src/ingest/download.py`: `_target_path` → `_target_stem` (returns Path without suffix). `_fetch_and_save` now returns `(saved_path, error)` so the caller knows whether a `.pdf` or `.html` landed. New fallback branch: if the landing page response is HTML and no in-body PDF link is found, save the HTML body as `.html` instead of failing with "no pdf link found". Guard: skip saving if body is <1 KB (login walls / JS-only shells would produce zero useful markdown downstream)
