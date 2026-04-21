@@ -53,9 +53,13 @@ def _read_failures(path: Path) -> list[ParseFailure]:
             except json.JSONDecodeError as e:
                 log.warning("failures line %d: %s", line_no, e)
                 continue
+            pdf_path = obj.get("pdf_path")
+            if not pdf_path:
+                log.warning("failures line %d: missing pdf_path, skipping", line_no)
+                continue
             failures.append(
                 ParseFailure(
-                    pdf_path=obj["pdf_path"],
+                    pdf_path=pdf_path,
                     publisher=obj.get("publisher", ""),
                     error=obj.get("error", ""),
                 )
