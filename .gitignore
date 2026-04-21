@@ -16,3 +16,5 @@ build/
 
 # Data (large / gitignored)
 data/raw/
+data/processed/*
+!data/processed/.gitkeep

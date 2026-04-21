@@ -32,7 +32,7 @@
 ### Day 3 — Parsing + chunking
 
 - [x] **Task 1.16** — Install `docling`; implement `src/ingest/parse.py` converting PDFs → markdown with headings and tables preserved
-- [ ] **Task 1.17** — Add `pymupdf4llm` fallback path for docs that fail `docling`; log failures
+- [x] **Task 1.17** — Add `pymupdf4llm` fallback path for docs that fail `docling`; log failures
 - [ ] **Task 1.18** — Implement `src/ingest/chunk.py` — recursive heading-aware chunking (500–800 tokens, 100-token overlap)
 - [ ] **Task 1.19** — Attach chunk metadata (`publisher, title, date, section_heading, page, url, chunk_id`) and emit `data/processed/chunks.jsonl` (target 30–80k chunks)
 
