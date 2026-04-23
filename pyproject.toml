@@ -27,6 +27,10 @@ embed = [
     "sentence-transformers>=3.0",
     "numpy>=1.26",
 ]
+index = [
+    "qdrant-client>=1.12",
+    "numpy>=1.26",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
