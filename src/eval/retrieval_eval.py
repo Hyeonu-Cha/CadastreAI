@@ -32,6 +32,9 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
+from src.index.bm25 import DEFAULT_INDEX as DEFAULT_BM25_INDEX
+from src.index.bm25 import BM25Index
+from src.index.hybrid import HybridRetriever
 from src.retrieval.retriever import Retriever
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -129,11 +132,28 @@ def _load_queries(path: Path) -> list[dict]:
     return rows
 
 
+def _describe(retriever: object) -> dict:
+    """Best-effort descriptor for the eval report."""
+    if isinstance(retriever, Retriever):
+        return {"kind": "dense", "model": retriever.model_name, "collection": retriever.collection}
+    if isinstance(retriever, BM25Index):
+        return {"kind": "bm25", "docs": len(retriever.chunks)}
+    if isinstance(retriever, HybridRetriever):
+        return {
+            "kind": "hybrid",
+            "shortlist": retriever.shortlist,
+            "k_rrf": retriever.k_rrf,
+            "dense": _describe(retriever.dense),
+            "sparse": _describe(retriever.sparse),
+        }
+    return {"kind": type(retriever).__name__}
+
+
 def run(
     queries_path: Path,
     out_path: Path,
     top_k: int,
-    retriever: Retriever | None = None,
+    retriever: object | None = None,
     limit: int | None = None,
 ) -> dict:
     retriever = retriever or Retriever()
@@ -170,10 +190,7 @@ def run(
     out = {
         "queries_path": str(queries_path),
         "top_k": top_k,
-        "retriever": {
-            "model": retriever.model_name,
-            "collection": retriever.collection,
-        },
+        "retriever": _describe(retriever),
         "overall": overall,
         "by_persona": by_persona,
         "per_query": [
@@ -215,12 +232,35 @@ def run(
     return out
 
 
+def _build_retriever(kind: str, bm25_index_path: Path, shortlist: int, k_rrf: int) -> object:
+    if kind == "dense":
+        return Retriever()
+    if kind == "bm25":
+        return BM25Index.load(bm25_index_path)
+    if kind == "hybrid":
+        return HybridRetriever(
+            sparse=BM25Index.load(bm25_index_path),
+            shortlist=shortlist,
+            k_rrf=k_rrf,
+        )
+    raise ValueError(f"unknown retriever kind: {kind}")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--queries", type=Path, default=Path("data/eval/queries_all.jsonl"))
     p.add_argument("--out", type=Path, default=Path("results/baseline.json"))
     p.add_argument("-k", "--top-k", type=int, default=10)
     p.add_argument("--limit", type=int, default=None, help="evaluate only first N queries")
+    p.add_argument(
+        "--retriever",
+        choices=["dense", "bm25", "hybrid"],
+        default="dense",
+        help="which retriever to evaluate",
+    )
+    p.add_argument("--bm25-index", type=Path, default=DEFAULT_BM25_INDEX)
+    p.add_argument("--shortlist", type=int, default=50, help="hybrid per-source shortlist")
+    p.add_argument("--k-rrf", type=int, default=60, help="hybrid RRF constant")
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args()
 
@@ -228,7 +268,14 @@ def main() -> None:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s | %(message)s",
     )
-    run(queries_path=args.queries, out_path=args.out, top_k=args.top_k, limit=args.limit)
+    retriever = _build_retriever(args.retriever, args.bm25_index, args.shortlist, args.k_rrf)
+    run(
+        queries_path=args.queries,
+        out_path=args.out,
+        top_k=args.top_k,
+        retriever=retriever,
+        limit=args.limit,
+    )
 
 
 if __name__ == "__main__":
