@@ -35,6 +35,8 @@ from pathlib import Path
 from src.index.bm25 import DEFAULT_INDEX as DEFAULT_BM25_INDEX
 from src.index.bm25 import BM25Index
 from src.index.hybrid import HybridRetriever
+from src.retrieval.rerank import DEFAULT_MODEL as DEFAULT_RERANKER_MODEL
+from src.retrieval.rerank import RerankedRetriever, Reranker
 from src.retrieval.retriever import Retriever
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -81,6 +83,7 @@ class QueryResult:
     recall_10: float
     mrr_10: float
     ndcg_10: float
+    latency_ms: float = 0.0
 
 
 def evaluate_query(
@@ -89,6 +92,7 @@ def evaluate_query(
     gold: list[str],
     retrieved: list[str],
     k_values: tuple[int, ...] = (5, 10),
+    latency_ms: float = 0.0,
 ) -> QueryResult:
     gold_set = set(gold)
     ranks: dict[str, int | None] = {gid: None for gid in gold}
@@ -105,6 +109,7 @@ def evaluate_query(
         recall_10=recall_at_k(retrieved, gold_set, 10),
         mrr_10=reciprocal_rank(retrieved, gold_set, 10),
         ndcg_10=ndcg_at_k(retrieved, gold_set, 10),
+        latency_ms=latency_ms,
     )
 
 
@@ -146,7 +151,29 @@ def _describe(retriever: object) -> dict:
             "dense": _describe(retriever.dense),
             "sparse": _describe(retriever.sparse),
         }
+    if isinstance(retriever, RerankedRetriever):
+        return {
+            "kind": "reranked",
+            "shortlist": retriever.shortlist,
+            "model": retriever.reranker.model_name if retriever.reranker else None,
+            "device": retriever.reranker.device if retriever.reranker else None,
+            "base": _describe(retriever.base),
+        }
     return {"kind": type(retriever).__name__}
+
+
+def _latency_stats(values_ms: list[float]) -> dict[str, float]:
+    if not values_ms:
+        return {"mean_ms": 0.0, "median_ms": 0.0, "p95_ms": 0.0, "max_ms": 0.0}
+    s = sorted(values_ms)
+    n = len(s)
+    p95_idx = max(0, min(n - 1, int(round(0.95 * (n - 1)))))
+    return {
+        "mean_ms": sum(s) / n,
+        "median_ms": s[n // 2],
+        "p95_ms": s[p95_idx],
+        "max_ms": s[-1],
+    }
 
 
 def run(
@@ -165,7 +192,9 @@ def run(
     results: list[QueryResult] = []
     t0 = time.time()
     for i, rec in enumerate(queries, start=1):
+        q_start = time.perf_counter()
         hits = retriever.retrieve(rec["query"], k=top_k)
+        latency_ms = (time.perf_counter() - q_start) * 1000.0
         retrieved_ids = [payload.get("chunk_id") for payload, _ in hits]
         results.append(
             evaluate_query(
@@ -173,6 +202,7 @@ def run(
                 persona=rec.get("persona") or "?",
                 gold=rec.get("gold_chunk_ids") or [],
                 retrieved=retrieved_ids,
+                latency_ms=latency_ms,
             )
         )
         if i % 10 == 0 or i == len(queries):
@@ -187,11 +217,14 @@ def run(
     for persona, rs in buckets.items():
         by_persona[persona] = aggregate(rs)
 
+    latency = _latency_stats([r.latency_ms for r in results])
+
     out = {
         "queries_path": str(queries_path),
         "top_k": top_k,
         "retriever": _describe(retriever),
         "overall": overall,
+        "latency": latency,
         "by_persona": by_persona,
         "per_query": [
             {
@@ -204,6 +237,7 @@ def run(
                 "recall@10": r.recall_10,
                 "mrr@10": r.mrr_10,
                 "ndcg@10": r.ndcg_10,
+                "latency_ms": r.latency_ms,
             }
             for r in results
         ],
@@ -214,12 +248,14 @@ def run(
         json.dump(out, f, ensure_ascii=False, indent=2)
 
     log.info(
-        "Wrote %s | R@5=%.3f R@10=%.3f MRR@10=%.3f nDCG@10=%.3f",
+        "Wrote %s | R@5=%.3f R@10=%.3f MRR@10=%.3f nDCG@10=%.3f | median=%.0fms p95=%.0fms",
         out_path,
         overall["recall@5"],
         overall["recall@10"],
         overall["mrr@10"],
         overall["ndcg@10"],
+        latency["median_ms"],
+        latency["p95_ms"],
     )
     print(
         f"n={overall['n']} "
@@ -227,6 +263,7 @@ def run(
         f"R@10={overall['recall@10']:.3f} "
         f"MRR@10={overall['mrr@10']:.3f} "
         f"nDCG@10={overall['ndcg@10']:.3f} "
+        f"median={latency['median_ms']:.0f}ms p95={latency['p95_ms']:.0f}ms "
         f"out={out_path}"
     )
     return out
@@ -246,6 +283,16 @@ def _build_retriever(kind: str, bm25_index_path: Path, shortlist: int, k_rrf: in
     raise ValueError(f"unknown retriever kind: {kind}")
 
 
+def _wrap_with_reranker(
+    base: object, model: str, device: str | None, shortlist: int
+) -> RerankedRetriever:
+    return RerankedRetriever(
+        base=base,
+        reranker=Reranker(model_name=model, device=device),
+        shortlist=shortlist,
+    )
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--queries", type=Path, default=Path("data/eval/queries_all.jsonl"))
@@ -261,6 +308,22 @@ def main() -> None:
     p.add_argument("--bm25-index", type=Path, default=DEFAULT_BM25_INDEX)
     p.add_argument("--shortlist", type=int, default=50, help="hybrid per-source shortlist")
     p.add_argument("--k-rrf", type=int, default=60, help="hybrid RRF constant")
+    p.add_argument(
+        "--rerank",
+        action="store_true",
+        help="wrap base retriever with cross-encoder reranker",
+    )
+    p.add_argument(
+        "--rerank-model", default=DEFAULT_RERANKER_MODEL, help="cross-encoder model id"
+    )
+    p.add_argument(
+        "--rerank-shortlist", type=int, default=30, help="reranker shortlist size"
+    )
+    p.add_argument(
+        "--rerank-device",
+        default=None,
+        help="torch device for the reranker (e.g. 'cpu', 'cuda')",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args()
 
@@ -269,6 +332,13 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s | %(message)s",
     )
     retriever = _build_retriever(args.retriever, args.bm25_index, args.shortlist, args.k_rrf)
+    if args.rerank:
+        retriever = _wrap_with_reranker(
+            retriever,
+            model=args.rerank_model,
+            device=args.rerank_device,
+            shortlist=args.rerank_shortlist,
+        )
     run(
         queries_path=args.queries,
         out_path=args.out,
