@@ -18,8 +18,14 @@ Inputs:
  - data/training/triplets.jsonl with rows
    {"anchor": "...", "positive": "...", "negatives": [...]}
    produced by `src.training.build_triplets`.
- - The triplets are split into train / dev (default 95/5, seeded) so we
-   can monitor a contrastive eval loss across epochs.
+ - The triplets are split into train / dev (default 90/10, seeded). The
+   dev split feeds a `RerankingEvaluator` that computes MAP and MRR@10
+   at the end of every epoch — gives us an early-stopping signal and
+   training curves without needing the full retrieval-eval pipeline.
+
+Eval output:
+ - <out_dir>/eval/RerankingEvaluator_dev_results.csv (per-epoch MAP/MRR)
+ - stdout logs include training-loss-per-step from `fit()`.
 
 Output: a trained sentence-transformers model directory under
 `--out-dir` (default `models/bge-base-cadastre/`). The directory is
@@ -51,7 +57,7 @@ DEFAULT_BATCH = 64
 DEFAULT_EPOCHS = 3
 DEFAULT_LR = 2e-5
 DEFAULT_WARMUP_RATIO = 0.1
-DEFAULT_DEV_FRAC = 0.05
+DEFAULT_DEV_FRAC = 0.10
 DEFAULT_SEED = 42
 _QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 
@@ -87,6 +93,29 @@ def _split_train_dev(
     rng.shuffle(shuffled)
     n_dev = max(1, int(len(shuffled) * dev_frac)) if dev_frac > 0 else 0
     return shuffled[n_dev:], shuffled[:n_dev]
+
+
+def _build_dev_eval_samples(rows: list[dict]) -> list[dict]:
+    """Shape dev rows for `RerankingEvaluator`.
+
+    The evaluator takes `[{"query", "positive": [...], "negative": [...]}]`
+    and computes MAP and MRR@10 by ranking each query against the union
+    of its positives + negatives. We use the *raw* anchor without the
+    BGE query prefix here — `RerankingEvaluator` calls `model.encode()`
+    directly on whatever string we hand it, and adding the prefix here
+    would still match because the model is trained with prefixed anchors.
+    Keeping it raw matches the eval/inference path our retriever already
+    uses (which prefixes inside `embed.py`).
+    """
+    return [
+        {
+            "query": _QUERY_PREFIX + r["anchor"],
+            "positive": [r["positive"]],
+            "negative": list(r["negatives"]),
+        }
+        for r in rows
+        if r.get("anchor") and r.get("positive") and r.get("negatives")
+    ]
 
 
 def _to_input_examples(rows: list[dict], n_negatives: int):
@@ -131,6 +160,7 @@ def run(
     n_negatives: int,
 ) -> dict:
     from sentence_transformers import SentenceTransformer
+    from sentence_transformers.evaluation import RerankingEvaluator
     from sentence_transformers.losses import MultipleNegativesRankingLoss
     from torch.utils.data import DataLoader
 
@@ -149,6 +179,18 @@ def run(
     train_examples = _to_input_examples(train_rows, n_negatives)
     log.info("Built %d train InputExamples (anchor+pos+%d negs)", len(train_examples), n_negatives)
 
+    evaluator = None
+    if dev_rows:
+        dev_samples = _build_dev_eval_samples(dev_rows)
+        evaluator = RerankingEvaluator(
+            samples=dev_samples,
+            name="dev",
+            mrr_at_k=10,
+            batch_size=batch,
+            show_progress_bar=False,
+        )
+        log.info("Built RerankingEvaluator over %d dev samples", len(dev_samples))
+
     log.info("Loading base model %s", base_model)
     model = SentenceTransformer(base_model)
     loss = MultipleNegativesRankingLoss(model)
@@ -160,8 +202,8 @@ def run(
     steps_per_epoch = max(1, len(train_loader))
     warmup_steps = int(steps_per_epoch * epochs * warmup_ratio)
     log.info(
-        "fit() epochs=%d batch=%d lr=%g warmup_steps=%d",
-        epochs, batch, lr, warmup_steps,
+        "fit() epochs=%d batch=%d lr=%g warmup_steps=%d eval_per_epoch=%s",
+        epochs, batch, lr, warmup_steps, evaluator is not None,
     )
     model.fit(
         train_objectives=[(train_loader, loss)],
@@ -169,6 +211,8 @@ def run(
         warmup_steps=warmup_steps,
         optimizer_params={"lr": lr},
         output_path=str(out_dir),
+        evaluator=evaluator,
+        evaluation_steps=steps_per_epoch if evaluator is not None else 0,
         save_best_model=False,
         show_progress_bar=True,
     )
