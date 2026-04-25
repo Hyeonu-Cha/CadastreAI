@@ -21,7 +21,10 @@ reading existing `--out` and skipping chunk_ids that already have
 records. Run it twice and the second pass should be a no-op.
 
     python -m src.training.generate_pairs --sample 2000 -n 2 \
-        --out data/training/pairs.jsonl
+        --out data/training/pairs_raw.jsonl
+
+The raw output is filtered by `src.training.filter_pairs` (Task 2.07) to
+produce the canonical `data/training/pairs.jsonl` consumed downstream.
 """
 from __future__ import annotations
 
@@ -305,7 +308,7 @@ def run(
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--chunks", type=Path, default=Path("data/processed/chunks.jsonl"))
-    p.add_argument("--out", type=Path, default=Path("data/training/pairs.jsonl"))
+    p.add_argument("--out", type=Path, default=Path("data/training/pairs_raw.jsonl"))
     p.add_argument("--eval-dir", type=Path, default=Path("data/eval"))
     p.add_argument("--sample", type=int, default=DEFAULT_SAMPLE)
     p.add_argument("-n", "--per-chunk", type=int, default=DEFAULT_PER_CHUNK)
