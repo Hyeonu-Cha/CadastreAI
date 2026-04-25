@@ -269,13 +269,36 @@ def run(
     return out
 
 
-def _build_retriever(kind: str, bm25_index_path: Path, shortlist: int, k_rrf: int) -> object:
+def _build_retriever(
+    kind: str,
+    bm25_index_path: Path,
+    shortlist: int,
+    k_rrf: int,
+    *,
+    dense_model: str | None = None,
+    dense_collection: str | None = None,
+) -> object:
+    """Construct a retriever instance for the eval run.
+
+    `dense_model` / `dense_collection`, when set, override the BGE-base /
+    `cadastre_chunks` defaults so we can benchmark fine-tuned checkpoints
+    (Task 2.13/14) without altering the live collection.
+    """
+    def _dense() -> Retriever:
+        kwargs = {}
+        if dense_model is not None:
+            kwargs["model_name"] = dense_model
+        if dense_collection is not None:
+            kwargs["collection"] = dense_collection
+        return Retriever(**kwargs)
+
     if kind == "dense":
-        return Retriever()
+        return _dense()
     if kind == "bm25":
         return BM25Index.load(bm25_index_path)
     if kind == "hybrid":
         return HybridRetriever(
+            dense=_dense(),
             sparse=BM25Index.load(bm25_index_path),
             shortlist=shortlist,
             k_rrf=k_rrf,
@@ -309,6 +332,16 @@ def main() -> None:
     p.add_argument("--shortlist", type=int, default=50, help="hybrid per-source shortlist")
     p.add_argument("--k-rrf", type=int, default=60, help="hybrid RRF constant")
     p.add_argument(
+        "--dense-model",
+        default=None,
+        help="override dense encoder model (e.g. models/bge-au-housing-v1)",
+    )
+    p.add_argument(
+        "--dense-collection",
+        default=None,
+        help="override Qdrant collection name (e.g. cadastre_chunks_ft)",
+    )
+    p.add_argument(
         "--rerank",
         action="store_true",
         help="wrap base retriever with cross-encoder reranker",
@@ -331,7 +364,14 @@ def main() -> None:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s | %(message)s",
     )
-    retriever = _build_retriever(args.retriever, args.bm25_index, args.shortlist, args.k_rrf)
+    retriever = _build_retriever(
+        args.retriever,
+        args.bm25_index,
+        args.shortlist,
+        args.k_rrf,
+        dense_model=args.dense_model,
+        dense_collection=args.dense_collection,
+    )
     if args.rerank:
         retriever = _wrap_with_reranker(
             retriever,
