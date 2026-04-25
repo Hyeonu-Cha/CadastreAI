@@ -1,10 +1,22 @@
-"""LangGraph agent state definition (Task 3.09).
+"""LangGraph agent state + graph wiring (Tasks 3.09 / 3.11).
 
 The CadastreAI agent is a small graph of nodes that route between doc
 retrieval, tool calls, drafting an answer, and self-reflection. Every
 node receives the full `AgentState` and returns a partial dict that
 LangGraph merges in. Keeping state in one TypedDict (rather than spread
 across closures) makes the graph easier to trace and test.
+
+Edge layout (Task 3.11):
+
+    START → classify_query → decompose → retrieve_or_tool → synthesize
+            → reflect → END  (when is_complete or iter ≥ MAX_ITERATIONS)
+                      → retrieve_or_tool  (when reflection flags gaps)
+
+The reflection-driven loop-back is what makes this an *agent* rather
+than a pipeline — the model can decide a draft is incomplete and ask
+for another retrieval/tool round. `MAX_ITERATIONS = 4` guards against
+runaway loops; we exit unconditionally once that cap is hit, even if
+reflection still says incomplete.
 
 Field guide
 -----------
@@ -95,11 +107,60 @@ def initial_state(query: str) -> AgentState:
     }
 
 
+MAX_ITERATIONS = 4
+
+
+def _route_after_reflect(state: AgentState) -> str:
+    """Conditional edge — loop or finish based on reflection + cap."""
+    if state.get("iteration_count", 0) >= MAX_ITERATIONS:
+        return "end"
+    refl = state.get("reflection") or {}
+    return "end" if refl.get("is_complete", False) else "loop"
+
+
+def build_graph():
+    """Compile the agent's LangGraph state graph.
+
+    Lazily imported so test/CLI users who don't actually run the graph
+    aren't paying the langgraph import cost up front.
+    """
+    from langgraph.graph import END, START, StateGraph
+
+    from src.agent.nodes import (
+        classify_query,
+        decompose,
+        reflect,
+        retrieve_or_tool,
+        synthesize,
+    )
+
+    g: StateGraph = StateGraph(AgentState)
+    g.add_node("classify_query", classify_query)
+    g.add_node("decompose", decompose)
+    g.add_node("retrieve_or_tool", retrieve_or_tool)
+    g.add_node("synthesize", synthesize)
+    g.add_node("reflect", reflect)
+
+    g.add_edge(START, "classify_query")
+    g.add_edge("classify_query", "decompose")
+    g.add_edge("decompose", "retrieve_or_tool")
+    g.add_edge("retrieve_or_tool", "synthesize")
+    g.add_edge("synthesize", "reflect")
+    g.add_conditional_edges(
+        "reflect",
+        _route_after_reflect,
+        {"loop": "retrieve_or_tool", "end": END},
+    )
+    return g.compile()
+
+
 __all__ = [
     "AgentState",
+    "MAX_ITERATIONS",
     "Message",
     "QueryType",
     "Reflection",
     "RetrievedChunk",
+    "build_graph",
     "initial_state",
 ]
