@@ -1,0 +1,23 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	classify_query(classify_query)
+	decompose(decompose)
+	retrieve_or_tool(retrieve_or_tool)
+	synthesize(synthesize)
+	reflect(reflect)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> classify_query;
+	classify_query --> decompose;
+	decompose --> retrieve_or_tool;
+	reflect -. &nbsp;end&nbsp; .-> __end__;
+	reflect -. &nbsp;loop&nbsp; .-> retrieve_or_tool;
+	retrieve_or_tool --> synthesize;
+	synthesize --> reflect;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
