@@ -28,13 +28,18 @@ Eval output:
  - stdout logs include training-loss-per-step from `fit()`.
 
 Output: a trained sentence-transformers model directory under
-`--out-dir` (default `models/bge-base-cadastre/`). The directory is
+`--out-dir` (default `models/bge-au-housing-v1/`). The directory is
 drop-in compatible with `SentenceTransformer.load(...)` and the existing
-retriever — just point `embed.py` / `retriever.py` at it.
+retriever — just point `embed.py` / `retriever.py` at it. Per-epoch dev
+metrics from the RerankingEvaluator are also distilled into
+`<out_dir>/training_curves.json` alongside the model for plotting and
+ablation tracking.
+
+Recommended Colab T4 / single-consumer-GPU command:
 
     python -m src.training.train_embeddings \
         --triplets data/training/triplets.jsonl \
-        --out-dir models/bge-base-cadastre \
+        --out-dir models/bge-au-housing-v1 \
         --batch 64 --epochs 3 --lr 2e-5
 """
 from __future__ import annotations
@@ -52,7 +57,7 @@ if hasattr(sys.stdout, "reconfigure"):
 log = logging.getLogger(__name__)
 
 DEFAULT_BASE_MODEL = "BAAI/bge-base-en-v1.5"
-DEFAULT_OUT_DIR = Path("models/bge-base-cadastre")
+DEFAULT_OUT_DIR = Path("models/bge-au-housing-v1")
 DEFAULT_BATCH = 64
 DEFAULT_EPOCHS = 3
 DEFAULT_LR = 2e-5
@@ -146,6 +151,46 @@ def _to_input_examples(rows: list[dict], n_negatives: int):
     return out
 
 
+def _summarise_training_curves(out_dir: Path) -> dict:
+    """Read the RerankingEvaluator CSV that fit() wrote and distil it
+    into a JSON summary next to the model.
+
+    fit() writes `<out_dir>/eval/RerankingEvaluator_dev_results.csv`
+    with columns: epoch, steps, MAP, MRR@10. We rewrite as
+    `<out_dir>/training_curves.json` with a list of {epoch, steps, map,
+    mrr_at_10} entries — easier to consume in Task 2.17 / blog charts
+    than CSV-with-trailing-empties.
+
+    Returns the parsed list (empty if the CSV doesn't exist, e.g. when
+    training was launched without an evaluator).
+    """
+    import csv
+
+    eval_csv = out_dir / "eval" / "RerankingEvaluator_dev_results.csv"
+    curves: list[dict] = []
+    if not eval_csv.exists():
+        return {"curves": curves, "source": str(eval_csv), "found": False}
+
+    with eval_csv.open("r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            curves.append(
+                {
+                    "epoch": int(row.get("epoch") or 0),
+                    "steps": int(row.get("steps") or 0),
+                    "map": float(row.get("MAP") or 0.0),
+                    "mrr_at_10": float(row.get("MRR@10") or 0.0),
+                }
+            )
+
+    out_path = out_dir / "training_curves.json"
+    out_path.write_text(
+        json.dumps({"curves": curves}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return {"curves": curves, "source": str(eval_csv), "found": True}
+
+
 def run(
     triplets_path: Path,
     out_dir: Path,
@@ -220,6 +265,15 @@ def run(
     log.info("Saving final model to %s", out_dir)
     model.save(str(out_dir))
 
+    curves_summary = _summarise_training_curves(out_dir)
+    if curves_summary["found"]:
+        log.info(
+            "Wrote training_curves.json with %d epoch entries",
+            len(curves_summary["curves"]),
+        )
+    else:
+        log.info("No eval CSV found — skipping training_curves.json.")
+
     return {
         "n_train": len(train_rows),
         "n_dev": len(dev_rows),
@@ -227,6 +281,7 @@ def run(
         "batch": batch,
         "lr": lr,
         "out_dir": str(out_dir),
+        "curves": curves_summary["curves"],
     }
 
 
