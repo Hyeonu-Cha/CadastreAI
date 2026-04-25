@@ -1,4 +1,4 @@
-"""RBA statistics tools — first cut covers Cash Rate Target (Table F1.1).
+"""RBA statistics tools — Cash Rate Target (F1.1) and Housing Lending Rates (F6).
 
 Public functions return a dict shaped roughly like:
 
@@ -14,15 +14,15 @@ Public functions return a dict shaped roughly like:
 Task 3.08 will wrap these in Pydantic models; for now we keep plain dicts
 so the early agent wiring doesn't depend on a schema decision.
 
-Caching: every fetch goes through `data/cache/rba/`. The CSV is small
-(~10 KB) and changes only on RBA board decisions (~10×/year), so a 24-hour
-TTL on disk is plenty for development. Pass `force_refresh=True` to bypass.
+Caching: every fetch goes through `data/cache/rba/`. The CSVs are small
+(F1.1 ~40 KB, F6 ~37 KB) and update monthly, so a 24-hour TTL on disk is
+plenty for development. Pass `force_refresh=True` to bypass.
 
-    >>> from src.tools.rba_stats import rba_cash_rate
+    >>> from src.tools.rba_stats import rba_cash_rate, rba_mortgage_rates
     >>> rba_cash_rate("latest")
     {"data": {"rate_pct": 3.96, ...}, "as_of": "2026-03-31", ...}
-    >>> rba_cash_rate("2023-06")    # monthly average for June 2023
-    {"data": {"rate_pct": 4.04, ...}, "as_of": "2023-06-30", ...}
+    >>> rba_mortgage_rates("latest")
+    {"data": {"owner_occupied_outstanding": 6.05, ...}, "as_of": "2026-02-28", ...}
 """
 from __future__ import annotations
 
@@ -45,9 +45,21 @@ log = logging.getLogger(__name__)
 
 F11_HIST_URL = "https://www.rba.gov.au/statistics/tables/csv/f1.1-data.csv"
 F11_TABLE_URL = "https://www.rba.gov.au/statistics/cash-rate/"
+F6_DATA_URL = "https://www.rba.gov.au/statistics/tables/csv/f6-data.csv"
+F6_TABLE_URL = "https://www.rba.gov.au/statistics/tables/#interest-rates"
 DEFAULT_CACHE_DIR = Path("data/cache/rba")
 DEFAULT_CACHE_TTL_SECONDS = 24 * 60 * 60
 USER_AGENT = "CadastreAI-research/0.1 (+contact: github.com/Hyeonu-Cha/CadastreAI)"
+
+# F6 has 42 series. We surface a curated subset — the rates the agent
+# actually needs to reason about housing affordability. Each tag maps to
+# the RBA Series ID found in the F6 CSV "Series ID" header row.
+KEY_MORTGAGE_SERIES = {
+    "owner_occupied_outstanding": "FLRHOOTA",
+    "owner_occupied_new":         "FLRHOFTA",
+    "investor_outstanding":       "FLRHIOTA",
+    "investor_new":               "FLRHIFTA",
+}
 
 
 def _cache_path(cache_dir: Path, name: str) -> Path:
@@ -132,6 +144,50 @@ def _parse_float(s: str) -> float | None:
         return float(s)
     except ValueError:
         return None
+
+
+def _parse_f6_data(text: str, series_ids: list[str]) -> list[dict]:
+    """Return list of `{period_end: date, rates: {series_id: float}}`.
+
+    F6 is a wide CSV: one column per Series ID. We locate the `Series ID`
+    metadata row to map column index → series id, then parse data rows
+    where column 0 is a date. A row contributes to the output only if at
+    least one of the requested series has a parseable float in its
+    column. Missing values in other requested series stay absent rather
+    than zero, so the caller can tell "not yet published" from "0.0%".
+    """
+    reader = csv.reader(io.StringIO(text))
+    raw_rows = list(reader)
+
+    series_id_row: list[str] | None = None
+    for r in raw_rows:
+        if r and r[0].strip().lower() == "series id":
+            series_id_row = r
+            break
+    if series_id_row is None:
+        return []
+    col_for_series = {
+        sid: idx for idx, sid in enumerate(series_id_row) if sid in series_ids
+    }
+
+    out: list[dict] = []
+    for r in raw_rows:
+        if not r:
+            continue
+        eff = _parse_date(r[0])
+        if eff is None:
+            continue
+        rates: dict[str, float] = {}
+        for sid, idx in col_for_series.items():
+            if idx >= len(r):
+                continue
+            v = _parse_float(r[idx])
+            if v is not None:
+                rates[sid] = v
+        if rates:
+            out.append({"period_end": eff, "rates": rates})
+    out.sort(key=lambda x: x["period_end"])
+    return out
 
 
 def _resolve_period(period: str) -> date:
@@ -225,8 +281,75 @@ def rba_cash_rate(
     }
 
 
+def rba_mortgage_rates(
+    period: str = "latest",
+    *,
+    series: dict[str, str] | None = None,
+    cache_dir: Path = DEFAULT_CACHE_DIR,
+    cache_ttl_seconds: int = DEFAULT_CACHE_TTL_SECONDS,
+    force_refresh: bool = False,
+) -> dict:
+    """Return Australian housing lending rates from RBA Statistical Table F6.
+
+    Default `series` covers the four series most useful for housing
+    research — outstanding/new loans × owner-occupier/investor — keyed
+    by short tags (see `KEY_MORTGAGE_SERIES`). Pass a custom `series`
+    dict (`{tag: rba_series_id}`) to surface other F6 series instead.
+
+    Picks the last entry on or before the resolved period. Per-series
+    values are dropped from the response when missing in that month
+    (not all F6 series go back to 2019); callers should treat absence
+    as "not published" rather than zero.
+    """
+    target = _resolve_period(period)
+    series_map = dict(series) if series is not None else dict(KEY_MORTGAGE_SERIES)
+    if not series_map:
+        raise ValueError("series must be a non-empty mapping {tag: series_id}")
+
+    cache_path = _cache_path(cache_dir, "f6-data.csv")
+    text = _fetch_csv(F6_DATA_URL, cache_path, cache_ttl_seconds, force_refresh=force_refresh)
+    rows = _parse_f6_data(text, list(series_map.values()))
+    if not rows:
+        raise RuntimeError(f"No usable rows parsed from {F6_DATA_URL}")
+
+    hit = _last_at_or_before(rows, target)
+    if hit is None:
+        first = rows[0]
+        raise ValueError(
+            f"period {period!r} resolves to {target}, before earliest "
+            f"F6 record ({first['period_end']})"
+        )
+
+    rates_by_tag: dict[str, float] = {}
+    for tag, sid in series_map.items():
+        if sid in hit["rates"]:
+            rates_by_tag[tag] = hit["rates"][sid]
+
+    retrieved_at = datetime.now(tz=UTC).isoformat(timespec="seconds")
+    return {
+        "data": rates_by_tag,
+        "series": series_map,
+        "as_of": hit["period_end"].isoformat(),
+        "queried_period": period,
+        "resolved_date": target.isoformat(),
+        "source": "RBA F6 (Housing Lending Rates, monthly)",
+        "source_url": F6_TABLE_URL,
+        "retrieved_at": retrieved_at,
+        "citation": (
+            f"RBA Statistical Table F6 — Housing Lending Rates, "
+            f"{hit['period_end'].isoformat()} ({F6_TABLE_URL})"
+        ),
+    }
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
+        "metric",
+        choices=("cash-rate", "mortgage-rates"),
+        nargs="?",
+        default="cash-rate",
+    )
     p.add_argument("period", nargs="?", default="latest")
     p.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE_DIR)
     p.add_argument("--ttl", type=int, default=DEFAULT_CACHE_TTL_SECONDS)
@@ -238,7 +361,8 @@ def main() -> None:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s | %(message)s",
     )
-    out = rba_cash_rate(
+    fn = rba_cash_rate if args.metric == "cash-rate" else rba_mortgage_rates
+    out = fn(
         args.period,
         cache_dir=args.cache_dir,
         cache_ttl_seconds=args.ttl,
