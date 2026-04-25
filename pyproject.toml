@@ -34,6 +34,7 @@ index = [
 ]
 agent = [
     "anthropic>=0.39",
+    "langgraph>=0.2",
 ]
 tools = [
     "openpyxl>=3.1",
