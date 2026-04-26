@@ -32,10 +32,16 @@ def _stub_classifier(state):
     }
 
 
+def _stub_planner(_query):
+    """Empty plan — keeps retrieve_or_tool offline-safe in graph tests."""
+    return {"use_docs": False, "tool_calls": []}
+
+
 def test_graph_happy_path_terminates_after_one_pass(monkeypatch):
     from src.agent import nodes
 
     monkeypatch.setattr(nodes, "classify_query", _stub_classifier)
+    monkeypatch.setattr(nodes, "_plan_subquestion", _stub_planner)
     g = build_graph()
     out = g.invoke(initial_state("What is the cash rate today?"))
     assert out["query_type"] == "factual"
@@ -55,11 +61,12 @@ def test_graph_caps_at_max_iterations(monkeypatch):
             "reflection": {
                 "is_complete": False,
                 "missing": ["everything"],
-                "refined_query": None,
+                "refined_query": "still need more",
             }
         }
 
     monkeypatch.setattr(nodes, "classify_query", _stub_classifier)
+    monkeypatch.setattr(nodes, "_plan_subquestion", _stub_planner)
     monkeypatch.setattr(nodes, "reflect", never_complete)
     # Rebuild the graph so it picks up the patched nodes.
     g = build_graph()

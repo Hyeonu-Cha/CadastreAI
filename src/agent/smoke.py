@@ -53,15 +53,16 @@ def _summarise_run(query: str, final_state: dict) -> dict:
 
 
 def _install_stub_classifier() -> None:
-    """Patch nodes.classify_query with a deterministic stub.
+    """Patch live LLM-driven nodes with deterministic stubs.
 
     Used when ANTHROPIC_API_KEY isn't set, or when --stub-classifier is
-    passed. The stub labels every query as factual + needs_docs so the
-    rest of the graph still has a sensible classification to read.
+    passed. Stubs cover everything that would otherwise hit Anthropic
+    (`classify_query`, `decompose`, `_plan_subquestion`) so the smoke
+    harness can demonstrate the graph end-to-end offline.
     """
     from src.agent import nodes
 
-    def stub(state):
+    def stub_classify(state):
         return {
             "classification": {
                 "persona": "general",
@@ -73,7 +74,11 @@ def _install_stub_classifier() -> None:
             "query_type": "factual",
         }
 
-    nodes.classify_query = stub  # type: ignore[assignment]
+    def stub_plan(_query):
+        return {"use_docs": False, "tool_calls": []}
+
+    nodes.classify_query = stub_classify  # type: ignore[assignment]
+    nodes._plan_subquestion = stub_plan  # type: ignore[assignment]
 
 
 def export_diagram(out_dir: Path = DEFAULT_DIAGRAM_DIR) -> dict:
