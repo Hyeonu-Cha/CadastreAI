@@ -44,10 +44,12 @@ class Retriever:
     collection: str = DEFAULT_COLLECTION
     qdrant_url: str | None = None
     qdrant_api_key: str | None = None
+    use_embedding_cache: bool = True
 
     def __post_init__(self) -> None:
         self._model = None
         self._client = None
+        self._embed_cache = None
 
     def _ensure_model(self):
         if self._model is None:
@@ -67,11 +69,22 @@ class Retriever:
             self._client = QdrantClient(url=url, api_key=api_key)
         return self._client
 
+    def _ensure_embed_cache(self):
+        if self._embed_cache is None:
+            from src.retrieval.embedding_cache import EmbeddingCache
+
+            self._embed_cache = EmbeddingCache(enabled=self.use_embedding_cache)
+        return self._embed_cache
+
     def retrieve(self, query: str, k: int = 10) -> list[tuple[dict, float]]:
         model = self._ensure_model()
         client = self._ensure_client()
-        vec = model.encode(
-            _QUERY_PREFIX + query, normalize_embeddings=True
+        cache = self._ensure_embed_cache()
+        vec = cache.embed(
+            model,
+            query,
+            prefix=_QUERY_PREFIX,
+            model_name=self.model_name,
         ).tolist()
         res = client.query_points(
             collection_name=self.collection,
