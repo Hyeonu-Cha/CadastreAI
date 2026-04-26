@@ -8,7 +8,7 @@ Implementation status
 - `classify_query`   → Task 3.13 (Claude Haiku, structured output)
 - `decompose`        → Task 3.14 (Claude Haiku, 2–4 sub-questions)
 - `retrieve_or_tool` → Task 3.15 (Claude Haiku planner → docs + tools)
-- `reflect`          → stub; Task 3.17/3.18 will replace
+- `reflect`          → Task 3.17 (Claude Haiku, structured output)
 - `synthesize`       → stub; Task 3.17 prompt + post-processor will
                        harden citation discipline (Task 3.19)
 """
@@ -538,22 +538,217 @@ def retrieve_or_tool(state: AgentState) -> dict:
     }
 
 
-def reflect(state: AgentState) -> dict:
-    """Check coverage of sub-questions and citation discipline.
+REFLECTOR_MODEL = os.environ.get("CADASTRE_REFLECTOR_MODEL", "claude-haiku-4-5")
+REFLECTOR_MAX_TOKENS = 768
+# Per-chunk text preview length. Big enough to judge coverage; small
+# enough that 12 chunks fits in budget.
+REFLECT_EVIDENCE_PREVIEW_CHARS = 240
+REFLECT_MAX_EVIDENCE_ITEMS = 12
 
-    Real impl (Task 3.17/3.18): asks Claude to inspect the draft
-    against the original question + sub-questions + retrieved
-    evidence. Returns `{is_complete, missing, refined_query}` —
-    the graph loops back through retrieve_or_tool when not complete
-    (respecting the iteration cap). The stub immediately marks the
-    answer complete so the graph terminates after one pass.
+_REFLECT_TOOL = {
+    "name": "submit_reflection",
+    "description": (
+        "Submit a reflection on the current draft answer. Decide whether "
+        "the draft fully answers the user's question (and all sub-questions) "
+        "using the retrieved evidence and tool results, or whether another "
+        "retrieval/tool pass is needed."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "is_complete": {
+                "type": "boolean",
+                "description": (
+                    "True only when every sub-question is answered, "
+                    "every numeric claim is backed by a tool result or "
+                    "cited chunk, and no obvious gaps remain. Be strict — "
+                    "default to False when in doubt."
+                ),
+            },
+            "missing": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": (
+                    "Specific gaps when is_complete=false. Each entry "
+                    "names one thing the draft is missing or under-supports "
+                    "(e.g. 'no source for current cash rate', 'Melbourne "
+                    "leg of comparison absent'). Empty when complete."
+                ),
+            },
+            "refined_query": {
+                "type": "string",
+                "description": (
+                    "When is_complete=false, a single concrete query to "
+                    "send into the next retrieval/tool pass. Should target "
+                    "the most-load-bearing gap, not a paraphrase of the "
+                    "original question. Empty string when complete."
+                ),
+            },
+        },
+        "required": ["is_complete", "missing", "refined_query"],
+    },
+}
+
+_REFLECTOR_SYSTEM = (
+    "You audit a draft answer for an Australian housing-market research "
+    "agent. Your job is to decide whether the draft is good enough to "
+    "ship, or whether the agent should run another retrieval/tool pass. "
+    "A draft is complete only when (a) every sub-question is addressed, "
+    "(b) every numeric or factual claim has supporting evidence in the "
+    "retrieved chunks or tool results, and (c) there are no obvious gaps. "
+    "When incomplete, name the gaps concretely and propose ONE refined "
+    "query that targets the most important missing piece. Submit via "
+    "the submit_reflection tool."
+)
+
+
+def _summarise_chunks(chunks: list[dict]) -> str:
+    """Compact retrieved-chunk preview so reflect's prompt stays bounded."""
+    if not chunks:
+        return "(no chunks retrieved)"
+    lines = []
+    for i, c in enumerate(chunks[:REFLECT_MAX_EVIDENCE_ITEMS], start=1):
+        payload = c.get("payload") or {}
+        title = (payload.get("title") or "")[:80]
+        section = (payload.get("section_heading") or "")[:60]
+        text = (payload.get("text") or "")[:REFLECT_EVIDENCE_PREVIEW_CHARS]
+        lines.append(
+            f"[{i}] {payload.get('publisher', '?')} | {title}"
+            + (f" | {section}" if section else "")
+            + f"\n    score={c.get('score', 0):.3f}  text={text!r}"
+        )
+    if len(chunks) > REFLECT_MAX_EVIDENCE_ITEMS:
+        lines.append(f"... and {len(chunks) - REFLECT_MAX_EVIDENCE_ITEMS} more chunks")
+    return "\n".join(lines)
+
+
+def _summarise_tools(tool_results: list[dict]) -> str:
+    """Compact tool-result preview — name, args, top-level data fields, errors."""
+    if not tool_results:
+        return "(no tool calls)"
+    lines = []
+    for i, t in enumerate(tool_results[:REFLECT_MAX_EVIDENCE_ITEMS], start=1):
+        if "error" in t:
+            lines.append(
+                f"[{i}] {t.get('tool', '<plan>')}({t.get('args', {})}) → ERROR: {t['error']}"
+            )
+            continue
+        result = t.get("result") or {}
+        data = result.get("data") or {}
+        # Show keys + a few representative values; full payload is in state.
+        preview = {k: data[k] for k in list(data)[:5]}
+        lines.append(
+            f"[{i}] {t.get('tool')}({t.get('args', {})}) → "
+            f"data={preview}  source={result.get('source', '?')!r}"
+        )
+    if len(tool_results) > REFLECT_MAX_EVIDENCE_ITEMS:
+        lines.append(f"... and {len(tool_results) - REFLECT_MAX_EVIDENCE_ITEMS} more results")
+    return "\n".join(lines)
+
+
+def _build_reflect_prompt(state: AgentState) -> str:
+    """Assemble the user-message body for reflect.
+
+    Factored so tests can inspect the rendered prompt directly without
+    mocking the Anthropic call.
     """
-    log.debug("reflect stub: is_complete=True")
+    user_q = _user_query(state)
+    sub_qs = state.get("sub_questions") or []
+    chunks = state.get("retrieved_chunks") or []
+    tool_results = state.get("tool_results") or []
+    draft = state.get("answer_draft") or "(no draft yet)"
+    iter_n = state.get("iteration_count", 0)
+
+    sub_block = (
+        "\n".join(f"  {i + 1}. {q}" for i, q in enumerate(sub_qs))
+        if sub_qs
+        else "(none — answer the original question atomically)"
+    )
+
+    return (
+        f"ORIGINAL QUESTION:\n{user_q}\n\n"
+        f"SUB-QUESTIONS:\n{sub_block}\n\n"
+        f"RETRIEVED CHUNKS (top {REFLECT_MAX_EVIDENCE_ITEMS}):\n"
+        f"{_summarise_chunks(chunks)}\n\n"
+        f"TOOL RESULTS (top {REFLECT_MAX_EVIDENCE_ITEMS}):\n"
+        f"{_summarise_tools(tool_results)}\n\n"
+        f"DRAFT ANSWER (iteration {iter_n}):\n{draft}\n\n"
+        "Decide whether to ship the draft or run another pass."
+    )
+
+
+def reflect(state: AgentState) -> dict:
+    """Audit the draft and decide whether to ship or loop.
+
+    Returns `{reflection: {is_complete, missing, refined_query}}`. The
+    graph's `_route_after_reflect` reads `is_complete` and the iteration
+    cap to decide between END and looping back to `retrieve_or_tool`
+    (Task 3.18). Live-call failures fall back to is_complete=True so a
+    transient API error doesn't trap the agent in a loop until the cap.
+    """
+    import anthropic
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not set; reflect needs Claude Haiku."
+        )
+
+    prompt = _build_reflect_prompt(state)
+    client = anthropic.Anthropic(api_key=api_key)
+    log.debug("reflect → %s", REFLECTOR_MODEL)
+    try:
+        resp = client.messages.create(
+            model=REFLECTOR_MODEL,
+            max_tokens=REFLECTOR_MAX_TOKENS,
+            system=_REFLECTOR_SYSTEM,
+            tools=[_REFLECT_TOOL],
+            tool_choice={"type": "tool", "name": "submit_reflection"},
+            messages=[{"role": "user", "content": prompt}],
+        )
+    except Exception as e:  # noqa: BLE001 — see fallback rationale above
+        log.warning("reflect API call failed (%s: %s); marking complete", type(e).__name__, e)
+        return {
+            "reflection": {
+                "is_complete": True,
+                "missing": [],
+                "refined_query": None,
+            }
+        }
+
+    tool_use = next(
+        (b for b in resp.content if getattr(b, "type", None) == "tool_use"),
+        None,
+    )
+    if tool_use is None:
+        log.warning("reflect: no tool_use block; marking complete")
+        return {
+            "reflection": {
+                "is_complete": True,
+                "missing": [],
+                "refined_query": None,
+            }
+        }
+
+    raw = tool_use.input  # type: ignore[assignment]
+    is_complete = bool(raw.get("is_complete", True))
+    missing = [m for m in (raw.get("missing") or []) if isinstance(m, str) and m.strip()]
+    refined = (raw.get("refined_query") or "").strip() or None
+    # Self-consistency: a model that says "complete" but ships a refined
+    # query is contradicting itself — treat as complete and drop the query.
+    if is_complete:
+        refined = None
+    log.info(
+        "reflect: is_complete=%s missing=%d refined=%r",
+        is_complete,
+        len(missing),
+        refined,
+    )
     return {
         "reflection": {
-            "is_complete": True,
-            "missing": [],
-            "refined_query": None,
+            "is_complete": is_complete,
+            "missing": missing,
+            "refined_query": refined,
         }
     }
 

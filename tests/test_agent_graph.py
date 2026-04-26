@@ -37,11 +37,23 @@ def _stub_planner(_query):
     return {"use_docs": False, "tool_calls": []}
 
 
+def _stub_reflect_complete(_state):
+    """Always-complete reflect — keeps reflect offline-safe in graph tests."""
+    return {
+        "reflection": {
+            "is_complete": True,
+            "missing": [],
+            "refined_query": None,
+        }
+    }
+
+
 def test_graph_happy_path_terminates_after_one_pass(monkeypatch):
     from src.agent import nodes
 
     monkeypatch.setattr(nodes, "classify_query", _stub_classifier)
     monkeypatch.setattr(nodes, "_plan_subquestion", _stub_planner)
+    monkeypatch.setattr(nodes, "reflect", _stub_reflect_complete)
     g = build_graph()
     out = g.invoke(initial_state("What is the cash rate today?"))
     assert out["query_type"] == "factual"
