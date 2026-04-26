@@ -447,12 +447,36 @@ def _plan_subquestion(query: str, persona: str | None = None) -> dict:
     return plan
 
 
+_TOOL_CACHE = None
+
+
+def _get_tool_cache():
+    """Lazy module-level ToolCache singleton.
+
+    Tests can force a clean cache via `_get_tool_cache().clear()` or
+    by monkey-patching the module-level `_TOOL_CACHE` attribute. We
+    don't construct it at import time so unrelated tests that never
+    touch tools pay zero cost.
+    """
+    global _TOOL_CACHE
+    if _TOOL_CACHE is None:
+        from src.agent.tool_cache import ToolCache
+
+        _TOOL_CACHE = ToolCache()
+    return _TOOL_CACHE
+
+
 def _execute_tool(name: str, args: dict) -> dict:
     """Dispatch one tool call; filter unknown args, enforce required keys.
 
     Wraps unexpected exceptions in the result dict so a single bad arg
     doesn't sink the whole router pass. Tool-internal failures still
     surface — we just attribute them rather than propagating.
+
+    Successful results go through a TTL cache (`tool_cache.ToolCache`)
+    so back-to-back calls with the same args hit memory instead of the
+    upstream API. Required-arg validation still fires before the cache
+    so misuse is loud rather than memoised.
     """
     catalogue = _tool_catalogue()
     spec = catalogue.get(name)
@@ -464,7 +488,14 @@ def _execute_tool(name: str, args: dict) -> dict:
     missing = [k for k in required if k not in filtered]
     if missing:
         raise ValueError(f"{name}: missing required args {missing}")
-    return fn(**filtered)
+
+    cache = _get_tool_cache()
+    return cache.wrap(
+        name,
+        filtered,
+        lambda: fn(**filtered),
+        skip_on=lambda r: isinstance(r, dict) and "error" in r,
+    )
 
 
 def _retrieve_docs(query: str, k: int = DOCS_TOP_K) -> list[dict]:
