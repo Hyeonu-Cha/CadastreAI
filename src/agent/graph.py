@@ -54,11 +54,36 @@ from __future__ import annotations
 from typing import Any, Literal, TypedDict
 
 QueryType = Literal["factual", "comparative", "computational", "exploratory"]
+Persona = Literal[
+    "first_home_buyer",
+    "investor",
+    "policy_researcher",
+    "journalist",
+    "general",
+]
 
 
 class Message(TypedDict):
     role: Literal["user", "assistant", "tool"]
     content: str
+
+
+class Classification(TypedDict):
+    """Structured output of `classify_query` (Task 3.13).
+
+    `query_type` mirrors the top-level state field for convenience.
+    The four boolean flags drive routing in Tasks 3.14 / 3.15:
+
+    - `needs_decomposition` → run `decompose` (Task 3.14)
+    - `needs_docs`          → retrieve from the BGE index
+    - `needs_data`          → call one or more structured tools
+    """
+
+    persona: Persona
+    query_type: QueryType
+    needs_docs: bool
+    needs_data: bool
+    needs_decomposition: bool
 
 
 class RetrievedChunk(TypedDict):
@@ -83,6 +108,7 @@ class AgentState(TypedDict, total=False):
 
     messages: list[Message]
     query_type: QueryType | None
+    classification: Classification | None
     sub_questions: list[str]
     retrieved_chunks: list[RetrievedChunk]
     tool_results: list[dict[str, Any]]
@@ -98,6 +124,7 @@ def initial_state(query: str) -> AgentState:
     return {
         "messages": [{"role": "user", "content": query.strip()}],
         "query_type": None,
+        "classification": None,
         "sub_questions": [],
         "retrieved_chunks": [],
         "tool_results": [],
@@ -156,8 +183,10 @@ def build_graph():
 
 __all__ = [
     "AgentState",
+    "Classification",
     "MAX_ITERATIONS",
     "Message",
+    "Persona",
     "QueryType",
     "Reflection",
     "RetrievedChunk",

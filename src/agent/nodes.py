@@ -1,43 +1,158 @@
-"""LangGraph node stubs for the CadastreAI agent (Task 3.10).
+"""LangGraph node implementations for the CadastreAI agent.
 
 Each function takes the full `AgentState` and returns a partial state
-update that LangGraph merges in. The bodies here are deliberately
-minimal — they exist so the graph wiring in Task 3.11 has runnable
-nodes to connect, while Day 17 (3.13–3.15) and Day 18 (3.17/3.18)
-will replace them with the real LLM-backed implementations.
+update that LangGraph merges in.
 
-Stub behaviours
----------------
-- `classify_query`  → default to `"factual"`.
-- `decompose`       → no decomposition; sub_questions stays empty.
-- `retrieve_or_tool` → no-op; only bumps iteration_count so the loop
-                       cap in 3.11 is observable in tests.
-- `reflect`         → marks the answer as complete; loops won't fire.
-- `synthesize`      → echoes the user query into a placeholder draft.
-
-Each stub's docstring documents what the *real* implementation will
-look like so the contract is locked in before LLM glue lands.
+Implementation status
+---------------------
+- `classify_query`   → Task 3.13 (Claude Haiku, structured output)
+- `decompose`        → stub; Task 3.14 will replace
+- `retrieve_or_tool` → stub; Task 3.15 will replace
+- `reflect`          → stub; Task 3.17/3.18 will replace
+- `synthesize`       → stub; Task 3.17 prompt + post-processor will
+                       harden citation discipline (Task 3.19)
 """
 from __future__ import annotations
 
+import json
 import logging
+import os
 
-from src.agent.graph import AgentState
+from src.agent.graph import AgentState, Classification
 
 log = logging.getLogger(__name__)
 
+CLASSIFIER_MODEL = os.environ.get("CADASTRE_CLASSIFIER_MODEL", "claude-haiku-4-5")
+CLASSIFIER_MAX_TOKENS = 256
+
+# Single tool definition that pins the JSON schema of the classifier
+# output. Forcing tool_choice on this tool means Claude must emit a
+# tool_use block whose `input` we can validate as a Classification.
+_CLASSIFY_TOOL = {
+    "name": "submit_classification",
+    "description": (
+        "Submit a structured classification of the user's question. "
+        "Use this exactly once per call."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "persona": {
+                "type": "string",
+                "enum": [
+                    "first_home_buyer",
+                    "investor",
+                    "policy_researcher",
+                    "journalist",
+                    "general",
+                ],
+                "description": (
+                    "Best-fit persona inferred from the question. "
+                    "'general' when none clearly applies."
+                ),
+            },
+            "query_type": {
+                "type": "string",
+                "enum": ["factual", "comparative", "computational", "exploratory"],
+            },
+            "needs_docs": {
+                "type": "boolean",
+                "description": (
+                    "True when the answer requires retrieving from "
+                    "policy/explanatory text (RBA bulletins, ABS notes, "
+                    "guidelines, glossaries)."
+                ),
+            },
+            "needs_data": {
+                "type": "boolean",
+                "description": (
+                    "True when the answer requires a numeric series or "
+                    "calculation (cash rate, mortgage rate, vacancy, "
+                    "median price, repayment, stamp duty)."
+                ),
+            },
+            "needs_decomposition": {
+                "type": "boolean",
+                "description": (
+                    "True when the question contains multiple atomic "
+                    "questions that should be answered independently and "
+                    "then composed."
+                ),
+            },
+        },
+        "required": [
+            "persona",
+            "query_type",
+            "needs_docs",
+            "needs_data",
+            "needs_decomposition",
+        ],
+    },
+}
+
+_CLASSIFIER_SYSTEM = (
+    "You are a routing classifier for an Australian housing-market "
+    "research agent. Read the user's question and classify it via the "
+    "submit_classification tool. Be decisive — do not ask follow-up "
+    "questions. If the question mixes persona signals (e.g. 'as a first "
+    "home buyer, what's the stamp duty AND should I wait for rates to "
+    "fall?'), pick the dominant persona and set needs_decomposition=true."
+)
+
+
+def _user_query(state: AgentState) -> str:
+    for m in state.get("messages", []):
+        if m.get("role") == "user":
+            return m.get("content", "")
+    return ""
+
 
 def classify_query(state: AgentState) -> dict:
-    """Decide what kind of question we're answering.
+    """Route the question via Claude Haiku with a forced tool call.
 
-    Real impl (Task 3.13): calls Claude Haiku with a structured-output
-    prompt and returns one of {factual, comparative, computational,
-    exploratory} plus needs_docs / needs_data / needs_decomposition
-    flags. The stub just labels everything as "factual" so downstream
-    routing has something to read.
+    Returns a partial state with both the full `classification` dict
+    and the top-level `query_type` mirror so downstream nodes that
+    only care about query_type don't have to reach into the dict.
+
+    Requires `ANTHROPIC_API_KEY` in the environment. Raises
+    `RuntimeError` if the key is missing or the model returns an
+    unexpected payload — silent fallback to a stub here would mask
+    routing bugs.
     """
-    log.debug("classify_query stub: query_type='factual'")
-    return {"query_type": "factual"}
+    import anthropic  # local import — keeps module import light
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not set; classify_query needs Claude Haiku."
+        )
+    query = _user_query(state)
+    if not query:
+        raise RuntimeError("classify_query: no user message in state")
+
+    client = anthropic.Anthropic(api_key=api_key)
+    log.debug("classify_query → %s", CLASSIFIER_MODEL)
+    resp = client.messages.create(
+        model=CLASSIFIER_MODEL,
+        max_tokens=CLASSIFIER_MAX_TOKENS,
+        system=_CLASSIFIER_SYSTEM,
+        tools=[_CLASSIFY_TOOL],
+        tool_choice={"type": "tool", "name": "submit_classification"},
+        messages=[{"role": "user", "content": query}],
+    )
+
+    tool_use = next(
+        (b for b in resp.content if getattr(b, "type", None) == "tool_use"),
+        None,
+    )
+    if tool_use is None:
+        raise RuntimeError(
+            f"classify_query: model {CLASSIFIER_MODEL} returned no tool_use block "
+            f"(content types: {[getattr(b, 'type', None) for b in resp.content]})"
+        )
+    cls: Classification = tool_use.input  # type: ignore[assignment]
+    log.info("classify_query: %s", json.dumps(cls, ensure_ascii=False))
+    return {"classification": cls, "query_type": cls["query_type"]}
 
 
 def decompose(state: AgentState) -> dict:
