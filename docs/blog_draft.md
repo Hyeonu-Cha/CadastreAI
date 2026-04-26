@@ -279,7 +279,193 @@ ColBERT-style late interaction. Neither is a fine-tuning problem.
 
 ---
 
-## [Future sections — Week 3 onwards]
+## Week 3: from RAG to agent
 
-- Agentic extensions: when to call tools vs when to retrieve
-- End-to-end answer quality: citation faithfulness, coverage, hallucinations
+The Week 2 chain (BGE → hybrid → rerank, optionally fine-tuned) closed
+most of the *retrieval* gaps from Phase 1. Two of the original six
+failure classes survive every retrieval improvement we threw at them:
+
+- **Temporal queries.** *"Is renting still cheaper than buying in
+  Sydney given current rates?"* — there is no chunk in the corpus that
+  contains today's cash rate, today's median price, and a buy-vs-rent
+  computation. Even a perfect retriever can't synthesise an answer
+  from data the corpus doesn't contain.
+- **Multi-concept decomposition.** *"How have ABS lending indicators
+  for first home buyers and the RBA cash rate co-moved over the past
+  decade?"* — gold lives in *two* sources that need to be cross-
+  referenced. A single shortlist returns either the lending series or
+  the rate, not both.
+
+Both call for an agent: something that can hit live data sources
+(RBA / ABS / SQM rate-and-volume APIs), break compound questions into
+sub-questions, and reflect on whether the evidence actually answers
+the user. Week 3 builds that agent on top of the Week 2 retriever.
+
+### The graph
+
+The agent is a LangGraph `StateGraph` with five nodes and one
+conditional edge:
+
+```
+classify_query → decompose → retrieve_or_tool → synthesize → reflect ⇄ retrieve_or_tool
+                                                                       ↘ END
+```
+
+Each node returns a partial state; the typed `AgentState` carries
+`messages`, `classification`, `sub_questions`, `retrieved_chunks`,
+`tool_results`, `iteration_count`, `reflection`, and `answer_draft`
+through the run. The reflect→retrieve loop is gated by
+`_route_after_reflect` with four exit conditions (cap reached, marked
+complete, marked incomplete with no `refined_query`, or empty refined
+string) so a confused reflector can never spin forever. `MAX_ITERATIONS
+= 4` is the hard ceiling.
+
+Models are chosen for cost-vs-stakes: routing, decomposition, planning,
+and reflection all run on `claude-haiku-4-5` (cheap, fast, structured-
+output-friendly via forced tool use); synthesis runs on
+`claude-sonnet-4-6` because that's where prose quality and citation
+discipline matter. Both can be overridden per-node via env vars
+(`CADASTRE_REFLECTOR_MODEL`, etc.) for ablation runs.
+
+### Structured output via forced tool use
+
+Every Haiku call uses Anthropic's `tool_choice={"type": "tool", "name":
+...}` pattern instead of asking the model to "return JSON in this
+shape." The classifier returns a `submit_classification` tool call;
+the decomposer returns `submit_subquestions`; the per-question planner
+returns `submit_routing_plan` with `{use_docs, doc_query, tool_calls}`;
+the reflector returns `submit_reflection` with `{is_complete, missing,
+refined_query}`. The Anthropic SDK validates the tool input against the
+schema before it ever reaches our code, which kills the "the model
+forgot a closing brace" failure mode and lets us treat the tool input
+dict as already-typed.
+
+### The tool catalogue
+
+Nine tools, registered in `src.agent.nodes._tool_catalogue()` with
+`(callable, required_keys, optional_keys)` triples so the per-question
+planner can validate args before calling:
+
+- **Live data (6).** `rba_cash_rate`, `rba_mortgage_rates`,
+  `abs_property_price_index`, `abs_building_approvals`,
+  `abs_lending_indicators`, `sqm_rental_vacancy`. Each wraps a
+  publisher's API or scrape and returns
+  `{data, source, retrieved_at}` so downstream synthesis can render the
+  `[tool:<name>, retrieved:<YYYY-MM-DD>]` citation grammar.
+- **Compute (3).** `compute_rental_yield`,
+  `compute_mortgage_repayment`, `compute_stamp_duty_nsw`. Pure
+  functions over user-supplied numbers — no network, fully testable.
+
+`retrieve_or_tool` calls a per-question planner (Haiku) that emits a
+single `submit_routing_plan` tool call deciding whether to retrieve
+docs, call tools, or both. On loop iterations (`iteration_count > 0`)
+the planner runs only on the reflector's `refined_query`, so each pass
+is scoped to the gap the reflector named — no re-planning the original
+question.
+
+### Reflection self-consistency
+
+The reflector's job is to read the current evidence (chunks + tool
+results) and decide whether the agent should loop. Self-contradiction
+is the failure mode to design against — *"is_complete: true, missing:
+[everything], refined_query: still need..."* — so the prompt is
+structured to make the contract explicit and the post-processor drops
+`refined_query` whenever `is_complete=True`. Combined with
+`_route_after_reflect`'s short-circuit when `refined_query` is null /
+empty, the loop edge can't be tricked into wasting an iteration.
+
+If the reflector API call fails, the fallback is `is_complete=True`
+with a noted error — better to ship the current draft than spin until
+the iteration cap.
+
+### Synthesize — citation enforcement post-process
+
+The synthesizer (Sonnet) is prompted with a strict citation grammar:
+
+- `[source:<publisher>, page:<N>]` for retrieved-doc claims, drawn
+  from the indexed chunk metadata.
+- `[tool:<tool_name>, retrieved:<YYYY-MM-DD>]` for tool-data claims.
+
+Sonnet generally follows it, but "generally" isn't good enough when
+the eval scores citation discipline. So `_enforce_citations` runs
+after generation:
+
+1. Build the **valid citation set** from current state — only tools
+   that actually returned data (failed calls excluded), only
+   publishers + pages that appear in `retrieved_chunks`.
+2. Walk every emitted `[source:..]` / `[tool:..]` marker. Markers
+   that don't resolve to the valid set get tagged `(unverified)` in
+   place — *not* deleted, so the eval harness can score how often the
+   model hallucinates citations.
+3. If Sonnet didn't emit a `Sources:` footer, append one auto-generated
+   from the valid citation set so the user-visible answer always shows
+   provenance.
+
+If the synthesis call fails, the fallback is a stub answer that lists
+"used: <tool/doc>..." rather than nothing — graph termination always
+takes priority over output quality.
+
+### Eval: how do you score an agent?
+
+Retrieval has well-known metrics (R@K, MRR, nDCG). Agents do not. The
+Week 3 eval harness (`src.eval.agent_eval` against
+`data/eval/agent_queries.jsonl`, 30 queries with annotated expected
+tools and publishers) scores six things offline plus one optional
+network metric:
+
+- **`tool_call_accuracy`** — Jaccard(actual, expected_tools). Plus
+  `tool_call_recall` (did we call all the expected tools?) and
+  `tool_call_precision` (did we avoid extras?). The Jaccard captures
+  both directions in a single number; the split metrics localise where
+  a regression came from.
+- **`publisher_recall`** — fraction of `expected_doc_publishers` that
+  actually appeared in `retrieved_chunks`. Tests retrieval *coverage*,
+  not relevance — did the agent at least look at the right corpora?
+- **`trajectory_efficiency = 1 / (1 + extra_iters + extra_tools)`** —
+  penalises wandering. A perfect run (right tools, one pass) scores
+  1.0. Each unexpected tool call OR each extra reflect-loop iteration
+  proportionally drops the score. Missing tools are deliberately
+  *not* penalised here — that's `tool_call_recall`'s job.
+- **`groundedness`** — % of numeric claims in the answer draft that
+  have a `[source:..]` or `[tool:..]` citation marker within 50 chars.
+  The 50-char window is tight enough that one number's citation can't
+  accidentally credit the next number. Citation markers are redacted
+  before the numeric regex runs, so the digits inside `[tool:rba_cash_
+  rate, retrieved:2026-04-26]` aren't themselves scored as ungrounded.
+- **`faithfulness`** *(optional, `--with-judge`)* — Claude-as-judge
+  reads `(question, evidence pack, answer)` and submits an
+  `{n_claims, n_supported, unsupported[]}` judgement. Off by default
+  so the standard eval is fully offline; opt in for end-of-cycle
+  scoring runs.
+
+A stubbed-graph test path (`_StubGraph` in `tests/test_agent_eval.py`)
+exercises `run_agent_eval` end-to-end without an API key, so the eval
+harness itself stays under unit-test pressure even when the live agent
+isn't reachable.
+
+### What's still open
+
+The agent skeleton, all five nodes, the tool catalogue, the citation
+post-processor, and the eval harness are committed and unit-tested.
+Three things are explicitly *next*:
+
+- **Run the eval (Task 3.22).** `python -m src.eval.agent_eval --out
+  results/agent_v1.json` — needs `ANTHROPIC_API_KEY` and a healthy
+  Qdrant. Numbers go in the `agent_v1` row of the comparison table.
+- **Failure analysis (Task 3.23).** Bucket the bottom 15 queries by
+  category — over-decomposition (decomposer turns a one-tool
+  question into three sub-questions), tool confusion (planner picks
+  `abs_lending_indicators` when the question is about rents), citation
+  drops (Sonnet-emitted but post-processor flagged as unverified) — and
+  pick the 2–3 highest-leverage fixes.
+- **Iteration to v2 (Task 3.24).** Apply the chosen fixes via prompt
+  tuning or graph restructuring; re-run to `results/agent_v2.json` and
+  diff.
+
+The interesting question Week 4+ will face is *which* metric improves
+when we fix prompts vs when we fix the graph. Tool accuracy is mostly
+a planner-prompt problem; trajectory efficiency is mostly a reflector-
+contract problem; groundedness is mostly a synthesis-prompt problem;
+faithfulness reflects all three. Decomposing the dashboard into those
+four levers is what makes the agent debuggable — same idea as the
+six-category retrieval taxonomy from Phase 1, one layer up the stack.
