@@ -34,6 +34,7 @@ from src.app.citations import (
     renumber_answer,
 )
 from src.app.disambiguation import apply_disambiguation, detect_ambiguity
+from src.app.followups import suggest_followups
 from src.app.state import (
     UI_PERSONAS,
     TurnRecord,
@@ -164,6 +165,32 @@ def _render_citation_card(idx: int, citation: Citation, turn: TurnRecord) -> Non
         st.caption(f"source: {result['source']}")
 
 
+def _render_followup_chips(turn: TurnRecord) -> None:
+    """Render up-to-3 click-to-rerun follow-up chips beneath an answer.
+
+    Only shown on the latest turn so the chat history doesn't accumulate
+    stale chip rows. Clicking a chip stores the suggestion in
+    `pending_query` and triggers a rerun, which the main loop picks up.
+    """
+    if turn.error:
+        return
+    from src.app.state import ui_to_agent_persona
+
+    suggestions = suggest_followups(
+        turn.query,
+        ui_to_agent_persona(turn.persona),
+        tool_results=turn.tool_results,
+    )
+    if not suggestions:
+        return
+    st.caption("Try a follow-up:")
+    cols = st.columns(len(suggestions))
+    for col, q in zip(cols, suggestions, strict=False):
+        if col.button(q, key=f"fu::{turn.created_at}::{q}", use_container_width=True):
+            st.session_state["pending_query"] = q
+            st.rerun()
+
+
 def _render_turn(turn: TurnRecord) -> None:
     with st.chat_message("user"):
         st.markdown(turn.query)
@@ -214,6 +241,10 @@ def main() -> None:
 
     for turn in st.session_state["history"]:
         _render_turn(turn)
+
+    history = st.session_state["history"]
+    if history:
+        _render_followup_chips(history[-1])
 
     user_query = st.chat_input("Ask about Australian housing...")
     pending = st.session_state.pop("pending_query", None)
