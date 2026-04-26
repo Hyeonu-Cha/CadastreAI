@@ -153,4 +153,52 @@ def build_trace_steps(turn) -> list[TraceStep]:
     ]
 
 
-__all__ = ["TraceStep", "StepKind", "build_trace_steps"]
+def chunks_table_rows(chunks: list[dict]) -> list[dict]:
+    """Flatten retrieved chunks into ranked rows for a `st.dataframe`.
+
+    Sorting prefers `boosted_score` when the persona-boost pass added
+    one — that's the order the synthesizer actually saw. We always
+    surface both columns so the user can see how much the boost moved
+    a row. `score` and `boosted` are rounded to three decimals so the
+    table doesn't render scientific notation, which Streamlit will do
+    for raw floats by default.
+    """
+    if not chunks:
+        return []
+
+    def _sort_key(c: dict) -> float:
+        return float(c.get("boosted_score") or c.get("score") or 0.0)
+
+    ranked = sorted(chunks, key=_sort_key, reverse=True)
+    rows: list[dict] = []
+    for i, c in enumerate(ranked, start=1):
+        payload = c.get("payload") or {}
+        title = (payload.get("title") or "").strip()
+        if len(title) > 80:
+            title = title[:79] + "…"
+        page = payload.get("page")
+        score = c.get("score")
+        boosted = c.get("boosted_score")
+        rows.append(
+            {
+                "rank": i,
+                "publisher": payload.get("publisher") or "?",
+                "page": page if page is not None else "",
+                "score": round(float(score), 3) if isinstance(score, (int, float)) else None,
+                "boosted": (
+                    round(float(boosted), 3)
+                    if isinstance(boosted, (int, float))
+                    else None
+                ),
+                "title": title,
+            }
+        )
+    return rows
+
+
+__all__ = [
+    "TraceStep",
+    "StepKind",
+    "build_trace_steps",
+    "chunks_table_rows",
+]
