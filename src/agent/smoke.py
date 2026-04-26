@@ -1,24 +1,25 @@
-"""End-to-end smoke harness for the LangGraph agent (Task 3.12).
+"""End-to-end smoke harness for the LangGraph agent (Task 3.12+).
 
 Runs three representative queries through `build_graph().invoke(...)`
 and prints the final state for each — proves the graph is wired
-correctly and lets reviewers see iteration_count, reflection, and
-answer_draft for each query in one go. Also exports the graph
-diagram in Mermaid form (and best-effort PNG) under `docs/`.
+correctly and lets reviewers see classification, iteration_count,
+reflection, and answer_draft for each query in one go. Also exports
+the graph diagram in Mermaid form (and best-effort PNG) under `docs/`.
 
-The agent runs against the Task 3.10 stubs, so the answers here are
-placeholders — what we're verifying is the *control flow*, not the
-content. Tasks 3.13–3.18 will replace the stubs with the real LLM
-calls; this same harness will then exercise those.
+When `ANTHROPIC_API_KEY` is set, the (live) classify_query node calls
+Claude Haiku for structured routing. When it isn't, we monkey-patch a
+deterministic stub so the harness still runs offline — useful in CI.
 
     python -m src.agent.smoke
     python -m src.agent.smoke --diagram-only
+    python -m src.agent.smoke --stub-classifier   # force offline mode
 """
 from __future__ import annotations
 
 import argparse
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -42,12 +43,37 @@ DEFAULT_DIAGRAM_DIR = Path("docs")
 def _summarise_run(query: str, final_state: dict) -> dict:
     return {
         "query": query,
+        "classification": final_state.get("classification"),
         "query_type": final_state.get("query_type"),
         "sub_questions": final_state.get("sub_questions"),
         "iteration_count": final_state.get("iteration_count"),
         "is_complete": (final_state.get("reflection") or {}).get("is_complete"),
         "answer_draft": final_state.get("answer_draft"),
     }
+
+
+def _install_stub_classifier() -> None:
+    """Patch nodes.classify_query with a deterministic stub.
+
+    Used when ANTHROPIC_API_KEY isn't set, or when --stub-classifier is
+    passed. The stub labels every query as factual + needs_docs so the
+    rest of the graph still has a sensible classification to read.
+    """
+    from src.agent import nodes
+
+    def stub(state):
+        return {
+            "classification": {
+                "persona": "general",
+                "query_type": "factual",
+                "needs_docs": True,
+                "needs_data": False,
+                "needs_decomposition": False,
+            },
+            "query_type": "factual",
+        }
+
+    nodes.classify_query = stub  # type: ignore[assignment]
 
 
 def export_diagram(out_dir: Path = DEFAULT_DIAGRAM_DIR) -> dict:
@@ -74,8 +100,18 @@ def export_diagram(out_dir: Path = DEFAULT_DIAGRAM_DIR) -> dict:
         return {"mmd": str(mmd_path), "png": None}
 
 
-def run_samples(queries: list[str] | None = None) -> list[dict]:
+def run_samples(
+    queries: list[str] | None = None,
+    *,
+    stub_classifier: bool = False,
+) -> list[dict]:
     queries = queries or SAMPLE_QUERIES
+    if stub_classifier or not os.environ.get("ANTHROPIC_API_KEY"):
+        if not stub_classifier:
+            log.warning(
+                "ANTHROPIC_API_KEY not set; running with stubbed classifier"
+            )
+        _install_stub_classifier()
     g = build_graph()
     return [_summarise_run(q, g.invoke(initial_state(q))) for q in queries]
 
@@ -93,6 +129,11 @@ def main() -> None:
         default=DEFAULT_DIAGRAM_DIR,
         help="Where to write the diagram files (default: docs/).",
     )
+    p.add_argument(
+        "--stub-classifier",
+        action="store_true",
+        help="Force the deterministic classifier stub even if ANTHROPIC_API_KEY is set.",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args()
 
@@ -104,7 +145,7 @@ def main() -> None:
     if args.diagram_only:
         print(json.dumps(diagram, ensure_ascii=False, indent=2))
         return
-    runs = run_samples()
+    runs = run_samples(stub_classifier=args.stub_classifier)
     print(
         json.dumps(
             {"diagram": diagram, "runs": runs}, ensure_ascii=False, indent=2

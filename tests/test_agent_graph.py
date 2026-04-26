@@ -6,6 +6,9 @@ Two scenarios:
   2. Loop cap — patch `reflect` to always say is_complete=False and
      confirm `_route_after_reflect` exits when iteration_count >=
      MAX_ITERATIONS, regardless of reflection content.
+
+These tests stub `classify_query` so they don't need ANTHROPIC_API_KEY;
+the live classifier has its own dedicated test below.
 """
 from __future__ import annotations
 
@@ -15,7 +18,24 @@ from src.agent import graph as graph_mod
 from src.agent.graph import MAX_ITERATIONS, build_graph, initial_state
 
 
-def test_graph_happy_path_terminates_after_one_pass():
+def _stub_classifier(state):
+    """Replace the live Haiku call with a deterministic shape match."""
+    return {
+        "classification": {
+            "persona": "general",
+            "query_type": "factual",
+            "needs_docs": True,
+            "needs_data": False,
+            "needs_decomposition": False,
+        },
+        "query_type": "factual",
+    }
+
+
+def test_graph_happy_path_terminates_after_one_pass(monkeypatch):
+    from src.agent import nodes
+
+    monkeypatch.setattr(nodes, "classify_query", _stub_classifier)
     g = build_graph()
     out = g.invoke(initial_state("What is the cash rate today?"))
     assert out["query_type"] == "factual"
@@ -39,8 +59,9 @@ def test_graph_caps_at_max_iterations(monkeypatch):
             }
         }
 
+    monkeypatch.setattr(nodes, "classify_query", _stub_classifier)
     monkeypatch.setattr(nodes, "reflect", never_complete)
-    # Rebuild the graph so it picks up the patched reflect.
+    # Rebuild the graph so it picks up the patched nodes.
     g = build_graph()
     out = g.invoke(initial_state("Find me everything."))
     assert out["iteration_count"] == MAX_ITERATIONS
