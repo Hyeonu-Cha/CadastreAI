@@ -77,8 +77,18 @@ def _install_stub_classifier() -> None:
     def stub_plan(_query):
         return {"use_docs": False, "tool_calls": []}
 
+    def stub_reflect(_state):
+        return {
+            "reflection": {
+                "is_complete": True,
+                "missing": [],
+                "refined_query": None,
+            }
+        }
+
     nodes.classify_query = stub_classify  # type: ignore[assignment]
     nodes._plan_subquestion = stub_plan  # type: ignore[assignment]
+    nodes.reflect = stub_reflect  # type: ignore[assignment]
 
 
 def export_diagram(out_dir: Path = DEFAULT_DIAGRAM_DIR) -> dict:
