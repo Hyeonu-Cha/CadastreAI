@@ -32,6 +32,7 @@ from src.app.state import (
     example_queries_for,
     init_session_defaults,
     reset_history,
+    ui_to_agent_persona,
 )
 
 log = logging.getLogger(__name__)
@@ -59,7 +60,9 @@ def _run_agent(query: str, persona: str) -> TurnRecord:
     t0 = time.perf_counter()
     try:
         graph = _load_graph()
-        final = graph.invoke(initial_state(query))
+        final = graph.invoke(
+            initial_state(query, user_persona=ui_to_agent_persona(persona))
+        )
         turn.answer = final.get("answer_draft") or ""
         turn.classification = final.get("classification")
         turn.sub_questions = list(final.get("sub_questions") or [])

@@ -109,6 +109,7 @@ class AgentState(TypedDict, total=False):
     messages: list[Message]
     query_type: QueryType | None
     classification: Classification | None
+    user_persona: Persona | None
     sub_questions: list[str]
     retrieved_chunks: list[RetrievedChunk]
     tool_results: list[dict[str, Any]]
@@ -117,14 +118,20 @@ class AgentState(TypedDict, total=False):
     iteration_count: int
 
 
-def initial_state(query: str) -> AgentState:
-    """Seed state for a fresh run — only the user query is set."""
+def initial_state(query: str, *, user_persona: str | None = None) -> AgentState:
+    """Seed state for a fresh run.
+
+    `user_persona` (optional) is the caller-supplied persona that
+    overrides the classifier's guess downstream. Pass through verbatim;
+    the persona helpers handle validation + fallback to "general".
+    """
     if not query or not query.strip():
         raise ValueError("query must be a non-empty string")
-    return {
+    state: AgentState = {
         "messages": [{"role": "user", "content": query.strip()}],
         "query_type": None,
         "classification": None,
+        "user_persona": None,
         "sub_questions": [],
         "retrieved_chunks": [],
         "tool_results": [],
@@ -132,6 +139,9 @@ def initial_state(query: str) -> AgentState:
         "reflection": {},
         "iteration_count": 0,
     }
+    if user_persona:
+        state["user_persona"] = user_persona  # type: ignore[typeddict-item]
+    return state
 
 
 MAX_ITERATIONS = 4
