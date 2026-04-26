@@ -33,6 +33,7 @@ from src.app.citations import (
     parse_citations,
     renumber_answer,
 )
+from src.app.disambiguation import apply_disambiguation, detect_ambiguity
 from src.app.state import (
     UI_PERSONAS,
     TurnRecord,
@@ -213,6 +214,79 @@ def main() -> None:
     query = user_query or pending
 
     if query:
+        ambiguities = detect_ambiguity(query)
+        if ambiguities:
+            st.session_state["pending_clarification"] = {
+                "query": query,
+                "ambiguities": [
+                    {
+                        "place": a.place,
+                        "options": [
+                            {"label": o.label, "qualifier": o.qualifier}
+                            for o in a.options
+                        ],
+                    }
+                    for a in ambiguities
+                ],
+            }
+            st.rerun()
+        else:
+            with st.spinner("Thinking..."):
+                turn = _run_agent(query, st.session_state["persona"])
+            append_turn(st.session_state, turn)
+            st.rerun()
+
+    _render_clarification_prompt()
+
+
+def _render_clarification_prompt() -> None:
+    """Show a place-disambiguation widget when a query needs clarifying.
+
+    The widget keeps the user in control: they can pick a qualifier per
+    ambiguous place, or click "Ask anyway" to send the original query
+    unchanged. Either way we clear `pending_clarification` so the prompt
+    doesn't keep re-rendering after submission.
+    """
+    pending = st.session_state.get("pending_clarification")
+    if not pending:
+        return
+
+    query = pending["query"]
+    ambiguities: list[dict] = pending["ambiguities"]
+
+    st.divider()
+    st.subheader("Quick check before I answer")
+    st.caption(
+        f"You asked: _{query}_ — but a few place names could mean different "
+        "things. Tell me which one you meant."
+    )
+
+    choices: dict[str, str] = {}
+    for amb in ambiguities:
+        labels = [opt["label"] for opt in amb["options"]]
+        labels_with_skip = [*labels, "Skip — leave as-is"]
+        picked = st.radio(
+            f"Which **{amb['place']}**?",
+            options=labels_with_skip,
+            key=f"clar::{amb['place']}",
+        )
+        if picked == "Skip — leave as-is":
+            continue
+        for opt in amb["options"]:
+            if opt["label"] == picked:
+                choices[amb["place"]] = opt["qualifier"]
+                break
+
+    col1, col2 = st.columns(2)
+    if col1.button("Send clarified question", type="primary"):
+        clarified = apply_disambiguation(query, choices)
+        st.session_state.pop("pending_clarification", None)
+        with st.spinner("Thinking..."):
+            turn = _run_agent(clarified, st.session_state["persona"])
+        append_turn(st.session_state, turn)
+        st.rerun()
+    if col2.button("Ask anyway, no clarification"):
+        st.session_state.pop("pending_clarification", None)
         with st.spinner("Thinking..."):
             turn = _run_agent(query, st.session_state["persona"])
         append_turn(st.session_state, turn)
