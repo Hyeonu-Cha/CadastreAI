@@ -6,8 +6,8 @@ update that LangGraph merges in.
 Implementation status
 ---------------------
 - `classify_query`   → Task 3.13 (Claude Haiku, structured output)
-- `decompose`        → stub; Task 3.14 will replace
-- `retrieve_or_tool` → stub; Task 3.15 will replace
+- `decompose`        → Task 3.14 (Claude Haiku, 2–4 sub-questions)
+- `retrieve_or_tool` → Task 3.15 (Claude Haiku planner → docs + tools)
 - `reflect`          → stub; Task 3.17/3.18 will replace
 - `synthesize`       → stub; Task 3.17 prompt + post-processor will
                        harden citation discipline (Task 3.19)
@@ -256,21 +256,285 @@ def decompose(state: AgentState) -> dict:
     return {"sub_questions": sub_qs}
 
 
-def retrieve_or_tool(state: AgentState) -> dict:
-    """Per sub-question, decide between retrieval, tool calls, or both.
+ROUTER_MODEL = os.environ.get("CADASTRE_ROUTER_MODEL", "claude-haiku-4-5")
+ROUTER_MAX_TOKENS = 1024
+DOCS_TOP_K = 5
+MAX_TOOL_CALLS_PER_QUESTION = 4
 
-    Real impl (Task 3.15): routes to `Retriever.search` for doc-shaped
-    questions, to one of the structured tools (rba/abs/sqm/compute)
-    for numeric questions, or both for comparative ones. The stub is
-    a no-op but bumps `iteration_count` so the safety cap in Task
-    3.11 is observable from tests.
-    """
-    new_count = state.get("iteration_count", 0) + 1
-    log.debug("retrieve_or_tool stub: iteration_count -> %d", new_count)
+# Tool catalogue: name → (callable, required arg keys, optional arg keys).
+# Keeping this as a module-level dict means tests can monkey-patch entries
+# (e.g. swap a real ABS call for a fake) without touching the dispatch
+# logic. The arg lists let `_execute_tool` filter unknown keys the planner
+# might hallucinate, and verify required keys are present before calling.
+def _tool_catalogue() -> dict[str, tuple]:
+    from src.tools.abs_stats import (
+        abs_building_approvals,
+        abs_lending_indicators,
+        abs_property_price_index,
+    )
+    from src.tools.compute import (
+        compute_mortgage_repayment,
+        compute_rental_yield,
+        compute_stamp_duty_nsw,
+    )
+    from src.tools.rba_stats import rba_cash_rate, rba_mortgage_rates
+    from src.tools.sqm import sqm_rental_vacancy
+
     return {
-        "retrieved_chunks": list(state.get("retrieved_chunks", [])),
-        "tool_results": list(state.get("tool_results", [])),
-        "iteration_count": new_count,
+        "rba_cash_rate": (rba_cash_rate, [], ["period"]),
+        "rba_mortgage_rates": (rba_mortgage_rates, [], ["period"]),
+        "abs_property_price_index": (
+            abs_property_price_index,
+            ["capital_city"],
+            ["period"],
+        ),
+        "abs_building_approvals": (
+            abs_building_approvals,
+            ["state"],
+            ["period"],
+        ),
+        "abs_lending_indicators": (abs_lending_indicators, [], ["period"]),
+        "sqm_rental_vacancy": (
+            sqm_rental_vacancy,
+            ["postcode_or_city"],
+            ["period"],
+        ),
+        "compute_rental_yield": (
+            compute_rental_yield,
+            ["annual_rent_aud", "property_value_aud"],
+            [],
+        ),
+        "compute_mortgage_repayment": (
+            compute_mortgage_repayment,
+            ["principal_aud", "annual_rate_pct", "term_years"],
+            ["frequency"],
+        ),
+        "compute_stamp_duty_nsw": (
+            compute_stamp_duty_nsw,
+            ["purchase_price_aud"],
+            ["is_first_home_buyer"],
+        ),
+    }
+
+
+_ROUTER_TOOL = {
+    "name": "submit_routing_plan",
+    "description": (
+        "Submit a routing plan for a single sub-question: whether to "
+        "retrieve from the document index, and which structured tools "
+        "(if any) to call with what arguments. Use exactly once."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "use_docs": {
+                "type": "boolean",
+                "description": (
+                    "True when answering this sub-question requires "
+                    "policy/explanatory text from the doc index "
+                    "(RBA bulletins, ABS notes, guidelines, glossaries)."
+                ),
+            },
+            "doc_query": {
+                "type": "string",
+                "description": (
+                    "Optional rewritten query for the retriever. "
+                    "Defaults to the sub-question itself. Use this to "
+                    "strip conversational filler or focus on the "
+                    "retrievable concept."
+                ),
+            },
+            "tool_calls": {
+                "type": "array",
+                "maxItems": MAX_TOOL_CALLS_PER_QUESTION,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "tool": {
+                            "type": "string",
+                            "enum": [
+                                "rba_cash_rate",
+                                "rba_mortgage_rates",
+                                "abs_property_price_index",
+                                "abs_building_approvals",
+                                "abs_lending_indicators",
+                                "sqm_rental_vacancy",
+                                "compute_rental_yield",
+                                "compute_mortgage_repayment",
+                                "compute_stamp_duty_nsw",
+                            ],
+                        },
+                        "args": {
+                            "type": "object",
+                            "description": (
+                                "Keyword arguments for the tool. Use "
+                                "string 'latest' / 'YYYY' / 'YYYY-MM' "
+                                "for `period`. Capital-city names are "
+                                "case-insensitive."
+                            ),
+                        },
+                    },
+                    "required": ["tool", "args"],
+                },
+                "description": (
+                    "Ordered tool calls to execute for this sub-question. "
+                    "Empty list when only retrieval (or nothing) is needed."
+                ),
+            },
+        },
+        "required": ["use_docs", "tool_calls"],
+    },
+}
+
+_ROUTER_SYSTEM = (
+    "You route a single Australian housing-market sub-question to the "
+    "right evidence: document retrieval, one or more structured tools, "
+    "or both. Pick tools deliberately — call each at most once unless "
+    "the question genuinely compares periods/locations. Use 'latest' "
+    "for `period` unless the question names a specific date or year. "
+    "For NSW stamp duty on a first-home-buyer scenario, set "
+    "`is_first_home_buyer=true`. Submit via the submit_routing_plan tool."
+)
+
+
+def _plan_subquestion(query: str) -> dict:
+    """Ask Claude Haiku for a routing plan for one sub-question.
+
+    Factored out so tests can monkey-patch this without touching the
+    Anthropic SDK. Raises RuntimeError on missing API key or malformed
+    response — silent fallbacks would hide planning bugs.
+    """
+    import anthropic
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not set; retrieve_or_tool needs Claude Haiku."
+        )
+    client = anthropic.Anthropic(api_key=api_key)
+    log.debug("router → %s", ROUTER_MODEL)
+    resp = client.messages.create(
+        model=ROUTER_MODEL,
+        max_tokens=ROUTER_MAX_TOKENS,
+        system=_ROUTER_SYSTEM,
+        tools=[_ROUTER_TOOL],
+        tool_choice={"type": "tool", "name": "submit_routing_plan"},
+        messages=[{"role": "user", "content": query}],
+    )
+    tool_use = next(
+        (b for b in resp.content if getattr(b, "type", None) == "tool_use"),
+        None,
+    )
+    if tool_use is None:
+        raise RuntimeError(
+            f"router: model {ROUTER_MODEL} returned no tool_use block"
+        )
+    plan = tool_use.input  # type: ignore[assignment]
+    log.info("router plan for %r: %s", query, json.dumps(plan, ensure_ascii=False))
+    return plan
+
+
+def _execute_tool(name: str, args: dict) -> dict:
+    """Dispatch one tool call; filter unknown args, enforce required keys.
+
+    Wraps unexpected exceptions in the result dict so a single bad arg
+    doesn't sink the whole router pass. Tool-internal failures still
+    surface — we just attribute them rather than propagating.
+    """
+    catalogue = _tool_catalogue()
+    spec = catalogue.get(name)
+    if spec is None:
+        raise ValueError(f"unknown tool: {name}")
+    fn, required, optional = spec
+    allowed = set(required) | set(optional)
+    filtered = {k: v for k, v in (args or {}).items() if k in allowed}
+    missing = [k for k in required if k not in filtered]
+    if missing:
+        raise ValueError(f"{name}: missing required args {missing}")
+    return fn(**filtered)
+
+
+def _retrieve_docs(query: str, k: int = DOCS_TOP_K) -> list[dict]:
+    """Pull top-k chunks via the dense retriever.
+
+    Wrapped so tests can monkey-patch this without spinning up Qdrant.
+    Returns the agent-state shape (`{chunk_id, score, payload}`).
+    """
+    from src.retrieval.retriever import retrieve as do_retrieve
+
+    hits = do_retrieve(query, k=k)
+    return [
+        {
+            "chunk_id": payload.get("chunk_id", ""),
+            "score": float(score),
+            "payload": payload,
+        }
+        for payload, score in hits
+    ]
+
+
+def retrieve_or_tool(state: AgentState) -> dict:
+    """Per sub-question, decide doc retrieval vs tool calls vs both.
+
+    For each sub-question (or the original query if decomposition was
+    skipped), asks Claude Haiku for a `submit_routing_plan` and then
+    executes it: dense retrieval into `retrieved_chunks` and zero or
+    more structured-tool calls into `tool_results`. On loop-back from
+    `reflect`, the refined_query becomes the single sub-question for
+    that iteration.
+
+    Always increments `iteration_count` so the cap in `_route_after_reflect`
+    is observable even when the planner returns an empty plan.
+    """
+    iter_count = state.get("iteration_count", 0)
+    if iter_count == 0:
+        questions = list(state.get("sub_questions") or [])
+        if not questions:
+            uq = _user_query(state)
+            questions = [uq] if uq else []
+    else:
+        refl = state.get("reflection") or {}
+        refined = (refl.get("refined_query") or "").strip()
+        questions = [refined] if refined else []
+
+    chunks = list(state.get("retrieved_chunks", []))
+    tool_results = list(state.get("tool_results", []))
+
+    for q in questions:
+        try:
+            plan = _plan_subquestion(q)
+        except Exception as e:  # noqa: BLE001 — log and skip this question
+            log.warning("router planning failed for %r: %s", q, e)
+            tool_results.append(
+                {"sub_question": q, "error": f"plan_failed: {type(e).__name__}: {e}"}
+            )
+            continue
+
+        if plan.get("use_docs"):
+            doc_q = (plan.get("doc_query") or q).strip() or q
+            try:
+                chunks.extend(_retrieve_docs(doc_q))
+            except Exception as e:  # noqa: BLE001 — partial progress > full fail
+                log.warning("retrieve failed for %r: %s", doc_q, e)
+                tool_results.append(
+                    {"sub_question": q, "error": f"retrieve_failed: {type(e).__name__}: {e}"}
+                )
+
+        for tc in plan.get("tool_calls", []) or []:
+            tname = tc.get("tool")
+            targs = tc.get("args") or {}
+            entry: dict = {"sub_question": q, "tool": tname, "args": targs}
+            try:
+                entry["result"] = _execute_tool(tname, targs)
+            except Exception as e:  # noqa: BLE001 — record per-tool failure
+                log.warning("tool %s(%s) failed: %s", tname, targs, e)
+                entry["error"] = f"{type(e).__name__}: {e}"
+            tool_results.append(entry)
+
+    return {
+        "retrieved_chunks": chunks,
+        "tool_results": tool_results,
+        "iteration_count": iter_count + 1,
     }
 
 
