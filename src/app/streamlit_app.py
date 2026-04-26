@@ -43,6 +43,7 @@ from src.app.state import (
     reset_history,
     ui_to_agent_persona,
 )
+from src.app.trace import TraceStep, build_trace_steps
 
 log = logging.getLogger(__name__)
 
@@ -113,6 +114,17 @@ def _render_sidebar() -> None:
             st.rerun()
 
 
+_STEP_PREFIX: dict[str, str] = {"ok": "✓", "info": "·", "warn": "!"}
+
+
+def _render_trace_step(idx: int, step: TraceStep) -> None:
+    """Render one numbered Reasoning-steps card."""
+    prefix = _STEP_PREFIX.get(step.kind, "·")
+    st.markdown(f"**{prefix} Step {idx}: {step.name}** — {step.summary}")
+    for d in step.details:
+        st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;{d}", unsafe_allow_html=True)
+
+
 def _render_citation_card(idx: int, citation: Citation, turn: TurnRecord) -> None:
     """Render one numbered source card under the answer.
 
@@ -176,22 +188,9 @@ def _render_turn(turn: TurnRecord) -> None:
         st.caption(" · ".join(meta_bits))
 
         if st.session_state.get("show_trace") and not turn.error:
-            with st.expander("Reasoning trace", expanded=False):
-                if turn.classification:
-                    st.markdown("**Classification**")
-                    st.json(turn.classification)
-                if turn.sub_questions:
-                    st.markdown("**Sub-questions**")
-                    for q in turn.sub_questions:
-                        st.markdown(f"- {q}")
-                if turn.tool_results:
-                    st.markdown(f"**Tool calls** ({len(turn.tool_results)})")
-                    for t in turn.tool_results:
-                        st.markdown(f"- `{t.get('tool')}`({t.get('args')})")
-                if turn.retrieved_chunks:
-                    st.markdown(
-                        f"**Retrieved chunks** ({len(turn.retrieved_chunks)})"
-                    )
+            with st.expander("Reasoning steps", expanded=False):
+                for i, step in enumerate(build_trace_steps(turn), start=1):
+                    _render_trace_step(i, step)
 
 
 def main() -> None:
