@@ -138,11 +138,27 @@ MAX_ITERATIONS = 4
 
 
 def _route_after_reflect(state: AgentState) -> str:
-    """Conditional edge — loop or finish based on reflection + cap."""
+    """Conditional edge — loop or finish based on reflection + cap.
+
+    Routing rules (Task 3.18):
+      1. Iteration cap reached → end unconditionally. The cap exists to
+         keep a stuck agent from spinning forever.
+      2. Reflection says complete → end.
+      3. Reflection says incomplete but offers no `refined_query` →
+         end. There's nothing concrete to feed the next pass, so
+         looping would just bump `iteration_count` until the cap.
+      4. Otherwise → loop back through `retrieve_or_tool`, which will
+         pick up `reflection.refined_query` as its single sub-question.
+    """
     if state.get("iteration_count", 0) >= MAX_ITERATIONS:
         return "end"
     refl = state.get("reflection") or {}
-    return "end" if refl.get("is_complete", False) else "loop"
+    if refl.get("is_complete", False):
+        return "end"
+    refined = (refl.get("refined_query") or "").strip()
+    if not refined:
+        return "end"
+    return "loop"
 
 
 def build_graph():
