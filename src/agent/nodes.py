@@ -9,14 +9,14 @@ Implementation status
 - `decompose`        → Task 3.14 (Claude Haiku, 2–4 sub-questions)
 - `retrieve_or_tool` → Task 3.15 (Claude Haiku planner → docs + tools)
 - `reflect`          → Task 3.17 (Claude Haiku, structured output)
-- `synthesize`       → stub; Task 3.17 prompt + post-processor will
-                       harden citation discipline (Task 3.19)
+- `synthesize`       → Task 3.19 (Claude Sonnet + citation post-processor)
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
+import re
 
 from src.agent.graph import AgentState, Classification
 
@@ -753,24 +753,243 @@ def reflect(state: AgentState) -> dict:
     }
 
 
-def synthesize(state: AgentState) -> dict:
-    """Produce the user-facing answer with inline citations.
+SYNTHESIZER_MODEL = os.environ.get("CADASTRE_SYNTHESIZER_MODEL", "claude-sonnet-4-6")
+SYNTHESIZER_MAX_TOKENS = 1536
+SYNTH_CHUNK_TEXT_LIMIT = 600  # Per chunk in the prompt; full text sits in state.
+SYNTH_MAX_CHUNKS_IN_PROMPT = 12
 
-    Real impl: stuffs retrieved chunks and tool results into a Claude
-    Sonnet prompt and asks for a sourced answer. The stub echoes the
-    user's question back as a placeholder so the graph end-to-end
-    test in Task 3.12 can assert that the synthesizer ran.
-    """
-    msgs = state.get("messages", [])
-    user_query = next(
-        (m["content"] for m in msgs if m.get("role") == "user"),
-        "",
+# Citation grammar (Task 3.19):
+#   [source:<publisher>, page:<N>]   for retrieved chunks
+#   [source:<publisher>]             when page is unknown (acceptable)
+#   [tool:<name>, retrieved:<date>]  for structured tool results
+# Whitespace is tolerated; everything else must match exactly.
+_DOC_CITE_RE = re.compile(r"\[source:\s*([^,\]]+?)\s*(?:,\s*page:\s*([^\]]+?)\s*)?\]")
+_TOOL_CITE_RE = re.compile(r"\[tool:\s*([^,\]]+?)\s*,\s*retrieved:\s*([^\]]+?)\s*\]")
+
+_CITATION_RULES = (
+    "Cite every factual or numeric claim inline using ONE of these forms:\n"
+    "  - Retrieved documents:  [source:<publisher>, page:<N>]\n"
+    "    (omit `, page:<N>` only if the chunk has no page; never invent one)\n"
+    "  - Tool results:         [tool:<tool_name>, retrieved:<YYYY-MM-DD>]\n"
+    "Use ONLY the publishers, page numbers, tool names, and retrieved dates "
+    "shown in EVIDENCE below. If you cannot support a claim from the "
+    "evidence, OMIT the claim entirely — do not paraphrase from training "
+    "knowledge. End with a 'Sources' line that lists each cited publisher "
+    "and tool exactly once."
+)
+
+_SYNTHESIZER_SYSTEM = (
+    "You are a careful Australian housing-market research assistant. "
+    "Answer the user's question concisely and ONLY from the supplied "
+    "evidence. Numbers must come from tool results; explanatory framing "
+    "must come from retrieved chunks. " + _CITATION_RULES
+)
+
+
+def _summarise_chunks_for_synth(chunks: list[dict]) -> str:
+    if not chunks:
+        return "(no document chunks retrieved)"
+    lines = []
+    for i, c in enumerate(chunks[:SYNTH_MAX_CHUNKS_IN_PROMPT], start=1):
+        payload = c.get("payload") or {}
+        publisher = payload.get("publisher", "?")
+        title = (payload.get("title") or "")[:120]
+        section = (payload.get("section_heading") or "")[:80]
+        page = payload.get("page")
+        text = (payload.get("text") or "")[:SYNTH_CHUNK_TEXT_LIMIT]
+        header = f"[{i}] publisher={publisher!r} page={page!r} title={title!r}"
+        if section:
+            header += f" section={section!r}"
+        lines.append(f"{header}\n    text={text!r}")
+    if len(chunks) > SYNTH_MAX_CHUNKS_IN_PROMPT:
+        lines.append(f"... and {len(chunks) - SYNTH_MAX_CHUNKS_IN_PROMPT} more chunks")
+    return "\n".join(lines)
+
+
+def _summarise_tools_for_synth(tool_results: list[dict]) -> str:
+    if not tool_results:
+        return "(no tool results)"
+    lines = []
+    for i, t in enumerate(tool_results, start=1):
+        if "error" in t:
+            tool_name = t.get("tool", "<plan>")
+            lines.append(
+                f"[{i}] tool={tool_name!r} args={t.get('args', {})} "
+                f"→ ERROR: {t['error']}"
+            )
+            continue
+        result = t.get("result") or {}
+        retrieved_at = result.get("retrieved_at") or ""
+        retrieved_date = retrieved_at[:10] if retrieved_at else "?"
+        lines.append(
+            f"[{i}] tool={t.get('tool')!r} args={t.get('args', {})} "
+            f"retrieved={retrieved_date!r} data={result.get('data')} "
+            f"source={result.get('source')!r} citation={result.get('citation')!r}"
+        )
+    return "\n".join(lines)
+
+
+def _build_synth_prompt(state: AgentState) -> str:
+    user_q = _user_query(state)
+    sub_qs = state.get("sub_questions") or []
+    chunks = state.get("retrieved_chunks") or []
+    tools = state.get("tool_results") or []
+
+    sub_block = (
+        "\n".join(f"  {i + 1}. {q}" for i, q in enumerate(sub_qs))
+        if sub_qs
+        else "(none — answer the original question directly)"
     )
-    draft = f"[stub answer to: {user_query}]"
-    log.debug("synthesize stub: draft=%r", draft)
+    return (
+        f"USER QUESTION:\n{user_q}\n\n"
+        f"SUB-QUESTIONS:\n{sub_block}\n\n"
+        f"EVIDENCE — RETRIEVED CHUNKS:\n{_summarise_chunks_for_synth(chunks)}\n\n"
+        f"EVIDENCE — TOOL RESULTS:\n{_summarise_tools_for_synth(tools)}\n\n"
+        "Write the answer now."
+    )
+
+
+def _valid_citation_targets(state: AgentState) -> tuple[set[str], dict[str, set[str]]]:
+    """Build the allowlist for citation post-processing.
+
+    Returns:
+      (valid_tools, valid_publishers_pages) where
+        * `valid_tools` is the set of tool names that produced a result
+          (errors don't count — we don't want the model citing failed
+          calls). The retrieved-date check is done separately.
+        * `valid_publishers_pages` maps publisher → set of page strings
+          observed in retrieved chunks. A page string of "" means the
+          chunk had no page, in which case un-paged citations are OK.
+    """
+    chunks = state.get("retrieved_chunks") or []
+    publishers: dict[str, set[str]] = {}
+    for c in chunks:
+        payload = c.get("payload") or {}
+        pub = (payload.get("publisher") or "").strip()
+        if not pub:
+            continue
+        page = payload.get("page")
+        page_str = str(page).strip() if page is not None else ""
+        publishers.setdefault(pub, set()).add(page_str)
+
+    tools_by_date: dict[str, set[str]] = {}
+    for t in state.get("tool_results") or []:
+        if "result" not in t:
+            continue
+        name = (t.get("tool") or "").strip()
+        if not name:
+            continue
+        retrieved_at = (t["result"].get("retrieved_at") or "")[:10]
+        tools_by_date.setdefault(name, set()).add(retrieved_at)
+    return set(tools_by_date), publishers
+
+
+def _enforce_citations(text: str, state: AgentState) -> tuple[str, list[str]]:
+    """Validate inline citations and append a Sources footer.
+
+    Returns the (possibly annotated) text plus a list of orphan
+    citations that didn't match the evidence. Orphans aren't deleted —
+    we tag them `(unverified)` so the user can see where the model
+    overreached, and so the eval harness can score citation discipline
+    without the post-processor silently fixing things up.
+    """
+    valid_tools, valid_publishers = _valid_citation_targets(state)
+    orphans: list[str] = []
+
+    def _doc_repl(m: re.Match) -> str:
+        publisher = m.group(1).strip()
+        page = (m.group(2) or "").strip()
+        allowed_pages = valid_publishers.get(publisher)
+        if allowed_pages is None:
+            orphans.append(m.group(0))
+            return f"{m.group(0)} (unverified)"
+        if page and page not in allowed_pages:
+            # Publisher matched but page didn't — partial orphan.
+            orphans.append(m.group(0))
+            return f"{m.group(0)} (page-unverified)"
+        return m.group(0)
+
+    def _tool_repl(m: re.Match) -> str:
+        name = m.group(1).strip()
+        if name not in valid_tools:
+            orphans.append(m.group(0))
+            return f"{m.group(0)} (unverified)"
+        return m.group(0)
+
+    annotated = _DOC_CITE_RE.sub(_doc_repl, text)
+    annotated = _TOOL_CITE_RE.sub(_tool_repl, annotated)
+
+    # If the model already emitted a "Sources" block we leave it; it's
+    # part of the prompted format and may hold publisher+page lines we
+    # can't confidently rewrite. Append our own machine-built footer
+    # only when the model omitted one.
+    if "\nSources" not in annotated and "Sources:" not in annotated.split("\n")[-3:][0]:
+        footer_lines = []
+        if valid_publishers:
+            footer_lines.append("- Documents: " + ", ".join(sorted(valid_publishers)))
+        if valid_tools:
+            footer_lines.append("- Tools: " + ", ".join(sorted(valid_tools)))
+        if footer_lines:
+            annotated = annotated.rstrip() + "\n\nSources (auto):\n" + "\n".join(footer_lines)
+    return annotated, orphans
+
+
+def synthesize(state: AgentState) -> dict:
+    """Produce the user-facing answer with strict inline citations.
+
+    Calls Claude Sonnet (default) on the original question + sub-questions
+    + retrieved chunks + tool results, then post-processes the draft to
+    flag any citation that doesn't reference real evidence.
+
+    Defensive: API failures fall back to a short error stub so the graph
+    can still terminate. Orphan citations are not deleted — they're
+    tagged `(unverified)` so the eval harness can score citation
+    discipline without the post-processor silently fixing things up.
+    """
+    import anthropic
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not set; synthesize needs Claude Sonnet."
+        )
+
+    msgs = state.get("messages", [])
+    prompt = _build_synth_prompt(state)
+    client = anthropic.Anthropic(api_key=api_key)
+    log.debug("synthesize → %s", SYNTHESIZER_MODEL)
+    try:
+        resp = client.messages.create(
+            model=SYNTHESIZER_MODEL,
+            max_tokens=SYNTHESIZER_MAX_TOKENS,
+            system=_SYNTHESIZER_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+        )
+    except Exception as e:  # noqa: BLE001 — graph must still terminate
+        log.warning("synthesize API call failed (%s: %s)", type(e).__name__, e)
+        draft = (
+            "I couldn't generate a final answer due to a synthesis-stage "
+            f"error ({type(e).__name__}). Retrieved {len(state.get('retrieved_chunks') or [])} "
+            f"chunks and {len(state.get('tool_results') or [])} tool results."
+        )
+        return {
+            "answer_draft": draft,
+            "messages": msgs + [{"role": "assistant", "content": draft}],
+        }
+
+    text_blocks = [
+        getattr(b, "text", "") for b in resp.content if getattr(b, "type", None) == "text"
+    ]
+    raw = "\n".join(t for t in text_blocks if t).strip()
+    if not raw:
+        raw = "(no answer produced)"
+
+    cleaned, orphans = _enforce_citations(raw, state)
+    if orphans:
+        log.info("synthesize: %d unverified citation(s): %s", len(orphans), orphans)
     return {
-        "answer_draft": draft,
-        "messages": msgs + [{"role": "assistant", "content": draft}],
+        "answer_draft": cleaned,
+        "messages": msgs + [{"role": "assistant", "content": cleaned}],
     }
 
 

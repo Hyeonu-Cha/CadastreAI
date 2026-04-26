@@ -48,12 +48,27 @@ def _stub_reflect_complete(_state):
     }
 
 
+def _stub_synthesize(state):
+    """Echo synthesizer — keeps synth offline-safe in graph tests."""
+    msgs = state.get("messages", [])
+    user_query = next(
+        (m["content"] for m in msgs if m.get("role") == "user"),
+        "",
+    )
+    draft = f"[stub answer to: {user_query}]"
+    return {
+        "answer_draft": draft,
+        "messages": msgs + [{"role": "assistant", "content": draft}],
+    }
+
+
 def test_graph_happy_path_terminates_after_one_pass(monkeypatch):
     from src.agent import nodes
 
     monkeypatch.setattr(nodes, "classify_query", _stub_classifier)
     monkeypatch.setattr(nodes, "_plan_subquestion", _stub_planner)
     monkeypatch.setattr(nodes, "reflect", _stub_reflect_complete)
+    monkeypatch.setattr(nodes, "synthesize", _stub_synthesize)
     g = build_graph()
     out = g.invoke(initial_state("What is the cash rate today?"))
     assert out["query_type"] == "factual"
@@ -80,6 +95,7 @@ def test_graph_caps_at_max_iterations(monkeypatch):
     monkeypatch.setattr(nodes, "classify_query", _stub_classifier)
     monkeypatch.setattr(nodes, "_plan_subquestion", _stub_planner)
     monkeypatch.setattr(nodes, "reflect", never_complete)
+    monkeypatch.setattr(nodes, "synthesize", _stub_synthesize)
     # Rebuild the graph so it picks up the patched nodes.
     g = build_graph()
     out = g.invoke(initial_state("Find me everything."))
@@ -160,6 +176,7 @@ def test_loopback_feeds_refined_query_into_router(monkeypatch):
 
     monkeypatch.setattr(nodes, "_plan_subquestion", stub_plan)
     monkeypatch.setattr(nodes, "reflect", stub_reflect)
+    monkeypatch.setattr(nodes, "synthesize", _stub_synthesize)
     g = build_graph()
     out = g.invoke(initial_state("Compare Sydney and Melbourne prices."))
 
@@ -190,6 +207,7 @@ def test_loopback_short_circuits_when_refined_query_missing(monkeypatch):
         }
 
     monkeypatch.setattr(nodes, "reflect", stub_reflect)
+    monkeypatch.setattr(nodes, "synthesize", _stub_synthesize)
     g = build_graph()
     out = g.invoke(initial_state("Find me everything."))
     # Single pass, then ended despite incomplete — no wasted iterations.
