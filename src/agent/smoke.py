@@ -86,9 +86,21 @@ def _install_stub_classifier() -> None:
             }
         }
 
+    def stub_synth(state):
+        msgs = state.get("messages", [])
+        user_q = next(
+            (m["content"] for m in msgs if m.get("role") == "user"), ""
+        )
+        draft = f"[stub answer to: {user_q}]"
+        return {
+            "answer_draft": draft,
+            "messages": msgs + [{"role": "assistant", "content": draft}],
+        }
+
     nodes.classify_query = stub_classify  # type: ignore[assignment]
     nodes._plan_subquestion = stub_plan  # type: ignore[assignment]
     nodes.reflect = stub_reflect  # type: ignore[assignment]
+    nodes.synthesize = stub_synth  # type: ignore[assignment]
 
 
 def export_diagram(out_dir: Path = DEFAULT_DIAGRAM_DIR) -> dict:
