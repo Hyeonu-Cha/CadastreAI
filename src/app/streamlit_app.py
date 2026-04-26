@@ -43,7 +43,7 @@ from src.app.state import (
     reset_history,
     ui_to_agent_persona,
 )
-from src.app.trace import TraceStep, build_trace_steps
+from src.app.trace import TraceStep, build_trace_steps, chunks_table_rows
 
 log = logging.getLogger(__name__)
 
@@ -191,6 +191,13 @@ def _render_turn(turn: TurnRecord) -> None:
             with st.expander("Reasoning steps", expanded=False):
                 for i, step in enumerate(build_trace_steps(turn), start=1):
                     _render_trace_step(i, step)
+                if turn.retrieved_chunks:
+                    st.markdown("**Top retrieved chunks**")
+                    st.dataframe(
+                        chunks_table_rows(turn.retrieved_chunks),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
 
 
 def main() -> None:

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from src.app.trace import build_trace_steps
+from src.app.trace import build_trace_steps, chunks_table_rows
 
 
 @dataclass
@@ -224,3 +224,72 @@ def test_reflect_step_cap_hit_is_warn():
     s = steps[4]
     assert s.kind == "warn"
     assert "cap" in s.summary.lower()
+
+
+# ---------- chunks_table_rows -----------------------------------
+
+
+def test_chunks_table_rows_empty_returns_empty_list():
+    assert chunks_table_rows([]) == []
+    assert chunks_table_rows(None) == []  # type: ignore[arg-type]
+
+
+def test_chunks_table_rows_sorts_by_boosted_score_when_present():
+    """Boost reorders — that's the order the synthesizer saw."""
+    chunks = [
+        {"score": 0.90, "payload": {"publisher": "RBA"}},
+        {"score": 0.70, "boosted_score": 0.95, "payload": {"publisher": "AHURI"}},
+    ]
+    rows = chunks_table_rows(chunks)
+    assert [r["publisher"] for r in rows] == ["AHURI", "RBA"]
+    assert [r["rank"] for r in rows] == [1, 2]
+
+
+def test_chunks_table_rows_sorts_by_raw_score_when_no_boost():
+    chunks = [
+        {"score": 0.50, "payload": {"publisher": "A"}},
+        {"score": 0.80, "payload": {"publisher": "B"}},
+        {"score": 0.65, "payload": {"publisher": "C"}},
+    ]
+    rows = chunks_table_rows(chunks)
+    assert [r["publisher"] for r in rows] == ["B", "C", "A"]
+
+
+def test_chunks_table_rows_columns_have_expected_shape():
+    chunks = [
+        {"score": 0.91, "boosted_score": 1.05, "payload": {
+            "publisher": "RBA", "page": 7, "title": "Cash rate decision"
+        }},
+    ]
+    rows = chunks_table_rows(chunks)
+    r = rows[0]
+    assert set(r.keys()) == {"rank", "publisher", "page", "score", "boosted", "title"}
+    assert r["score"] == 0.91
+    assert r["boosted"] == 1.05
+    assert r["page"] == 7
+    assert r["title"] == "Cash rate decision"
+
+
+def test_chunks_table_rows_truncates_long_titles():
+    long = "x" * 200
+    chunks = [{"score": 0.5, "payload": {"publisher": "P", "title": long}}]
+    rows = chunks_table_rows(chunks)
+    assert len(rows[0]["title"]) <= 80
+    assert rows[0]["title"].endswith("…")
+
+
+def test_chunks_table_rows_handles_missing_fields_gracefully():
+    chunks = [{"score": 0.4, "payload": {}}]  # no publisher, no page, no title
+    rows = chunks_table_rows(chunks)
+    r = rows[0]
+    assert r["publisher"] == "?"
+    assert r["page"] == ""
+    assert r["title"] == ""
+    assert r["score"] == 0.4
+    assert r["boosted"] is None
+
+
+def test_chunks_table_rows_rounds_scores_to_three_decimals():
+    chunks = [{"score": 0.123456789, "payload": {"publisher": "X"}}]
+    rows = chunks_table_rows(chunks)
+    assert rows[0]["score"] == 0.123
