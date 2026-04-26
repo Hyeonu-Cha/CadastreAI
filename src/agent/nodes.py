@@ -155,16 +155,105 @@ def classify_query(state: AgentState) -> dict:
     return {"classification": cls, "query_type": cls["query_type"]}
 
 
+DECOMPOSER_MODEL = os.environ.get("CADASTRE_DECOMPOSER_MODEL", "claude-haiku-4-5")
+DECOMPOSER_MAX_TOKENS = 512
+DECOMPOSE_MIN = 2
+DECOMPOSE_MAX = 4
+
+_DECOMPOSE_TOOL = {
+    "name": "submit_subquestions",
+    "description": (
+        "Submit a list of 2–4 atomic sub-questions that together cover "
+        "the user's original question. Each sub-question must be "
+        "answerable independently with retrieval or a single tool call."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "sub_questions": {
+                "type": "array",
+                "minItems": DECOMPOSE_MIN,
+                "maxItems": DECOMPOSE_MAX,
+                "items": {"type": "string", "minLength": 1},
+                "description": (
+                    "Atomic sub-questions, ordered logically. Avoid "
+                    "duplicates and questions that depend on each other."
+                ),
+            },
+        },
+        "required": ["sub_questions"],
+    },
+}
+
+_DECOMPOSER_SYSTEM = (
+    "You decompose a complex Australian housing-market question into "
+    "2–4 atomic sub-questions. Each sub-question must be self-contained, "
+    "non-overlapping, and answerable on its own (a doc lookup, a tool "
+    "call, or a calculation). Preserve the user's intent — do not add "
+    "scope beyond the original question. Submit via the "
+    "submit_subquestions tool."
+)
+
+
 def decompose(state: AgentState) -> dict:
     """Split a complex query into 2–4 atomic sub-questions.
 
-    Real impl (Task 3.14): only fires when classify_query flags
-    `needs_decomposition=True`. Uses Claude Haiku again with a
-    structured prompt. The stub returns an empty list so the
-    caller treats the original question atomically.
+    Only runs when the classifier flagged `needs_decomposition=True`.
+    Otherwise we leave `sub_questions` empty and the downstream router
+    treats the original question atomically. Uses Claude Haiku via the
+    same forced-tool-call pattern as `classify_query`.
     """
-    log.debug("decompose stub: no sub-questions")
-    return {"sub_questions": []}
+    cls = state.get("classification") or {}
+    if not cls.get("needs_decomposition"):
+        log.debug("decompose: needs_decomposition=False, skipping")
+        return {"sub_questions": []}
+
+    import anthropic
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not set; decompose needs Claude Haiku."
+        )
+    query = _user_query(state)
+    if not query:
+        raise RuntimeError("decompose: no user message in state")
+
+    client = anthropic.Anthropic(api_key=api_key)
+    log.debug("decompose → %s", DECOMPOSER_MODEL)
+    resp = client.messages.create(
+        model=DECOMPOSER_MODEL,
+        max_tokens=DECOMPOSER_MAX_TOKENS,
+        system=_DECOMPOSER_SYSTEM,
+        tools=[_DECOMPOSE_TOOL],
+        tool_choice={"type": "tool", "name": "submit_subquestions"},
+        messages=[{"role": "user", "content": query}],
+    )
+
+    tool_use = next(
+        (b for b in resp.content if getattr(b, "type", None) == "tool_use"),
+        None,
+    )
+    if tool_use is None:
+        raise RuntimeError(
+            f"decompose: model {DECOMPOSER_MODEL} returned no tool_use block"
+        )
+    raw = tool_use.input.get("sub_questions") or []  # type: ignore[union-attr]
+    sub_qs = [s.strip() for s in raw if isinstance(s, str) and s.strip()]
+    if not (DECOMPOSE_MIN <= len(sub_qs) <= DECOMPOSE_MAX):
+        # Anthropic's schema enforces this server-side, but if the model
+        # ever drops below 2 we fall back to atomic handling rather than
+        # forwarding a degenerate list.
+        log.warning(
+            "decompose returned %d sub-questions (expected %d–%d); "
+            "treating as atomic",
+            len(sub_qs),
+            DECOMPOSE_MIN,
+            DECOMPOSE_MAX,
+        )
+        return {"sub_questions": []}
+    log.info("decompose: %s", json.dumps(sub_qs, ensure_ascii=False))
+    return {"sub_questions": sub_qs}
 
 
 def retrieve_or_tool(state: AgentState) -> dict:
