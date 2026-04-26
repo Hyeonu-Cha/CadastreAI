@@ -25,6 +25,14 @@ import time
 
 import streamlit as st
 
+from src.app.citations import (
+    Citation,
+    citation_excerpt,
+    match_doc_evidence,
+    match_tool_evidence,
+    parse_citations,
+    renumber_answer,
+)
 from src.app.state import (
     UI_PERSONAS,
     TurnRecord,
@@ -104,6 +112,45 @@ def _render_sidebar() -> None:
             st.rerun()
 
 
+def _render_citation_card(idx: int, citation: Citation, turn: TurnRecord) -> None:
+    """Render one numbered source card under the answer.
+
+    Doc citations show publisher / page / title / excerpt. Tool citations
+    show the tool name, retrieval timestamp, and the result envelope as
+    JSON. If no matching evidence is found we still render the chip so
+    the user knows the model claimed it; the body just notes the gap.
+    """
+    if citation.kind == "doc":
+        chunk = match_doc_evidence(citation, turn.retrieved_chunks)
+        header = f"**[{idx}]** {citation.publisher}"
+        if citation.page:
+            header += f" · page {citation.page}"
+        st.markdown(header)
+        if chunk is None:
+            st.caption("No matching retrieved chunk — model may have overreached.")
+            return
+        payload = chunk.get("payload") or {}
+        title = (payload.get("title") or "").strip()
+        section = (payload.get("section_heading") or "").strip()
+        sub_bits = [b for b in (title, section) if b]
+        if sub_bits:
+            st.caption(" · ".join(sub_bits))
+        st.markdown(f"> {citation_excerpt(chunk)}")
+        return
+
+    env = match_tool_evidence(citation, turn.tool_results)
+    header = f"**[{idx}]** `{citation.tool}` · retrieved {citation.retrieved_at}"
+    st.markdown(header)
+    if env is None:
+        st.caption("No matching tool result — model may have overreached.")
+        return
+    result = env.get("result") or {}
+    if "data" in result:
+        st.json(result["data"])
+    if result.get("source"):
+        st.caption(f"source: {result['source']}")
+
+
 def _render_turn(turn: TurnRecord) -> None:
     with st.chat_message("user"):
         st.markdown(turn.query)
@@ -111,7 +158,15 @@ def _render_turn(turn: TurnRecord) -> None:
         if turn.error:
             st.error(turn.error)
         else:
-            st.markdown(turn.answer or "_(no draft answer returned)_")
+            citations = parse_citations(turn.answer or "")
+            display_text = renumber_answer(turn.answer or "", citations)
+            st.markdown(display_text or "_(no draft answer returned)_")
+            if citations:
+                with st.expander(
+                    f"Cited sources ({len(citations)})", expanded=False
+                ):
+                    for i, c in enumerate(citations, start=1):
+                        _render_citation_card(i, c, turn)
         meta_bits: list[str] = [f"persona: {turn.persona}"]
         if turn.iteration_count:
             meta_bits.append(f"iterations: {turn.iteration_count}")
