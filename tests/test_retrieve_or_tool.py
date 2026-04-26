@@ -56,7 +56,7 @@ def test_router_dispatches_per_subquestion(monkeypatch):
             ],
         },
     }
-    monkeypatch.setattr(nodes, "_plan_subquestion", lambda q: plans[q])
+    monkeypatch.setattr(nodes, "_plan_subquestion", lambda q, persona=None: plans[q])
     monkeypatch.setattr(
         nodes,
         "_retrieve_docs",
@@ -93,7 +93,7 @@ def test_router_uses_user_query_when_no_subquestions(monkeypatch):
 
     seen: list[str] = []
 
-    def plan(q):
+    def plan(q, persona=None):
         seen.append(q)
         return {"use_docs": False, "tool_calls": []}
 
@@ -118,7 +118,7 @@ def test_router_loopback_uses_refined_query(monkeypatch):
 
     seen: list[str] = []
 
-    def plan(q):
+    def plan(q, persona=None):
         seen.append(q)
         return {"use_docs": True, "tool_calls": []}
 
@@ -145,7 +145,7 @@ def test_router_records_unknown_tool_as_error(monkeypatch):
     monkeypatch.setattr(
         nodes,
         "_plan_subquestion",
-        lambda q: {
+        lambda q, persona=None: {
             "use_docs": False,
             "tool_calls": [{"tool": "make_coffee", "args": {}}],
         },
@@ -163,7 +163,7 @@ def test_router_records_missing_required_arg(monkeypatch):
     monkeypatch.setattr(
         nodes,
         "_plan_subquestion",
-        lambda q: {
+        lambda q, persona=None: {
             "use_docs": False,
             "tool_calls": [
                 {"tool": "compute_stamp_duty_nsw", "args": {}}  # missing purchase_price_aud
@@ -181,7 +181,7 @@ def test_router_records_planner_failure(monkeypatch):
 
     plans = {"good": {"use_docs": False, "tool_calls": []}}
 
-    def plan(q):
+    def plan(q, persona=None):
         if q == "bad":
             raise RuntimeError("boom")
         return plans[q]
@@ -223,7 +223,7 @@ def test_router_filters_unknown_args_silently(monkeypatch):
     monkeypatch.setattr(
         nodes,
         "_plan_subquestion",
-        lambda q: {
+        lambda q, persona=None: {
             "use_docs": False,
             "tool_calls": [
                 {

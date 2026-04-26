@@ -19,6 +19,12 @@ import os
 import re
 
 from src.agent.graph import AgentState, Classification
+from src.agent.persona import (
+    apply_publisher_boost,
+    effective_persona,
+    persona_prompt_addendum,
+    persona_router_hints,
+)
 
 log = logging.getLogger(__name__)
 
@@ -397,12 +403,15 @@ _ROUTER_SYSTEM = (
 )
 
 
-def _plan_subquestion(query: str) -> dict:
+def _plan_subquestion(query: str, persona: str | None = None) -> dict:
     """Ask Claude Haiku for a routing plan for one sub-question.
 
     Factored out so tests can monkey-patch this without touching the
     Anthropic SDK. Raises RuntimeError on missing API key or malformed
     response — silent fallbacks would hide planning bugs.
+
+    `persona` (optional) appends a one-line tool-selection hint to the
+    router system prompt — biases ties without restricting the toolset.
     """
     import anthropic
 
@@ -411,12 +420,16 @@ def _plan_subquestion(query: str) -> dict:
         raise RuntimeError(
             "ANTHROPIC_API_KEY is not set; retrieve_or_tool needs Claude Haiku."
         )
+    system_prompt = _ROUTER_SYSTEM
+    hint = persona_router_hints(persona) if persona else ""
+    if hint:
+        system_prompt = f"{_ROUTER_SYSTEM}\n\n{hint}"
     client = anthropic.Anthropic(api_key=api_key)
-    log.debug("router → %s", ROUTER_MODEL)
+    log.debug("router → %s (persona=%s)", ROUTER_MODEL, persona)
     resp = client.messages.create(
         model=ROUTER_MODEL,
         max_tokens=ROUTER_MAX_TOKENS,
-        system=_ROUTER_SYSTEM,
+        system=system_prompt,
         tools=[_ROUTER_TOOL],
         tool_choice={"type": "tool", "name": "submit_routing_plan"},
         messages=[{"role": "user", "content": query}],
@@ -497,12 +510,13 @@ def retrieve_or_tool(state: AgentState) -> dict:
         refined = (refl.get("refined_query") or "").strip()
         questions = [refined] if refined else []
 
+    persona = effective_persona(state)
     chunks = list(state.get("retrieved_chunks", []))
     tool_results = list(state.get("tool_results", []))
 
     for q in questions:
         try:
-            plan = _plan_subquestion(q)
+            plan = _plan_subquestion(q, persona=persona)
         except Exception as e:  # noqa: BLE001 — log and skip this question
             log.warning("router planning failed for %r: %s", q, e)
             tool_results.append(
@@ -530,6 +544,8 @@ def retrieve_or_tool(state: AgentState) -> dict:
                 log.warning("tool %s(%s) failed: %s", tname, targs, e)
                 entry["error"] = f"{type(e).__name__}: {e}"
             tool_results.append(entry)
+
+    chunks = apply_publisher_boost(chunks, persona)
 
     return {
         "retrieved_chunks": chunks,
@@ -956,13 +972,15 @@ def synthesize(state: AgentState) -> dict:
 
     msgs = state.get("messages", [])
     prompt = _build_synth_prompt(state)
+    persona = effective_persona(state)
+    system_prompt = f"{_SYNTHESIZER_SYSTEM}\n\n{persona_prompt_addendum(persona)}"
     client = anthropic.Anthropic(api_key=api_key)
-    log.debug("synthesize → %s", SYNTHESIZER_MODEL)
+    log.debug("synthesize → %s (persona=%s)", SYNTHESIZER_MODEL, persona)
     try:
         resp = client.messages.create(
             model=SYNTHESIZER_MODEL,
             max_tokens=SYNTHESIZER_MAX_TOKENS,
-            system=_SYNTHESIZER_SYSTEM,
+            system=system_prompt,
             messages=[{"role": "user", "content": prompt}],
         )
     except Exception as e:  # noqa: BLE001 — graph must still terminate

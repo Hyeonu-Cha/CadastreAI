@@ -32,7 +32,7 @@ def _stub_classifier(state):
     }
 
 
-def _stub_planner(_query):
+def _stub_planner(_query, persona=None):
     """Empty plan — keeps retrieve_or_tool offline-safe in graph tests."""
     return {"use_docs": False, "tool_calls": []}
 
@@ -148,7 +148,7 @@ def test_loopback_feeds_refined_query_into_router(monkeypatch):
 
     seen_queries: list[str] = []
 
-    def stub_plan(q):
+    def stub_plan(q, persona=None):
         seen_queries.append(q)
         return {"use_docs": False, "tool_calls": []}
 
