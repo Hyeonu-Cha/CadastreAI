@@ -13,7 +13,7 @@
     <a href="#-quickstart">Quickstart</a> ·
     <a href="#-results">Results</a> ·
     <a href="#-architecture">Architecture</a> ·
-    <a href="./docs/blog_draft.md">Blog post</a>
+    <a href="./docs/blog.md">Blog post</a>
   </p>
 </div>
 
@@ -63,7 +63,7 @@ not more. This motivates Week 2's BGE fine-tune on synthetic
 that work is in flight; numbers will land in this table when the run
 completes.
 
-See [`docs/blog_draft.md`](./docs/blog_draft.md) for the full write-up,
+See [`docs/blog.md`](./docs/blog.md) for the full write-up,
 ablations, and per-persona breakdowns.
 
 ---
@@ -154,7 +154,7 @@ CadastreAI/
 
 - **[`product.md`](./product.md)** — product requirements, personas, features, user flows, success metrics
 - **[`project_plan.md`](./project_plan.md)** — 4-week engineering plan with daily tasks and checkpoints
-- **[`docs/blog_draft.md`](./docs/blog_draft.md)** — technical deep-dive on fine-tuning and ablations
+- **[`docs/blog.md`](./docs/blog.md)** — technical deep-dive on fine-tuning and ablations
 - **[`tickets.md`](./tickets.md)** — full ticket-level breakdown of the 4 weeks
 
 ---
