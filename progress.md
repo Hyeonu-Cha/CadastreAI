@@ -2,6 +2,135 @@
 
 Tracks completed tickets with short notes. See `tickets.md` for the full backlog.
 
+> **Log gap (Day 2 → Phase 3 close).** Per-ticket notes in this file
+> stopped after Day 1; the ~65 tickets between Task 1.05 and Task 4.10
+> are documented via squash-merged PRs on `main` instead. Run
+> `git log --oneline --no-merges main | grep "Task "` for the
+> chronological ledger; each commit's body has the design notes that
+> would otherwise live here. This file resumes detailed logging from
+> Phase 4 onwards.
+
+## Phase 4 — Serving, caching, packaging
+
+### Day — Streamlit + UX
+
+(Tasks 4.01–4.08 are documented in their respective squash-merged
+PRs #69–#75. Notes resume below from the operational tickets I drove
+in this session.)
+
+### Day — Cache layers, cost telemetry, packaging
+
+- [x] **Task 4.09** — Disk-backed embedding cache (PR #76)
+- [x] **Task 4.10** — In-memory tool-result cache with per-tool TTLs (PR #77)
+- [x] **Task 4.11** — Anthropic prompt caching on every system prompt (PR #78, 2026-04-27)
+  - Wrapped each of the 5 `messages.create()` system strings in a
+    list-of-dicts with `cache_control: {"type": "ephemeral"}` —
+    classifier, decomposer, router, reflector, synthesizer
+  - Render order is tools → system → messages, so a breakpoint on the
+    last system block caches tools + system together; per-call user
+    content stays in `messages[]` after the breakpoint
+  - Yields ~90% input-token discount on warm calls within the 5-minute
+    TTL; verified shape via the `claude-api` skill before patching
+  - Tests: 254 passed (pre-existing stub clients don't care about the
+    new cache_control marker)
+
+- [x] **Task 4.12** — Per-query cost accounting + node hooks (PR #79, 2026-04-27)
+  - New `src/agent/cost.py`: `calculate_cost(usage, model)` →
+    `CostBreakdown` across 4 meters (input full-rate, output, cache_read
+    0.1×, cache_write 1.25×); `CostTracker` class for per-run
+    accumulation; `log_cost()` one-shot helper for nodes
+  - Pricing is a one-table lookup keyed by model_id (cached 2026-04-15)
+    — when Anthropic changes prices it's a one-line patch
+  - Wired `log_cost()` into all 5 `messages.create()` callsites in
+    `nodes.py`. Each emits a structured line:
+    `cost node=X model=Y in=N out=N cache_r=N cache_w=N total=$0.000XYZ`
+  - 15 unit tests cover the pricing maths, dict-vs-attr usage shapes,
+    unknown-model fallback, missing-cache-fields default, tracker
+    accumulation, and the structured log format
+  - Decoupling per-meter is what makes the cache-hit story checkable
+    — without `cache_read_input_tokens` separated out, you can't tell
+    whether Task 4.11's prompt cache is actually landing
+
+- [x] **Task 4.13** — Multi-stage production Dockerfile (PR #80, 2026-04-27)
+  - Two stages: builder (`python:3.11-slim` + `build-essential`)
+    compiles wheels for runtime extras (`agent,index,embed,tools,app,
+    chunk`) into `/opt/venv`; runtime (`python:3.11-slim` + `libgomp1`)
+    copies the prebuilt venv and runs as a non-root `cadastre` user
+    (UID 1000)
+  - `parse` extras (docling + torch ~1.5 GB) deliberately skipped —
+    only needed for offline ingestion, not the runtime
+  - Streamlit defaults: headless, 0.0.0.0:8501, browser-stats off
+  - `/_stcore/health` healthcheck; `.dockerignore` mirrors `.gitignore`
+    + excludes notebooks/docs/data so source-only changes don't bust
+    the dep cache layer
+  - Build context shrinks from ~repo size to ~10 MB
+  - Not built locally (Docker daemon wasn't running on dev machine);
+    syntax is conventional buildkit, deferred to first deploy/CI
+
+- [x] **Task 4.20** — README finalised for launch (PR #81, 2026-04-27)
+  - Real eval numbers in the results table from `results/{baseline,
+    bm25,hybrid,reranked}.json` — recall@5/10, MRR@10, nDCG@10 across
+    the full 100-query held-out set
+  - Honest framing: BM25 currently leads (R@10 = 0.907) on this
+    lexical-heavy AU housing corpus; the dense fine-tune is what's
+    expected to close the gap on more abstractive queries — flagged
+    as in-flight rather than presented as done
+  - Dual Quickstart paths: local pip-editable install + Docker
+    single-image runtime (using the new Task 4.13 Dockerfile)
+  - Asset paths fixed (`./logo.svg` / `./architecture.svg` at repo
+    root, not the non-existent `assets/` directory)
+  - Repo structure refreshed to match actual `src/` subdirs and call
+    out top-level `Dockerfile` / `docker-compose.yml` / `results/`
+  - Architecture blurb mentions prompt caching (4.11), embedding
+    cache (4.09), tool cache (4.10), 5-node LangGraph + 4-iter cap
+  - Persona count corrected: 4 (the journalist persona was added in
+    Phase 4, the README was still saying 3); model attribution
+    refreshed to Haiku 4.5 + Sonnet 4.6
+  - Dropped the dead `cadastreai.modal.run` placeholder link
+
+- [x] **Task 4.21** — Blog draft consolidated into final post (PR #82, 2026-04-27)
+  - Renamed `docs/blog_draft.md` → `docs/blog.md` (preserves
+    `git log --follow` history)
+  - Replaced the meta-header ("working draft, will trim") with a
+    proper "Why this exists" intro framing the problem (specialised
+    corpus, personal queries, checkable answers) and the 4-phase
+    arc
+  - Renamed Week-N → Phase-N section headers; rewrote internal
+    "Week 2/3" references to phase language. Drops the sprint cadence
+    from the public post
+  - Added **Phase 4 — Serving** section covering the UI surfaces
+    (persona / disambiguation / citations / trace / follow-ups), the
+    three caching layers, per-meter cost telemetry, and the Dockerfile
+  - Added **Lessons & open threads** close: BM25 vs hybrid on
+    lexical-heavy corpora, forced tool use as the structured-output
+    story, citation discipline as a post-process, reflection-loop
+    forced exits, why cost has to be per-meter; plus the open Phase 2
+    fine-tune and Phase 3 agent eval as named gating items
+  - README refreshed (3 refs `docs/blog_draft.md` → `docs/blog.md`)
+  - Historical references in `project_plan.md` / `tickets.md` left as
+    "blog_draft.md" intentionally — those are planning artefacts, not
+    live links
+
+### Still gating launch
+
+- **Tasks 3.22 / 3.23 / 3.24** — agent eval v1, failure analysis, v2.
+  Need `ANTHROPIC_API_KEY` + a populated Qdrant. Harness is
+  unit-tested end-to-end against a stub graph (`tests/test_agent_eval`).
+- **Tasks 2.06–2.14** — BGE bi-encoder fine-tune (synthetic pair
+  generation, hard-negative mining, training, A/B). Need API key +
+  Colab GPU. Pipeline is checked in.
+- **Tasks 4.14 / 4.15 / 4.16** — Qdrant Cloud + Modal-or-HF deploy +
+  smoke test. Need cloud accounts.
+- **Tasks 4.17 / 4.18** — full eval suite + final results table.
+  Depends on the agent eval and the deploy.
+- **Tasks 4.19 / 4.23 / 4.24** — demo GIF + Loom walkthrough +
+  embedded video. Manual screen recording.
+- **Task 4.22** — publish blog/socials. Manual.
+- **Task 4.26** — tag `v1.0.0`, flip repo public. Held for explicit
+  user sign-off.
+
+---
+
 ## Week 1 — Foundation, Ingestion, Baseline RAG
 
 ### Day 1
