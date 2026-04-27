@@ -141,7 +141,11 @@ def classify_query(state: AgentState) -> dict:
     resp = client.messages.create(
         model=CLASSIFIER_MODEL,
         max_tokens=CLASSIFIER_MAX_TOKENS,
-        system=_CLASSIFIER_SYSTEM,
+        system=[{
+            "type": "text",
+            "text": _CLASSIFIER_SYSTEM,
+            "cache_control": {"type": "ephemeral"},
+        }],
         tools=[_CLASSIFY_TOOL],
         tool_choice={"type": "tool", "name": "submit_classification"},
         messages=[{"role": "user", "content": query}],
@@ -230,7 +234,11 @@ def decompose(state: AgentState) -> dict:
     resp = client.messages.create(
         model=DECOMPOSER_MODEL,
         max_tokens=DECOMPOSER_MAX_TOKENS,
-        system=_DECOMPOSER_SYSTEM,
+        system=[{
+            "type": "text",
+            "text": _DECOMPOSER_SYSTEM,
+            "cache_control": {"type": "ephemeral"},
+        }],
         tools=[_DECOMPOSE_TOOL],
         tool_choice={"type": "tool", "name": "submit_subquestions"},
         messages=[{"role": "user", "content": query}],
@@ -429,7 +437,11 @@ def _plan_subquestion(query: str, persona: str | None = None) -> dict:
     resp = client.messages.create(
         model=ROUTER_MODEL,
         max_tokens=ROUTER_MAX_TOKENS,
-        system=system_prompt,
+        system=[{
+            "type": "text",
+            "text": system_prompt,
+            "cache_control": {"type": "ephemeral"},
+        }],
         tools=[_ROUTER_TOOL],
         tool_choice={"type": "tool", "name": "submit_routing_plan"},
         messages=[{"role": "user", "content": query}],
@@ -748,7 +760,11 @@ def reflect(state: AgentState) -> dict:
         resp = client.messages.create(
             model=REFLECTOR_MODEL,
             max_tokens=REFLECTOR_MAX_TOKENS,
-            system=_REFLECTOR_SYSTEM,
+            system=[{
+                "type": "text",
+                "text": _REFLECTOR_SYSTEM,
+                "cache_control": {"type": "ephemeral"},
+            }],
             tools=[_REFLECT_TOOL],
             tool_choice={"type": "tool", "name": "submit_reflection"},
             messages=[{"role": "user", "content": prompt}],
@@ -1011,7 +1027,11 @@ def synthesize(state: AgentState) -> dict:
         resp = client.messages.create(
             model=SYNTHESIZER_MODEL,
             max_tokens=SYNTHESIZER_MAX_TOKENS,
-            system=system_prompt,
+            system=[{
+                "type": "text",
+                "text": system_prompt,
+                "cache_control": {"type": "ephemeral"},
+            }],
             messages=[{"role": "user", "content": prompt}],
         )
     except Exception as e:  # noqa: BLE001 — graph must still terminate
