@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./assets/logo.svg" alt="CadastreAI" width="400"/>
+  <img src="./logo.svg" alt="CadastreAI" width="400"/>
 
   <h3>The property register, intelligent.</h3>
 
@@ -13,7 +13,7 @@
     <a href="#-quickstart">Quickstart</a> ·
     <a href="#-results">Results</a> ·
     <a href="#-architecture">Architecture</a> ·
-    <a href="./docs/blog.md">Blog post</a>
+    <a href="./docs/blog_draft.md">Blog post</a>
   </p>
 </div>
 
@@ -21,51 +21,64 @@
 
 ## 🎬 Demo
 
-> [Insert 20-second GIF of the Streamlit UI here — showing a query, streaming answer with citations, and the reasoning trace panel]
-
-Live demo: **[cadastreai.modal.run](https://example.com)** *(link goes live at end of Week 4)*
+> A 20-second walkthrough GIF of the Streamlit UI — persona switcher,
+> streaming answer with inline citations, and the 5-step reasoning
+> trace panel — will live here once recorded. Run it locally for now
+> (see [Quickstart](#-quickstart)).
 
 ---
 
 ## 🏗️ What it does
 
-CadastreAI answers questions about the Australian residential property market by combining a curated corpus of ~300 research reports with live data from government APIs. Three personas (homebuyer, investor, researcher) get tailored responses, every claim is cited, and the reasoning is auditable.
+CadastreAI answers questions about the Australian residential property market by combining a curated corpus of research reports with live data from government APIs. Four personas (first-home buyer, investor, policy researcher, journalist) get tailored responses, every claim is cited, and the reasoning trajectory is auditable in the UI.
 
 **Example queries it handles well**:
 
 - *"Is Parramatta a good bet for a family on $1.2M? What's the trend and yield?"* *(homebuyer)*
 - *"Sydney suburbs with highest 3yr capital growth and vacancy under 3%"* *(investor)*
 - *"How does CoreLogic's hedonic index differ from ABS 6432.0 methodologically?"* *(researcher)*
+- *"What's the 5-year story on housing supply in NSW that I can cite in a piece?"* *(journalist)*
 
 ---
 
 ## 📊 Results
 
-| Configuration | Recall@10 | MRR | Faithfulness | Avg Latency | Cost/query |
-|---|---|---|---|---|---|
-| Baseline BGE | 0.XX | 0.XX | 0.XX | X.Xs | $0.0X |
-| + Hybrid (BM25 + Dense) + RRF | 0.XX | 0.XX | 0.XX | X.Xs | $0.0X |
-| + Reranker (bge-reranker-v2-m3) | 0.XX | 0.XX | 0.XX | X.Xs | $0.0X |
-| **+ Fine-tuned BGE (AU housing)** | **0.XX** | **0.XX** | **0.XX** | **X.Xs** | **$0.0X** |
-| Full Agent (retrieval + tools) | — | — | 0.XX | X.Xs | $0.0X |
+Retrieval eval over a 100-query held-out set across the four personas
+(homebuyer / investor / researcher / policy). Numbers are top-10:
 
-*Headline result*: fine-tuning the embedding model on ~4k (query, chunk) pairs generated from the AU housing corpus improved MRR by **X%** over base BGE-base-en-v1.5 on a 100-query held-out eval set.
+| Configuration                    | Recall@5 | Recall@10 | MRR@10  | nDCG@10 |
+|----------------------------------|----------|-----------|---------|---------|
+| Dense only (BAAI/bge-base-en-v1.5) | 0.383    | 0.450     | 0.352   | 0.349   |
+| BM25 only                          | 0.800    | **0.907** | **0.732** | **0.760** |
+| Hybrid (BM25 + Dense) + RRF        | 0.563    | 0.747     | 0.626   | 0.585   |
+| Hybrid + cross-encoder rerank      | 0.550    | 0.673     | 0.560   | 0.537   |
 
-See [`docs/blog.md`](./docs/blog.md) for the full write-up and methodology.
+*Headline finding:* on a domain-specific Australian housing corpus
+where queries share heavy lexical overlap with the source documents
+(e.g. *"first home buyer grant NSW"* lands directly on the relevant
+section heading), **BM25 outperforms dense and hybrid retrieval** out
+of the box. Hybrid + reranker make the dense channel less useful here,
+not more. This motivates Week 2's BGE fine-tune on synthetic
+(query, chunk) pairs to close the gap on more abstractive queries —
+that work is in flight; numbers will land in this table when the run
+completes.
+
+See [`docs/blog_draft.md`](./docs/blog_draft.md) for the full write-up,
+ablations, and per-persona breakdowns.
 
 ---
 
 ## 🏛️ Architecture
 
 <div align="center">
-  <img src="./assets/architecture.svg" alt="CadastreAI system architecture" width="900"/>
+  <img src="./architecture.svg" alt="CadastreAI system architecture" width="900"/>
 </div>
 
 Three layers:
 
-1. **Agent** (LangGraph) — classifies query, decomposes complex questions, routes to retrieval or tools, reflects on gaps, synthesizes a cited answer.
-2. **Retrieval** — hybrid BM25 + dense (fine-tuned BGE) → Reciprocal Rank Fusion → cross-encoder reranker.
-3. **Live data** — tool-use over RBA, ABS, SQM public endpoints, with 24h cache and timestamped results.
+1. **Agent** (LangGraph, 5 nodes) — classifies query, decomposes complex questions, routes to retrieval or tools, reflects on gaps, synthesizes a cited answer. Loop-back capped at 4 iterations. Anthropic prompt caching on every system prompt for ~90% input-token discount on warm calls.
+2. **Retrieval** — BM25 + dense BGE-base-en-v1.5 with Reciprocal Rank Fusion + optional cross-encoder reranker. Disk-cached query embeddings for sub-millisecond repeat lookups.
+3. **Live data** — tool-use over RBA, ABS, SQM public endpoints + deterministic compute tools (mortgage, stamp duty, yield). Per-tool TTL cache (24h for upstream data, 7d for pure math).
 
 Full design in [`product.md`](./product.md); engineering plan in [`project_plan.md`](./project_plan.md).
 
@@ -73,47 +86,64 @@ Full design in [`product.md`](./product.md); engineering plan in [`project_plan.
 
 ## 🚀 Quickstart
 
+### Local (recommended for development)
+
 ```bash
-# Clone and enter
-git clone https://github.com/yourname/cadastreai
-cd cadastreai
+git clone https://github.com/Hyeonu-Cha/CadastreAI
+cd CadastreAI
 
-# Environment
-cp .env.example .env  # add ANTHROPIC_API_KEY
+# Environment — set ANTHROPIC_API_KEY and (optionally) QDRANT_API_KEY
+cp .env.example .env
 
-# Start Qdrant + app
-docker compose up -d
+# Start Qdrant in the background
+docker compose up -d qdrant
 
-# Install deps
-uv sync
+# Python env
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[agent,index,embed,tools,app,chunk]"
 
-# Ingest corpus (takes ~30 min)
-uv run python scripts/ingest_all.py
+# Ingest corpus (one-off, ~30 min on a laptop)
+python -m src.ingest.run_all
+python -m src.index.upsert
 
 # Launch UI
-uv run streamlit run src/app/streamlit_app.py
+streamlit run src/app/streamlit_app.py
 ```
 
-Open `http://localhost:8501` — pick a persona and ask a question.
+### Docker (single-image runtime)
+
+```bash
+docker compose up -d qdrant         # Qdrant on :6333
+docker build -t cadastreai:latest .
+docker run --rm -p 8501:8501 \
+    -e ANTHROPIC_API_KEY=sk-... \
+    -e QDRANT_URL=http://host.docker.internal:6333 \
+    cadastreai:latest
+```
+
+Open `http://localhost:8501`, pick a persona, ask a question.
 
 ---
 
 ## 🗂️ Repo structure
 
 ```
-cadastreai/
-├── assets/              # logo, architecture diagram
+CadastreAI/
 ├── src/
-│   ├── ingest/          # scrapers + PDF parsing
-│   ├── index/           # Qdrant + hybrid retrieval
-│   ├── training/        # embedding fine-tuning pipeline
-│   ├── retrieval/       # retriever + reranker
-│   ├── tools/           # live-data tool implementations
-│   ├── agent/           # LangGraph graph + nodes
+│   ├── ingest/          # scrapers + PDF parsing (docling, PyMuPDF)
+│   ├── index/           # Qdrant upsert + BM25 + hybrid + rerank
+│   ├── retrieval/       # query-side retriever + on-disk embedding cache
+│   ├── training/        # BGE fine-tuning pipeline (synthetic Q/A pairs)
+│   ├── tools/           # RBA / ABS / SQM / compute / chart tool impls
+│   ├── agent/           # LangGraph graph, nodes, persona, tool cache, cost
 │   ├── eval/            # retrieval + agent eval harnesses
-│   └── app/             # Streamlit UI
-├── data/                # gitignored: raw PDFs + processed chunks
-├── docs/                # blog post + architecture notes
+│   └── app/             # Streamlit UI + citation/disambiguation/trace
+├── data/                # gitignored: raw PDFs, processed chunks, caches
+├── docs/                # blog draft, architecture diagrams
+├── results/             # eval JSON dumps for each retrieval config
+├── tests/               # pytest unit + integration tests
+├── Dockerfile           # multi-stage production image
+├── docker-compose.yml   # Qdrant + optional Phoenix tracing
 ├── product.md           # product document (what & why)
 └── project_plan.md      # engineering plan (how & when)
 ```
@@ -124,7 +154,8 @@ cadastreai/
 
 - **[`product.md`](./product.md)** — product requirements, personas, features, user flows, success metrics
 - **[`project_plan.md`](./project_plan.md)** — 4-week engineering plan with daily tasks and checkpoints
-- **[`docs/blog.md`](./docs/blog.md)** — technical deep-dive on fine-tuning and ablations
+- **[`docs/blog_draft.md`](./docs/blog_draft.md)** — technical deep-dive on fine-tuning and ablations
+- **[`tickets.md`](./tickets.md)** — full ticket-level breakdown of the 4 weeks
 
 ---
 
@@ -141,6 +172,6 @@ Code: MIT. Corpus data is indexed for research use only; all reports remain the 
 ---
 
 <div align="center">
-  Built with Claude Sonnet 4.5, Qdrant, sentence-transformers, and LangGraph.<br/>
-  <sub>A 4-week portfolio project · [Your name] · [Your link]</sub>
+  Built with Claude (Haiku 4.5 for routing/reflection, Sonnet 4.6 for synthesis), Qdrant, sentence-transformers, and LangGraph.<br/>
+  <sub>A 4-week portfolio project</sub>
 </div>
