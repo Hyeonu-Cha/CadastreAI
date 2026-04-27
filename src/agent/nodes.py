@@ -20,6 +20,7 @@ import re
 
 from src.agent.cost import log_cost
 from src.agent.graph import AgentState, Classification
+from src.agent.guardrails import log_refusal, screen_query
 from src.agent.persona import (
     apply_publisher_boost,
     effective_persona,
@@ -32,6 +33,53 @@ log = logging.getLogger(__name__)
 
 CLASSIFIER_MODEL = os.environ.get("CADASTRE_CLASSIFIER_MODEL", "claude-haiku-4-5")
 CLASSIFIER_MAX_TOKENS = 256
+
+
+def guardrail_screen(state: AgentState) -> dict:
+    """First node in the graph: pre-classification financial-product
+    recommendation guardrail (Task X.04).
+
+    Pulls the latest user message, runs the deterministic regex
+    library in `src.agent.guardrails`, and either:
+
+      - returns ``{}`` (allow path — graph continues to classify_query),
+        or
+      - returns a populated answer + reflection so the graph routes
+        directly to END with a polite refusal (refuse path).
+
+    On the refuse path we also stamp `state["guardrail"]` so the
+    Streamlit UI can label the response distinctly. Refusals are
+    logged at WARNING level via `log_refusal` for telemetry / regex
+    tuning.
+    """
+    msgs = state.get("messages", [])
+    user_query = next(
+        (m["content"] for m in msgs if m.get("role") == "user"),
+        "",
+    )
+    decision = screen_query(user_query)
+    if decision.action == "allow":
+        return {}
+    log_refusal(user_query, decision)
+    refusal = decision.refusal_text or ""
+    return {
+        "answer_draft": refusal,
+        "messages": msgs + [{"role": "assistant", "content": refusal}],
+        # Mark the run as complete so `_route_after_reflect` exits
+        # immediately when the graph hops here. The reflection field
+        # is also surfaced in the UI's reasoning trace.
+        "reflection": {
+            "is_complete": True,
+            "missing": [],
+            "refined_query": None,
+        },
+        "guardrail": {
+            "blocked": True,
+            "category": decision.category,
+            "reason": decision.reason,
+        },
+    }
+
 
 # Single tool definition that pins the JSON schema of the classifier
 # output. Forcing tool_choice on this tool means Claude must emit a
