@@ -1,0 +1,48 @@
+# Mirrors .gitignore intent — keeps the build context small so changes
+# to non-source files don't bust the cache or bloat the layer tarball.
+
+# VCS / IDE / Claude
+.git
+.gitignore
+.claude
+.venv
+venv
+
+# Python build artifacts
+__pycache__
+*.py[cod]
+*.egg-info
+dist
+build
+
+# Tooling caches
+.ruff_cache
+.pytest_cache
+
+# Local secrets — never bake into an image
+.env
+
+# Data: raw + processed corpora + embedding cache. The runtime image
+# reads these from a mounted volume in production, not from inside.
+data/raw
+data/processed
+data/cache
+
+# Test + notebook scratch
+tests
+notebooks
+results
+
+# Docs / project meta — not needed at runtime
+docs
+*.md
+!README.md
+project_plan.md
+product.md
+progress.md
+tickets.md
+architecture.svg
+logo.svg
+
+# Local Compose stack — runtime only needs the app, not Qdrant/Phoenix
+docker-compose.yml
