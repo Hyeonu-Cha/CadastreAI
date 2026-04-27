@@ -23,6 +23,7 @@ from src.agent.graph import AgentState, Classification
 from src.agent.persona import (
     apply_publisher_boost,
     effective_persona,
+    persona_disclaimer,
     persona_prompt_addendum,
     persona_router_hints,
 )
@@ -846,11 +847,28 @@ _CITATION_RULES = (
     "and tool exactly once."
 )
 
+# Universal compliance baseline (Task X.03). Applied to every persona
+# so that even an unrecognised persona key — or a future persona we
+# haven't tuned — still gets the floor-level "not financial advice"
+# behaviour. Per-persona language layered on top via persona_disclaimer().
+_DISCLAIMER_BASELINE = (
+    "COMPLIANCE: You are a research assistant, not a licensed "
+    "financial, legal, tax, or buyer's-agent professional. Never "
+    "produce personal financial, legal, or tax recommendations, and "
+    "never recommend specific financial products (mortgages, "
+    "insurance, super funds). Stick to summarising what the evidence "
+    "says. The persona-specific disclaimer policy below tells you "
+    "exactly what closing-line disclaimer to append to the answer."
+)
+
 _SYNTHESIZER_SYSTEM = (
     "You are a careful Australian housing-market research assistant. "
     "Answer the user's question concisely and ONLY from the supplied "
     "evidence. Numbers must come from tool results; explanatory framing "
-    "must come from retrieved chunks. " + _CITATION_RULES
+    "must come from retrieved chunks.\n\n"
+    + _DISCLAIMER_BASELINE
+    + "\n\n"
+    + _CITATION_RULES
 )
 
 
@@ -1025,7 +1043,11 @@ def synthesize(state: AgentState) -> dict:
     msgs = state.get("messages", [])
     prompt = _build_synth_prompt(state)
     persona = effective_persona(state)
-    system_prompt = f"{_SYNTHESIZER_SYSTEM}\n\n{persona_prompt_addendum(persona)}"
+    system_prompt = (
+        f"{_SYNTHESIZER_SYSTEM}\n\n"
+        f"{persona_prompt_addendum(persona)}\n\n"
+        f"{persona_disclaimer(persona)}"
+    )
     client = anthropic.Anthropic(api_key=api_key)
     log.debug("synthesize → %s (persona=%s)", SYNTHESIZER_MODEL, persona)
     try:
