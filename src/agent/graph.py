@@ -98,6 +98,14 @@ class Reflection(TypedDict, total=False):
     refined_query: str | None
 
 
+class GuardrailMarker(TypedDict, total=False):
+    """Stamp left by `guardrail_screen` when a query is refused (Task X.04)."""
+
+    blocked: bool
+    category: str
+    reason: str
+
+
 class AgentState(TypedDict, total=False):
     """Full state object passed between graph nodes.
 
@@ -116,6 +124,7 @@ class AgentState(TypedDict, total=False):
     answer_draft: str | None
     reflection: Reflection
     iteration_count: int
+    guardrail: GuardrailMarker
 
 
 def initial_state(query: str, *, user_persona: str | None = None) -> AgentState:
@@ -171,6 +180,19 @@ def _route_after_reflect(state: AgentState) -> str:
     return "loop"
 
 
+def _route_after_guardrail(state: AgentState) -> str:
+    """Conditional edge from `guardrail_screen` (Task X.04).
+
+    Refused queries short-circuit straight to END with the refusal
+    text already stamped onto state. Allowed queries proceed to
+    `classify_query` for the normal pipeline.
+    """
+    guard = state.get("guardrail") or {}
+    if guard.get("blocked"):
+        return "end"
+    return "continue"
+
+
 def build_graph():
     """Compile the agent's LangGraph state graph.
 
@@ -182,19 +204,26 @@ def build_graph():
     from src.agent.nodes import (
         classify_query,
         decompose,
+        guardrail_screen,
         reflect,
         retrieve_or_tool,
         synthesize,
     )
 
     g: StateGraph = StateGraph(AgentState)
+    g.add_node("guardrail_screen", guardrail_screen)
     g.add_node("classify_query", classify_query)
     g.add_node("decompose", decompose)
     g.add_node("retrieve_or_tool", retrieve_or_tool)
     g.add_node("synthesize", synthesize)
     g.add_node("reflect", reflect)
 
-    g.add_edge(START, "classify_query")
+    g.add_edge(START, "guardrail_screen")
+    g.add_conditional_edges(
+        "guardrail_screen",
+        _route_after_guardrail,
+        {"continue": "classify_query", "end": END},
+    )
     g.add_edge("classify_query", "decompose")
     g.add_edge("decompose", "retrieve_or_tool")
     g.add_edge("retrieve_or_tool", "synthesize")
@@ -210,6 +239,7 @@ def build_graph():
 __all__ = [
     "AgentState",
     "Classification",
+    "GuardrailMarker",
     "MAX_ITERATIONS",
     "Message",
     "Persona",
