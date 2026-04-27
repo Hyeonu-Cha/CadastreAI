@@ -1,12 +1,40 @@
-# CadastreAI blog draft
+# CadastreAI: building a domain-tuned RAG agent for the Australian housing market
 
-Working draft of the public write-up for CadastreAI. Each H2 is a section
-of the final post; sections get filled in as the project progresses.
-This file is deliberately verbose — the final post will trim.
+> Four weeks. One corpus of ~42,000 chunks across ten Australian housing
+> publishers. One agent that has to answer first-home-buyer, investor,
+> researcher, and journalist questions with cited evidence — and an
+> honest accounting of where it works and where it doesn't.
+
+## Why this exists
+
+Most public RAG demos answer questions about *generic* corpora —
+Wikipedia, arXiv, the company handbook. The interesting failure modes
+only show up when the corpus is **specialised**, the queries are
+**personal**, and the user can sanity-check the output. Australian
+residential property fits all three: every claim is checkable against
+RBA cash rate data, ABS lending indicators, or the actual paper from
+AHURI / NHFIC / Productivity Commission, and a wrong answer costs
+someone real money.
+
+The bet is that a domain-tuned retriever + a structured agent + a
+disciplined citation contract beats off-the-shelf chat for this kind of
+question. The four weeks below test that bet end-to-end:
+
+1. **Phase 1 — baseline and a failure taxonomy.** Naive dense RAG, then
+   an honest categorisation of where it breaks.
+2. **Phase 2 — retrieval engineering.** Hybrid + reranker + (planned)
+   bi-encoder fine-tune, ablated against the baseline.
+3. **Phase 3 — from RAG to agent.** A LangGraph agent with reflection,
+   live-data tools, and a citation post-processor.
+4. **Phase 4 — serving.** Streamlit UI, persona wiring, prompt caching,
+   per-query cost telemetry, and a production container.
+
+What follows is what the work actually looked like, what the numbers
+were on each step, and which problems are still open.
 
 ---
 
-## Baseline & Problems
+## Phase 1 — Baseline and a six-category failure taxonomy
 
 With a corpus (41,959 chunks across 10 Australian housing publishers —
 AHURI, RBA, Productivity Commission, PropTrack, NHFIC, SQM, APRA,
@@ -138,12 +166,12 @@ the annotation set before we start claiming absolute numbers.
 
 ---
 
-## Week 2: closing the retrieval gap
+## Phase 2 — Closing the retrieval gap
 
 The Phase 1 baseline left a clear punch list: dense BGE missed 60% of
 near-target queries (right doc, wrong chunk or right cluster, wrong
 doc), 25% on genre/temporal/decomposition issues, and the rest on
-acronym collisions. Week 2 worked through the highest-ROI items in
+acronym collisions. Phase 2 worked through the highest-ROI items in
 order: **(1)** add lexical signal with hybrid retrieval, **(2)** add a
 cross-encoder reranker, **(3)** fine-tune the bi-encoder on the
 domain.
@@ -155,7 +183,7 @@ queries had gold hand-picked from BM25's top-10 candidate lists, so any
 BM25-driven retriever scores near-perfectly on those by construction.
 The remaining 41 are synthetic — each query was authored *for* a
 randomly sampled chunk, with no retriever involvement, so the gold is
-independent of every retriever. **All Week 2 wins/losses below are
+independent of every retriever. **All Phase 2 wins/losses below are
 read off the synthetic 41**; pooled 100-query numbers are kept around
 for tracking but are dominated by the circular split.
 
@@ -250,7 +278,7 @@ class the fine-tune actually helps.
 
 ### What changed about how we evaluate
 
-Two pieces of tooling came out of Week 2 that are useful beyond this
+Two pieces of tooling came out of Phase 2 that are useful beyond this
 ablation:
 
 - **`src.eval.persona_breakdown`** — diff two retrieval-eval JSONs by
@@ -261,7 +289,7 @@ ablation:
   gracefully skip variants whose JSON doesn't exist yet, so the table
   still renders while the next experiment is in flight.
 
-### Reading Week 2
+### Reading Phase 2
 
 On the synthetic split, the BGE → +hybrid → +rerank chain moved R@5
 from 0.756 to 0.829 (+7.3 pts) and MRR@10 from 0.602 to 0.680
@@ -273,15 +301,15 @@ run waits on Colab compute.
 
 The two unsolved failure classes from Phase 1 — temporal queries and
 multi-concept decomposition — are still unsolved. Both are explicitly
-Week 3+ territory: temporal needs a phrase parser and recency boost
-on the retrieval side, decomposition wants either query rewriting or
+Phase 3 territory: temporal needs a phrase parser and recency boost on
+the retrieval side, decomposition wants either query rewriting or
 ColBERT-style late interaction. Neither is a fine-tuning problem.
 
 ---
 
-## Week 3: from RAG to agent
+## Phase 3 — From RAG to agent
 
-The Week 2 chain (BGE → hybrid → rerank, optionally fine-tuned) closed
+The Phase 2 chain (BGE → hybrid → rerank, optionally fine-tuned) closed
 most of the *retrieval* gaps from Phase 1. Two of the original six
 failure classes survive every retrieval improvement we threw at them:
 
@@ -299,7 +327,7 @@ failure classes survive every retrieval improvement we threw at them:
 Both call for an agent: something that can hit live data sources
 (RBA / ABS / SQM rate-and-volume APIs), break compound questions into
 sub-questions, and reflect on whether the evidence actually answers
-the user. Week 3 builds that agent on top of the Week 2 retriever.
+the user. Phase 3 builds that agent on top of the Phase 2 retriever.
 
 ### The graph
 
@@ -408,7 +436,7 @@ takes priority over output quality.
 ### Eval: how do you score an agent?
 
 Retrieval has well-known metrics (R@K, MRR, nDCG). Agents do not. The
-Week 3 eval harness (`src.eval.agent_eval` against
+agent eval harness (`src.eval.agent_eval` against
 `data/eval/agent_queries.jsonl`, 30 queries with annotated expected
 tools and publishers) scores six things offline plus one optional
 network metric:
@@ -462,10 +490,173 @@ Three things are explicitly *next*:
   tuning or graph restructuring; re-run to `results/agent_v2.json` and
   diff.
 
-The interesting question Week 4+ will face is *which* metric improves
-when we fix prompts vs when we fix the graph. Tool accuracy is mostly
-a planner-prompt problem; trajectory efficiency is mostly a reflector-
+The interesting question Phase 4 faces is *which* metric improves when
+we fix prompts vs when we fix the graph. Tool accuracy is mostly a
+planner-prompt problem; trajectory efficiency is mostly a reflector-
 contract problem; groundedness is mostly a synthesis-prompt problem;
 faithfulness reflects all three. Decomposing the dashboard into those
 four levers is what makes the agent debuggable — same idea as the
 six-category retrieval taxonomy from Phase 1, one layer up the stack.
+
+---
+
+## Phase 4 — Serving
+
+A research RAG that lives only in a notebook isn't a product. Phase 4
+wraps the agent in a UI a real user can drive, and adds the operational
+plumbing — caching at three different layers, per-query cost
+telemetry, a non-root container — that makes the difference between
+"it ran on my machine" and "this could be deployed."
+
+### The UI: persona, citations, and an audit trail
+
+The Streamlit app exposes four things the demo needs to *look* like a
+product rather than a chat box:
+
+- **Persona selector.** Four options (Homebuyer / Investor /
+  Researcher / Journalist) wired through to the classifier, the
+  retriever (publisher-priority boosts per persona), and the
+  synthesiser (tone addendums in the system prompt). The classifier's
+  guess is a fallback; the user's explicit pick wins.
+- **Disambiguation prompt.** Place names like *"Newtown"* or
+  *"Richmond"* match multiple suburbs across NSW / VIC / QLD; a small
+  qualifier-window detector flags the ambiguity before the agent runs
+  and asks the user to pick.
+- **Inline citations + a sources panel.** The synthesizer's
+  `[source:..]` / `[tool:..]` markers are parsed, deduplicated, and
+  renumbered to `[1]…[N]` in the rendered answer. Each citation chip
+  is clickable; the sidebar shows the matching chunk excerpt or the
+  tool's `retrieved_at` timestamp.
+- **Reasoning trace.** A collapsible 5-step timeline (classify →
+  decompose → retrieve_or_tool → synthesize → reflect), each step
+  marked `ok` / `info` / `warn` so a debugging user can see exactly
+  where a wrong tool got picked or a sub-question went off-topic.
+- **Suggested follow-ups.** Three persona-flavoured chips per answer,
+  built from a small rules table (e.g. `compute_stamp_duty_nsw` → "How
+  does VIC compare?"; investor persona → "Which suburbs match this
+  yield profile?").
+
+### Caching at three layers
+
+The cost of running this thing live is dominated by two things: LLM
+calls and embedding inference. Both are cacheable:
+
+- **Embedding cache (disk-backed).** Sha-256 of `(model, prefix,
+  query)` keys a `.npy` on disk. A repeat query — common in eval
+  reruns and in the agent's reflection loop — skips the
+  sentence-transformers forward pass entirely. Roughly a 1–2 second
+  saving per warm query on CPU.
+- **Tool-result cache (in-memory, TTL).** Per-tool TTLs reflect how
+  often the upstream actually moves: 24h for RBA / ABS / SQM
+  (monthly-cadence data), 7d for the deterministic compute tools
+  (stamp duty, mortgage repayment, rental yield), 5min for chart
+  artefacts. A `skip_on=lambda r: 'error' in r` predicate keeps
+  transient upstream blips out of the cache.
+- **Anthropic prompt caching.** Every system prompt is wrapped in a
+  `cache_control: ephemeral` breakpoint. Render order is tools →
+  system → messages, so the breakpoint caches both the tool list and
+  the system text together; only the per-call user message stays on
+  the hot path. Documented hit yields ~90% input-token discount; the
+  cache TTL is 5 minutes by default which comfortably covers a single
+  agent run's 5 messages.create() calls.
+
+### Cost telemetry
+
+Every `messages.create()` response is fed through a small `cost.py`
+module that computes a `CostBreakdown` across four meters: input,
+output, `cache_read_input_tokens` (0.1× input rate), and
+`cache_creation_input_tokens` (1.25× input rate). Each call emits a
+structured log line —
+
+```
+cost node=classify model=claude-haiku-4-5 in=512 out=128 cache_r=0 cache_w=2048 total=$0.000893
+```
+
+— that an eval harness or a Streamlit sidebar widget can grep for to
+attribute $/query back to nodes. Pricing is a one-table lookup keyed
+by `model_id`, so when Anthropic moves prices it's a one-line patch.
+The decoupling matters for the cache-hit story: without per-meter
+attribution, you can't tell whether a 90% input-token discount is
+landing or whether something is silently busting the cache prefix.
+
+### Container
+
+Production runtime is a two-stage Dockerfile:
+
+- **Builder** (`python:3.11-slim` + `build-essential`) compiles wheels
+  for the runtime extras (`agent,index,embed,tools,app,chunk`) into a
+  venv. The `parse` extras (docling + torch, ~1.5 GB) are deliberately
+  skipped — they're only needed for offline ingestion, not the
+  runtime.
+- **Runtime** (`python:3.11-slim` + `libgomp1`) copies the prebuilt
+  venv, runs Streamlit as a non-root `cadastre` user (UID 1000), and
+  exposes 8501 with a `/_stcore/health` healthcheck.
+
+A matching `.dockerignore` keeps the build context small (~10 MB) so
+source-only changes don't bust the dep cache layer.
+
+---
+
+## Lessons & open threads
+
+What four weeks of this kind of work look like, in retrospect:
+
+**Don't trust the hybrid retrieval consensus on lexical-heavy corpora.**
+The Phase 2 numbers say the obvious thing — hybrid + rerank is best —
+on the synthetic split. On the *full* 100-query held-out set, BM25
+alone (recall@10 = 0.907) beats hybrid (0.747) and reranked (0.673)
+because 60% of the queries share heavy lexical overlap with the source
+documents. The published "always use hybrid" advice is right on
+average; on a corpus where users naturally type the same phrasing the
+documents use, it's wrong. The right move would have been to label the
+two query-style buckets up front and ablate retrievers per-bucket.
+
+**Forced tool use is the structured-output story.** Every Haiku call
+in the agent uses `tool_choice={"type": "tool", "name": ...}` instead
+of "return JSON in this shape." The Anthropic SDK validates the tool
+input against the schema before it reaches user code, which kills the
+*"the model forgot a closing brace"* failure mode entirely. Treating
+tool input as already-typed turns out to be a much more durable
+contract than retry-and-parse loops.
+
+**Citation discipline is a post-process, not a prompt.** Sonnet
+*usually* follows a strict citation grammar when asked. "Usually" is a
+bug when the eval scores citation discipline. The post-processor walks
+every emitted `[source:..]` / `[tool:..]` marker, reconciles it
+against state (only tools that *actually returned data*, only
+publishers that *actually appear* in `retrieved_chunks`), and tags
+unverified ones in place — *not* deleted, so the eval harness can
+still score them. This pattern generalises: any structural property
+you want to *measure* should be enforced after generation, not during.
+
+**Reflection loops need a forced exit.** The reflector can confuse
+itself into self-contradiction (`is_complete: true, missing:
+[everything]`). Four exit conditions in `_route_after_reflect`
+(iteration cap, marked complete, marked incomplete with no
+`refined_query`, or empty refined string) plus a hard 4-iteration cap
+mean a confused reflector can't spin forever. The hard cap is the one
+that actually saves you in production — the others can all be tricked
+by a stubborn model.
+
+**Cost only matters if it's per-meter.** Aggregate `total_usd` per
+query is a vanity number; the input/output/cache_read/cache_write
+split is what tells you whether prompt caching is actually working,
+whether the agent is over-decomposing (output tokens in the planner
+spike), or whether a regression added a per-call timestamp that's
+silently busting the cache prefix. The telemetry has to expose the
+levers it's measuring.
+
+**Open threads.** The Phase 2 BGE fine-tune is the biggest unfinished
+item — pair generation, filtering, hard-negative mining, and the
+training script are all checked in; the actual run is waiting on Colab
+GPU time. The Phase 3 agent eval (`results/agent_v1.json`) is the
+other gating run; the harness is unit-tested end-to-end against a
+stub graph but the real numbers need an `ANTHROPIC_API_KEY`. Both will
+land in this post's results table when they do.
+
+---
+
+*Code: [github.com/Hyeonu-Cha/CadastreAI](https://github.com/Hyeonu-Cha/CadastreAI).
+Architecture diagram and full eval JSONs are in the repo. Built with
+Claude (Haiku 4.5 routing, Sonnet 4.6 synthesis), LangGraph, Qdrant,
+sentence-transformers, and Streamlit.*
