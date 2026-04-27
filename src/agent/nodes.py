@@ -18,6 +18,7 @@ import logging
 import os
 import re
 
+from src.agent.cost import log_cost
 from src.agent.graph import AgentState, Classification
 from src.agent.persona import (
     apply_publisher_boost,
@@ -150,6 +151,7 @@ def classify_query(state: AgentState) -> dict:
         tool_choice={"type": "tool", "name": "submit_classification"},
         messages=[{"role": "user", "content": query}],
     )
+    log_cost(getattr(resp, "usage", None), CLASSIFIER_MODEL, "classify_query")
 
     tool_use = next(
         (b for b in resp.content if getattr(b, "type", None) == "tool_use"),
@@ -243,6 +245,7 @@ def decompose(state: AgentState) -> dict:
         tool_choice={"type": "tool", "name": "submit_subquestions"},
         messages=[{"role": "user", "content": query}],
     )
+    log_cost(getattr(resp, "usage", None), DECOMPOSER_MODEL, "decompose")
 
     tool_use = next(
         (b for b in resp.content if getattr(b, "type", None) == "tool_use"),
@@ -446,6 +449,7 @@ def _plan_subquestion(query: str, persona: str | None = None) -> dict:
         tool_choice={"type": "tool", "name": "submit_routing_plan"},
         messages=[{"role": "user", "content": query}],
     )
+    log_cost(getattr(resp, "usage", None), ROUTER_MODEL, "retrieve_or_tool")
     tool_use = next(
         (b for b in resp.content if getattr(b, "type", None) == "tool_use"),
         None,
@@ -778,6 +782,7 @@ def reflect(state: AgentState) -> dict:
                 "refined_query": None,
             }
         }
+    log_cost(getattr(resp, "usage", None), REFLECTOR_MODEL, "reflect")
 
     tool_use = next(
         (b for b in resp.content if getattr(b, "type", None) == "tool_use"),
@@ -1045,6 +1050,7 @@ def synthesize(state: AgentState) -> dict:
             "answer_draft": draft,
             "messages": msgs + [{"role": "assistant", "content": draft}],
         }
+    log_cost(getattr(resp, "usage", None), SYNTHESIZER_MODEL, "synthesize")
 
     text_blocks = [
         getattr(b, "text", "") for b in resp.content if getattr(b, "type", None) == "text"
