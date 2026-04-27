@@ -111,6 +111,62 @@ in this session.)
     "blog_draft.md" intentionally — those are planning artefacts, not
     live links
 
+### Day — Compliance / safety layer
+
+- [x] **Task X.03** — Persistent "not financial advice" disclaimer in
+  the synthesizer system prompt, proportional by persona
+  (PR #85, 2026-04-27)
+  - Two layers, both prefixed so the model recognises them in-prompt:
+    a universal `COMPLIANCE` baseline directly in `_SYNTHESIZER_SYSTEM`
+    (so even unrecognised persona keys still get the "not a licensed
+    professional" floor), and a per-persona `DISCLAIMER POLICY` block
+    via the new `persona_disclaimer()` helper, layered on top of the
+    existing tone addendum
+  - Proportional intensity: homebuyer + investor get the strongest
+    "consult a licensed mortgage broker / buyer's agent / financial
+    adviser" closing-line policy because their queries directly inform
+    personal financial decisions; researcher gets a research-only +
+    primary-sources caveat; journalist gets a re-verify-before-
+    publication caveat; general gets the middle-ground language
+  - `persona_disclaimer()` exported from `src.agent.persona`; wired
+    into the synth `system_prompt` as a third paragraph alongside
+    `_SYNTHESIZER_SYSTEM` and `persona_prompt_addendum`
+  - 24 new tests (`tests/test_persona_disclaimer.py`) cover every
+    persona's coverage, the unknown-persona fallback, proportional
+    intensity assertions per persona, and end-to-end synth-prompt
+    assembly
+
+- [x] **Task X.04** — Block financial-product recommendations + log
+  refusals (PR #86, 2026-04-27)
+  - New `src/agent/guardrails.py` — pure regex library that screens
+    queries for product-pick phrasings across four buckets: mortgage
+    products / lenders / brokers, insurance products, super funds and
+    SMSFs / managed funds / ETFs, and specific listed-security picks
+  - Pure function `screen_query(query)` returns a frozen
+    `GuardrailDecision`; pattern library is module-level and ordered
+    so the first match wins for category labelling. No LLM call on
+    the hot path — guardrails must be deterministic and fast
+  - Refusal text per category names what we won't do, redirects the
+    user to a licensed professional, and offers a phrasing we *can*
+    help with (e.g. "I CAN help with average mortgage rates from RBA
+    data, stamp-duty calculations, the First Home Guarantee scheme")
+  - New `guardrail_screen` graph node placed *before* `classify_query`;
+    refused queries short-circuit straight to END (zero Anthropic
+    tokens spent), allowed queries return `{}` and pass through
+  - New `_route_after_guardrail` conditional edge in `graph.py` reads
+    `state["guardrail"]["blocked"]` to decide END vs continue
+  - `log_refusal()` emits a structured WARNING line per refused query
+    (`category=...`, `reason=...`, full query) — fuel for tuning the
+    regex when false positives surface
+  - Allow-list deliberately includes the README's headline example
+    queries ("Is Parramatta a good bet for a family on $1.2M?", etc.)
+    — the X.03 disclaimer is what carries those, not a guardrail
+    refusal
+  - 41 new tests (`tests/test_guardrails.py`) cover the full pattern
+    library (parametrized allow/refuse cases), the logging side-
+    effect, the node behaviour on both paths, the conditional-edge
+    logic, and end-to-end graph short-circuit + pass-through
+
 ### Still gating launch
 
 - **Tasks 3.22 / 3.23 / 3.24** — agent eval v1, failure analysis, v2.
