@@ -175,9 +175,75 @@ _ROUTER_HINTS: dict[Persona, str] = {
 }
 
 
+# Per-persona "not financial advice" disclaimer (Task X.03).
+#
+# Proportional by persona: stakes are highest when the user is making a
+# personal financial decision (first_home_buyer, investor), so they get
+# the most explicit "not personal advice; consult a licensed
+# professional" language. Researchers and journalists aren't making
+# personal investment decisions on the back of an answer, so theirs is
+# lighter and aimed at the right audience-appropriate caveats. Every
+# persona still gets *some* disclaimer — the universal baseline below
+# is enforced by the synthesizer system prompt regardless.
+#
+# These strings are appended to the system prompt verbatim, so they
+# instruct the model on what closing line to include in the answer.
+_PERSONA_DISCLAIMER: dict[Persona, str] = {
+    "first_home_buyer": (
+        "DISCLAIMER POLICY: Property purchase is one of the largest "
+        "financial decisions a household makes. This answer is general "
+        "information ONLY and is NOT financial, legal, tax, or "
+        "buyer-agent advice. End every answer with a one-line "
+        "disclaimer that recommends the user consult a licensed "
+        "mortgage broker, buyer's agent, conveyancer/solicitor, and "
+        "(if relevant) a financial adviser before acting."
+    ),
+    "investor": (
+        "DISCLAIMER POLICY: Investment decisions carry capital and "
+        "income risk. This answer is general information ONLY and is "
+        "NOT financial, tax, or investment advice. End every answer "
+        "with a one-line disclaimer that past performance does not "
+        "guarantee future returns and that the user should consult a "
+        "licensed financial adviser and tax professional before acting."
+    ),
+    "policy_researcher": (
+        "DISCLAIMER POLICY: Researchers cite primary sources directly. "
+        "End every answer with a one-line note that this is a "
+        "research-assistant summary, not a peer-reviewed source, and "
+        "that primary publications should be cited in any downstream "
+        "work."
+    ),
+    "journalist": (
+        "DISCLAIMER POLICY: Journalists verify before publication. End "
+        "every answer with a one-line note that figures should be "
+        "re-verified against the cited primary source before being "
+        "quoted in published copy, and that this output is not "
+        "financial advice for readers."
+    ),
+    "general": (
+        "DISCLAIMER POLICY: End every answer with a one-line note that "
+        "this is general information, not personal financial, legal, "
+        "or tax advice, and that property decisions should involve "
+        "appropriately licensed professionals."
+    ),
+}
+
+
 def persona_prompt_addendum(persona: Persona) -> str:
     """One-paragraph tone instruction to append to the synth system prompt."""
     return _PERSONA_PROMPT_ADDENDUM.get(persona, _PERSONA_PROMPT_ADDENDUM[DEFAULT_PERSONA])
+
+
+def persona_disclaimer(persona: Persona) -> str:
+    """Per-persona disclaimer policy block for the synth system prompt.
+
+    Proportional by persona: homebuyers and investors get the most
+    explicit "not personal advice; consult a licensed professional"
+    language; researchers and journalists get lighter, audience-
+    appropriate caveats. Always returns a non-empty string — the
+    fallback is the `general` persona's policy.
+    """
+    return _PERSONA_DISCLAIMER.get(persona, _PERSONA_DISCLAIMER[DEFAULT_PERSONA])
 
 
 def persona_router_hints(persona: Persona) -> str:
@@ -223,6 +289,7 @@ __all__ = [
     "Persona",
     "apply_publisher_boost",
     "effective_persona",
+    "persona_disclaimer",
     "persona_prompt_addendum",
     "persona_publisher_boost",
     "persona_router_hints",
