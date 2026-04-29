@@ -45,6 +45,13 @@ agent = [
 gemini = [
     "google-genai>=0.3",
 ]
+# Optional: synthetic pair generation via OpenAI (Task X.07). Same
+# rationale as `gemini` above — pair generation is provider-agnostic,
+# so we keep a third option for when both Anthropic and Gemini are
+# throttling or when the credit budget points elsewhere.
+openai = [
+    "openai>=1.0",
+]
 tools = [
     "openpyxl>=3.1",
     "matplotlib>=3.8",
