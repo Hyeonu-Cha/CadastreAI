@@ -37,6 +37,14 @@ agent = [
     "langgraph>=0.2",
     "langsmith>=0.1.140",
 ]
+# Optional: synthetic pair generation via Gemini (Task X.05). The
+# pair-gen step is the only LLM call in the fine-tune pipeline that
+# isn't bound to the production agent's choice of model — anything
+# capable of writing a chunk-grounded question works. Use Gemini Flash
+# when Anthropic credit is the constraint.
+gemini = [
+    "google-genai>=0.3",
+]
 tools = [
     "openpyxl>=3.1",
     "matplotlib>=3.8",

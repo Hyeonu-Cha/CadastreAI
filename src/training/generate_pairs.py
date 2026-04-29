@@ -1,8 +1,15 @@
-"""Generate (query, chunk_id) training pairs by prompting Claude per chunk.
+"""Generate (query, chunk_id) training pairs by prompting an LLM per chunk.
 
-For each sampled chunk, asks Claude Haiku to author N persona-tagged
+For each sampled chunk, asks the LLM to author N persona-tagged
 questions whose answer is in the chunk. The chunk is the positive for
 each generated query. Hard negatives are mined separately in Task 2.08.
+
+Two providers are supported (Task X.05): Anthropic (Claude Haiku, the
+original 2.06 implementation) and Google (Gemini Flash). Pair generation
+is the only LLM step in the fine-tune pipeline that doesn't bind to the
+production agent's choice of model — anything that can write a
+specific question grounded in a chunk works. Pick the one your credit
+budget points at.
 
 Sampling rules (per Task 2.06 spec, with sane defaults):
 - Exclude chunk_ids already used as gold in any `queries_*.jsonl`
@@ -14,13 +21,18 @@ Sampling rules (per Task 2.06 spec, with sane defaults):
 Output is line-delimited JSON, one record per (query, chunk_id) pair:
 
     {"chunk_id": "...", "query": "...", "persona": "homebuyer|investor|researcher",
-     "model": "claude-haiku-...", "raw": "<model JSON>"}
+     "model": "<provider-model-id>"}
 
 The script is idempotent: re-running picks up where it left off by
 reading existing `--out` and skipping chunk_ids that already have
 records. Run it twice and the second pass should be a no-op.
 
+    # Default — Anthropic Claude Haiku (uses ANTHROPIC_API_KEY)
     python -m src.training.generate_pairs --sample 2000 -n 2 \
+        --out data/training/pairs_raw.jsonl
+
+    # Gemini Flash (uses GEMINI_API_KEY)
+    python -m src.training.generate_pairs --provider gemini --sample 2000 -n 2 \
         --out data/training/pairs_raw.jsonl
 
 The raw output is filtered by `src.training.filter_pairs` (Task 2.07) to
@@ -44,7 +56,12 @@ if hasattr(sys.stdout, "reconfigure"):
 
 log = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+PROVIDERS = ("anthropic", "gemini")
+DEFAULT_PROVIDER = "anthropic"
+DEFAULT_MODEL_ANTHROPIC = "claude-haiku-4-5-20251001"
+DEFAULT_MODEL_GEMINI = "gemini-2.5-flash"
+# Back-compat alias: the original public name used by callers.
+DEFAULT_MODEL = DEFAULT_MODEL_ANTHROPIC
 DEFAULT_SAMPLE = 2000
 DEFAULT_PER_CHUNK = 2
 DEFAULT_MIN_TOKENS = 100
@@ -177,7 +194,7 @@ def _parse_response(text: str) -> list[dict]:
     return valid
 
 
-async def _generate_one(
+async def _generate_one_anthropic(
     client: Any,
     chunk: dict,
     n: int,
@@ -205,21 +222,75 @@ async def _generate_one(
     return chunk, queries, text
 
 
+async def _generate_one_gemini(
+    client: Any,
+    chunk: dict,
+    n: int,
+    model: str,
+    max_tokens: int,
+    sem: asyncio.Semaphore,
+) -> tuple[dict, list[dict] | None, str | None]:
+    # Lazy import — only the gemini path needs the SDK.
+    from google.genai import types  # type: ignore[import-not-found]
+
+    config = types.GenerateContentConfig(
+        system_instruction=_SYSTEM_PROMPT,
+        max_output_tokens=max_tokens,
+        # Force structured JSON output so the parser doesn't have to
+        # strip code fences. The same `_parse_response` regex still
+        # works as a defence-in-depth fallback.
+        response_mime_type="application/json",
+    )
+    async with sem:
+        try:
+            resp = await client.aio.models.generate_content(
+                model=model,
+                contents=_user_prompt(chunk, n),
+                config=config,
+            )
+        except Exception as e:  # noqa: BLE001 — log + skip on any API failure
+            return chunk, None, f"api_error: {type(e).__name__}: {e}"
+    text = (getattr(resp, "text", None) or "").strip()
+    if not text:
+        return chunk, None, "parse_error: empty response"
+    try:
+        queries = _parse_response(text)
+    except ValueError as e:
+        return chunk, None, f"parse_error: {e}"
+    return chunk, queries, text
+
+
 async def _run_async(
     chunks: list[dict],
     out_path: Path,
     *,
+    provider: str,
     n: int,
     model: str,
     max_tokens: int,
     concurrency: int,
 ) -> dict:
-    import anthropic
+    if provider == "anthropic":
+        import anthropic
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY is not set; cannot generate.")
-    client = anthropic.AsyncAnthropic(api_key=api_key)
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise RuntimeError("ANTHROPIC_API_KEY is not set; cannot generate.")
+        client: Any = anthropic.AsyncAnthropic(api_key=api_key)
+        generate_one = _generate_one_anthropic
+    elif provider == "gemini":
+        from google import genai  # type: ignore[import-not-found]
+
+        api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "GEMINI_API_KEY (or GOOGLE_API_KEY) is not set; cannot generate."
+            )
+        client = genai.Client(api_key=api_key)
+        generate_one = _generate_one_gemini
+    else:
+        raise ValueError(f"unknown provider: {provider!r} (expected one of {PROVIDERS})")
+
     sem = asyncio.Semaphore(concurrency)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -230,7 +301,7 @@ async def _run_async(
 
     async def process(chunk: dict) -> None:
         nonlocal n_pairs, n_failed, n_done
-        chunk, queries, raw = await _generate_one(client, chunk, n, model, max_tokens, sem)
+        chunk, queries, raw = await generate_one(client, chunk, n, model, max_tokens, sem)
         n_done += 1
         if queries is None:
             n_failed += 1
@@ -268,6 +339,7 @@ def run(
     per_chunk: int,
     min_tokens: int,
     eval_dir: Path,
+    provider: str,
     model: str,
     max_tokens: int,
     concurrency: int,
@@ -289,6 +361,7 @@ def run(
         "Selected %d chunks (target sample=%d, min_tokens=%d) for generation",
         len(selected), sample, min_tokens,
     )
+    log.info("Using provider=%s model=%s", provider, model)
     if not selected:
         log.info("Nothing to do.")
         return {"n_chunks": 0, "n_pairs": 0, "n_failed": 0}
@@ -297,12 +370,21 @@ def run(
         _run_async(
             selected,
             out_path,
+            provider=provider,
             n=per_chunk,
             model=model,
             max_tokens=max_tokens,
             concurrency=concurrency,
         )
     )
+
+
+def _default_model_for(provider: str) -> str:
+    if provider == "anthropic":
+        return DEFAULT_MODEL_ANTHROPIC
+    if provider == "gemini":
+        return DEFAULT_MODEL_GEMINI
+    raise ValueError(f"unknown provider: {provider!r} (expected one of {PROVIDERS})")
 
 
 def main() -> None:
@@ -314,7 +396,20 @@ def main() -> None:
     p.add_argument("-n", "--per-chunk", type=int, default=DEFAULT_PER_CHUNK)
     p.add_argument("--min-tokens", type=int, default=DEFAULT_MIN_TOKENS)
     p.add_argument(
-        "--model", default=os.environ.get("CLAUDE_GEN_MODEL", DEFAULT_MODEL)
+        "--provider",
+        choices=PROVIDERS,
+        default=os.environ.get("CADASTRE_GEN_PROVIDER", DEFAULT_PROVIDER),
+        help="LLM provider for query generation (default: anthropic).",
+    )
+    # `--model` defaults are provider-specific; resolved post-parse.
+    p.add_argument(
+        "--model",
+        default=None,
+        help=(
+            f"Model id. Defaults to {DEFAULT_MODEL_ANTHROPIC!r} for "
+            f"--provider anthropic, {DEFAULT_MODEL_GEMINI!r} for --provider gemini. "
+            "Override with CLAUDE_GEN_MODEL or GEMINI_GEN_MODEL env vars."
+        ),
     )
     p.add_argument("--max-tokens", type=int, default=DEFAULT_MAX_TOKENS)
     p.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY)
@@ -326,6 +421,14 @@ def main() -> None:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s | %(message)s",
     )
+
+    if args.model is None:
+        env_override = (
+            os.environ.get("CLAUDE_GEN_MODEL") if args.provider == "anthropic"
+            else os.environ.get("GEMINI_GEN_MODEL")
+        )
+        args.model = env_override or _default_model_for(args.provider)
+
     summary = run(
         chunks_path=args.chunks,
         out_path=args.out,
@@ -333,6 +436,7 @@ def main() -> None:
         per_chunk=args.per_chunk,
         min_tokens=args.min_tokens,
         eval_dir=args.eval_dir,
+        provider=args.provider,
         model=args.model,
         max_tokens=args.max_tokens,
         concurrency=args.concurrency,
