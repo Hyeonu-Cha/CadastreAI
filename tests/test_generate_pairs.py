@@ -84,14 +84,19 @@ def test_default_model_for_gemini():
     assert gp._default_model_for("gemini") == gp.DEFAULT_MODEL_GEMINI
 
 
+def test_default_model_for_openai():
+    assert gp._default_model_for("openai") == gp.DEFAULT_MODEL_OPENAI
+
+
 def test_default_model_for_unknown_raises():
     with pytest.raises(ValueError):
-        gp._default_model_for("openai")
+        gp._default_model_for("cohere")
 
 
-def test_providers_constant_includes_both():
+def test_providers_constant_includes_all_three():
     assert "anthropic" in gp.PROVIDERS
     assert "gemini" in gp.PROVIDERS
+    assert "openai" in gp.PROVIDERS
 
 
 # ---------- provider validation in _run_async -------------------------
@@ -104,7 +109,7 @@ def test_run_async_rejects_unknown_provider(tmp_path):
             gp._run_async(
                 [{"chunk_id": "c1", "text": "x"}],
                 out,
-                provider="openai",
+                provider="cohere",
                 n=1,
                 model="x",
                 max_tokens=10,
@@ -150,6 +155,29 @@ def test_run_async_gemini_requires_key(tmp_path, monkeypatch):
                 provider="gemini",
                 n=1,
                 model="gemini-2.5-flash",
+                max_tokens=10,
+                concurrency=1,
+            )
+        )
+
+
+def test_run_async_openai_requires_key(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    out = tmp_path / "out.jsonl"
+    # Same pattern as the gemini test: skip when the SDK isn't present
+    # so the test env without `openai` extra installed doesn't fail.
+    try:
+        from openai import AsyncOpenAI  # type: ignore[import-not-found]  # noqa: F401
+    except ImportError:
+        pytest.skip("openai SDK not installed in this test env")
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
+        asyncio.run(
+            gp._run_async(
+                [{"chunk_id": "c1", "text": "x"}],
+                out,
+                provider="openai",
+                n=1,
+                model="gpt-4o-mini",
                 max_tokens=10,
                 concurrency=1,
             )

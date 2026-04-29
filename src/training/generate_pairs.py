@@ -4,12 +4,13 @@ For each sampled chunk, asks the LLM to author N persona-tagged
 questions whose answer is in the chunk. The chunk is the positive for
 each generated query. Hard negatives are mined separately in Task 2.08.
 
-Two providers are supported (Task X.05): Anthropic (Claude Haiku, the
-original 2.06 implementation) and Google (Gemini Flash). Pair generation
-is the only LLM step in the fine-tune pipeline that doesn't bind to the
-production agent's choice of model — anything that can write a
-specific question grounded in a chunk works. Pick the one your credit
-budget points at.
+Three providers are supported: Anthropic (Claude Haiku, the original
+2.06 implementation), Google (Gemini Flash, added in X.05), and
+OpenAI (GPT-4o-mini, added in X.07). Pair generation is the only LLM
+step in the fine-tune pipeline that doesn't bind to the production
+agent's choice of model — anything that can write a specific question
+grounded in a chunk works. Pick the one your credit budget points at,
+or the one that isn't currently throttling.
 
 Sampling rules (per Task 2.06 spec, with sane defaults):
 - Exclude chunk_ids already used as gold in any `queries_*.jsonl`
@@ -35,6 +36,10 @@ records. Run it twice and the second pass should be a no-op.
     python -m src.training.generate_pairs --provider gemini --sample 2000 -n 2 \
         --out data/training/pairs_raw.jsonl
 
+    # OpenAI GPT-4o-mini (uses OPENAI_API_KEY)
+    python -m src.training.generate_pairs --provider openai --sample 2000 -n 2 \
+        --out data/training/pairs_raw.jsonl
+
 The raw output is filtered by `src.training.filter_pairs` (Task 2.07) to
 produce the canonical `data/training/pairs.jsonl` consumed downstream.
 """
@@ -56,10 +61,11 @@ if hasattr(sys.stdout, "reconfigure"):
 
 log = logging.getLogger(__name__)
 
-PROVIDERS = ("anthropic", "gemini")
+PROVIDERS = ("anthropic", "gemini", "openai")
 DEFAULT_PROVIDER = "anthropic"
 DEFAULT_MODEL_ANTHROPIC = "claude-haiku-4-5-20251001"
 DEFAULT_MODEL_GEMINI = "gemini-2.5-flash"
+DEFAULT_MODEL_OPENAI = "gpt-4o-mini"
 # Back-compat alias: the original public name used by callers.
 DEFAULT_MODEL = DEFAULT_MODEL_ANTHROPIC
 DEFAULT_SAMPLE = 2000
@@ -260,6 +266,40 @@ async def _generate_one_gemini(
     return chunk, queries, text
 
 
+async def _generate_one_openai(
+    client: Any,
+    chunk: dict,
+    n: int,
+    model: str,
+    max_tokens: int,
+    sem: asyncio.Semaphore,
+) -> tuple[dict, list[dict] | None, str | None]:
+    async with sem:
+        try:
+            resp = await client.chat.completions.create(
+                model=model,
+                max_tokens=max_tokens,
+                # JSON mode — caller's system prompt already says "respond
+                # with strict JSON only", which is what unlocks this in
+                # the OpenAI API.
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "user", "content": _user_prompt(chunk, n)},
+                ],
+            )
+        except Exception as e:  # noqa: BLE001 — log + skip on any API failure
+            return chunk, None, f"api_error: {type(e).__name__}: {e}"
+    text = (resp.choices[0].message.content or "").strip()
+    if not text:
+        return chunk, None, "parse_error: empty response"
+    try:
+        queries = _parse_response(text)
+    except ValueError as e:
+        return chunk, None, f"parse_error: {e}"
+    return chunk, queries, text
+
+
 async def _run_async(
     chunks: list[dict],
     out_path: Path,
@@ -288,6 +328,14 @@ async def _run_async(
             )
         client = genai.Client(api_key=api_key)
         generate_one = _generate_one_gemini
+    elif provider == "openai":
+        from openai import AsyncOpenAI  # type: ignore[import-not-found]
+
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY is not set; cannot generate.")
+        client = AsyncOpenAI(api_key=api_key)
+        generate_one = _generate_one_openai
     else:
         raise ValueError(f"unknown provider: {provider!r} (expected one of {PROVIDERS})")
 
@@ -384,6 +432,8 @@ def _default_model_for(provider: str) -> str:
         return DEFAULT_MODEL_ANTHROPIC
     if provider == "gemini":
         return DEFAULT_MODEL_GEMINI
+    if provider == "openai":
+        return DEFAULT_MODEL_OPENAI
     raise ValueError(f"unknown provider: {provider!r} (expected one of {PROVIDERS})")
 
 
@@ -407,8 +457,9 @@ def main() -> None:
         default=None,
         help=(
             f"Model id. Defaults to {DEFAULT_MODEL_ANTHROPIC!r} for "
-            f"--provider anthropic, {DEFAULT_MODEL_GEMINI!r} for --provider gemini. "
-            "Override with CLAUDE_GEN_MODEL or GEMINI_GEN_MODEL env vars."
+            f"--provider anthropic, {DEFAULT_MODEL_GEMINI!r} for --provider gemini, "
+            f"{DEFAULT_MODEL_OPENAI!r} for --provider openai. "
+            "Override with CLAUDE_GEN_MODEL, GEMINI_GEN_MODEL, or OPENAI_GEN_MODEL env vars."
         ),
     )
     p.add_argument("--max-tokens", type=int, default=DEFAULT_MAX_TOKENS)
@@ -423,10 +474,11 @@ def main() -> None:
     )
 
     if args.model is None:
-        env_override = (
-            os.environ.get("CLAUDE_GEN_MODEL") if args.provider == "anthropic"
-            else os.environ.get("GEMINI_GEN_MODEL")
-        )
+        env_override = {
+            "anthropic": os.environ.get("CLAUDE_GEN_MODEL"),
+            "gemini": os.environ.get("GEMINI_GEN_MODEL"),
+            "openai": os.environ.get("OPENAI_GEN_MODEL"),
+        }.get(args.provider)
         args.model = env_override or _default_model_for(args.provider)
 
     summary = run(
