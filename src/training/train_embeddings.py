@@ -64,6 +64,7 @@ DEFAULT_LR = 2e-5
 DEFAULT_WARMUP_RATIO = 0.1
 DEFAULT_DEV_FRAC = 0.10
 DEFAULT_SEED = 42
+DEFAULT_MAX_SEQ_LENGTH = 0  # 0 = use the model's own default (512 for bge-base)
 _QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 
 
@@ -155,31 +156,36 @@ def _summarise_training_curves(out_dir: Path) -> dict:
     """Read the RerankingEvaluator CSV that fit() wrote and distil it
     into a JSON summary next to the model.
 
-    fit() writes `<out_dir>/eval/RerankingEvaluator_dev_results.csv`
-    with columns: epoch, steps, MAP, MRR@10. We rewrite as
-    `<out_dir>/training_curves.json` with a list of {epoch, steps, map,
-    mrr_at_10} entries — easier to consume in Task 2.17 / blog charts
-    than CSV-with-trailing-empties.
+    fit() writes `<out_dir>/eval/RerankingEvaluator_dev_results*.csv`
+    with columns: epoch, steps, MAP, MRR@10, NDCG@10. Newer
+    sentence-transformers versions append a `_@10` suffix to the file
+    when `mrr_at_k=10` is set, so we glob rather than hardcode the name.
+    We rewrite as `<out_dir>/training_curves.json` with a list of
+    {epoch, steps, map, mrr_at_10, ndcg_at_10} entries — easier to
+    consume in Task 2.17 / blog charts than CSV-with-trailing-empties.
 
     Returns the parsed list (empty if the CSV doesn't exist, e.g. when
     training was launched without an evaluator).
     """
     import csv
 
-    eval_csv = out_dir / "eval" / "RerankingEvaluator_dev_results.csv"
+    eval_dir = out_dir / "eval"
+    candidates = sorted(eval_dir.glob("RerankingEvaluator_dev_results*.csv")) if eval_dir.exists() else []
     curves: list[dict] = []
-    if not eval_csv.exists():
-        return {"curves": curves, "source": str(eval_csv), "found": False}
+    if not candidates:
+        return {"curves": curves, "source": str(eval_dir), "found": False}
+    eval_csv = candidates[0]
 
     with eval_csv.open("r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             curves.append(
                 {
-                    "epoch": int(row.get("epoch") or 0),
+                    "epoch": int(float(row.get("epoch") or 0)),
                     "steps": int(row.get("steps") or 0),
                     "map": float(row.get("MAP") or 0.0),
                     "mrr_at_10": float(row.get("MRR@10") or 0.0),
+                    "ndcg_at_10": float(row.get("NDCG@10") or 0.0),
                 }
             )
 
@@ -203,6 +209,8 @@ def run(
     dev_frac: float,
     seed: int,
     n_negatives: int,
+    use_amp: bool = False,
+    max_seq_length: int = 0,
 ) -> dict:
     from sentence_transformers import SentenceTransformer
     from sentence_transformers.evaluation import RerankingEvaluator
@@ -238,6 +246,9 @@ def run(
 
     log.info("Loading base model %s", base_model)
     model = SentenceTransformer(base_model)
+    if max_seq_length > 0:
+        model.max_seq_length = max_seq_length
+        log.info("Capped max_seq_length=%d (was %d)", max_seq_length, model.max_seq_length)
     loss = MultipleNegativesRankingLoss(model)
 
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -247,8 +258,8 @@ def run(
     steps_per_epoch = max(1, len(train_loader))
     warmup_steps = int(steps_per_epoch * epochs * warmup_ratio)
     log.info(
-        "fit() epochs=%d batch=%d lr=%g warmup_steps=%d eval_per_epoch=%s",
-        epochs, batch, lr, warmup_steps, evaluator is not None,
+        "fit() epochs=%d batch=%d lr=%g warmup_steps=%d eval_per_epoch=%s amp=%s",
+        epochs, batch, lr, warmup_steps, evaluator is not None, use_amp,
     )
     model.fit(
         train_objectives=[(train_loader, loss)],
@@ -260,6 +271,7 @@ def run(
         evaluation_steps=steps_per_epoch if evaluator is not None else 0,
         save_best_model=False,
         show_progress_bar=True,
+        use_amp=use_amp,
     )
 
     log.info("Saving final model to %s", out_dir)
@@ -299,6 +311,17 @@ def main() -> None:
     p.add_argument("--dev-frac", type=float, default=DEFAULT_DEV_FRAC)
     p.add_argument("--n-negatives", type=int, default=5)
     p.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    p.add_argument(
+        "--amp",
+        action="store_true",
+        help="enable fp16 mixed-precision training (cuts VRAM ~half on CUDA)",
+    )
+    p.add_argument(
+        "--max-seq-length",
+        type=int,
+        default=DEFAULT_MAX_SEQ_LENGTH,
+        help="cap input length in tokens (0 keeps the model's native default, 512 for bge-base)",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args()
 
@@ -317,6 +340,8 @@ def main() -> None:
         dev_frac=args.dev_frac,
         seed=args.seed,
         n_negatives=args.n_negatives,
+        use_amp=args.amp,
+        max_seq_length=args.max_seq_length,
     )
     print(
         f"n_train={summary['n_train']} n_dev={summary['n_dev']} "
