@@ -262,19 +262,96 @@ shortlist to begin with. The pipeline (Tasks 2.06–2.13):
    `--collection`, giving a clean A/B harness with no live-traffic
    risk.
 
-**End-to-end pipeline:**
+**End-to-end pipeline (synthetic 41 split):**
 
 | Variant (synthetic 41) | R@5 | R@10 | MRR@10 | nDCG@10 |
 |------------------------|----:|-----:|-------:|--------:|
 | base BGE               | 0.756 | 0.829 | 0.602 | 0.656 |
 | + hybrid               | 0.805 | 0.878 | 0.640 | 0.698 |
 | + hybrid + rerank      | 0.829 | 0.854 | 0.680 | 0.723 |
-| ft + hybrid + rerank   | *(pending Task 2.14)* | | | |
+| ft + hybrid + rerank   | *not run — see below* | | | |
+
+**End-to-end pipeline (full 100-query eval set):**
+
+| Variant (n=100)              | R@5 | R@10 | MRR@10 | nDCG@10 | median lat |
+|------------------------------|----:|-----:|-------:|--------:|----------:|
+| base BGE (dense)             | 0.383 | 0.450 | 0.352 | 0.349 | — |
+| BM25 only                    | **0.800** | **0.907** | **0.732** | **0.760** | — |
+| BGE + BM25 (hybrid, RRF)     | 0.563 | 0.747 | 0.626 | 0.585 | 389 ms |
+| hybrid + cross-encoder       | 0.550 | 0.673 | 0.560 | 0.537 | 2851 ms |
+| fine-tuned BGE (dense)       | 0.177 | 0.210 | 0.128 | 0.146 | 38 ms |
+
+Two splits, two stories. On the synthetic-41 split (designed to be
+retriever-independent), the hybrid + rerank chain monotonically
+improves over base BGE — the original Phase 2 thesis. On the full
+100-query set (which folds in the 59 BM25-pooled queries), **BM25
+alone dominates every measured variant**, the dense retriever
+*regresses* it under RRF, and the cross-encoder pulls it down further.
+
+This isn't "the synthetic split is wrong and the full split is right"
+— each measures something different. The synthetic split tests how
+well a retriever generalises to queries it had no hand in producing.
+The full split tests how the system performs on the eval set we
+actually shipped, BM25-pooling and all. Phase 2 wins on the first;
+the second is what surfaces when you stop hiding behind your own
+sampling distribution.
 
 `docs/figures/recall_curves.png` plots Recall@K for K=1..10 across
-every variant; `results/persona_breakdown.md` compares per-persona
-deltas (homebuyer / investor / researcher) so we can read which user
-class the fine-tune actually helps.
+every measured variant on the full 100-query set; the curves are
+parallel to the table above (BM25 on top, FT on the floor).
+`results/finetune_persona_breakdown.md` slices the FT regression by
+persona — homebuyer −76% MRR, investor −71% (zero query-level wins),
+researcher −58%.
+
+### Step 3.5 — Reading the fine-tune regression
+
+The fine-tune was meant to be the headline win of Phase 2. It wasn't.
+Across every metric, persona, and almost every individual query, the
+fine-tuned `bge-au-housing-v1` checkpoint is *worse* than the base
+encoder — MRR@10 0.352 → 0.128 on the full eval set, R@10 0.450 →
+0.210. On dev metrics during training (held-out 10% of the synthetic
+triplets) MRR@10 hit 0.79; on the real eval queries that signal
+disappeared.
+
+The failure mode is consistent across queries. The FT model retrieves
+AHURI papers for almost every question, including ones where AHURI
+has no relevant content. A Victoria-stamp-duty query pulls "changing
+geography of homelessness", "filtering as a source of low-income
+housing", and "demand-side assistance in Australia's rental market" —
+all AHURI working papers, all wrong. The model has collapsed onto the
+publisher style that dominates the training distribution.
+
+Three plausible upstream causes (in order of likely impact):
+
+1. **Pair-generation distribution skew.** AHURI is the largest single
+   publisher in the chunk corpus, so synthetic pairs sampled from
+   chunks were AHURI-heavy. The fine-tune learns "good answers look
+   like AHURI."
+2. **Synthetic-anchor style ≠ real query style.** Anchors generated
+   by an LLM from a passage tend to read as academic paraphrases. Real
+   eval queries (`"How does the First Home Owner Grant work in NSW
+   and who qualifies?"`) are conversational. The model fits the
+   training register.
+3. **Catastrophic forgetting.** 3,943 pairs at lr=2e-5 for 3 epochs
+   over a narrow distribution is enough to overwrite the broad
+   retrieval prior the base BGE encodes.
+
+The next experiments, in rough cost order: (a) stratified per-publisher
+pair sampling so AHURI doesn't dominate; (b) bias the LLM
+pair-generation prompt toward natural questions instead of paraphrases;
+(c) lower learning rate and fewer epochs (lr=5e-6, 1 epoch); (d) a
+small held-out portion of the eval queries themselves as supplementary
+training pairs (handle the contamination split carefully); (e) skip
+encoder fine-tuning and fine-tune a cross-encoder reranker instead —
+better signal-to-noise per training example.
+
+The `ft + hybrid + rerank` row in the table is left explicitly "not
+run" rather than silently dropped: it needs Qdrant for the
+`cadastre_chunks_ft` collection (Docker was unavailable for this
+write-up). Once it runs, the realistic expectation given the
+upstream collapse is that downstream BM25 fusion and the reranker
+won't rescue the FT signal — `ft + hybrid + rerank` will likely sit
+between `+ hybrid + rerank` and `fine-tuned BGE (dense)`.
 
 ### What changed about how we evaluate
 
@@ -291,19 +368,43 @@ ablation:
 
 ### Reading Phase 2
 
-On the synthetic split, the BGE → +hybrid → +rerank chain moved R@5
-from 0.756 to 0.829 (+7.3 pts) and MRR@10 from 0.602 to 0.680
-(+7.8 pts). Hybrid is the bigger of the two contributions; the
-reranker pulls about a third of the total lift but at 7× the latency.
-Fine-tune numbers land separately — the training script is checked in
-and the corpus re-embed orchestrator is ready, but the actual training
-run waits on Colab compute.
+Two readings, depending on which split you trust. On the synthetic
+41-query split — designed to be independent of the BM25 pooling that
+produced 59 of the gold sets — the BGE → +hybrid → +rerank chain moves
+R@5 from 0.756 to 0.829 (+7.3 pts) and MRR@10 from 0.602 to 0.680
+(+7.8 pts). Hybrid is the bigger contribution; the reranker pulls
+about a third of the total lift at 7× the latency.
+
+On the full 100-query set, the reading inverts. **BM25 alone wins by
+a wide margin** (R@10 0.91, MRR 0.73), and adding dense BGE via RRF
+*regresses* BM25 to R@10 0.75 — the dense retriever is pulling
+correct lexical hits down in the fused ranking. The cross-encoder
+rerank regresses again to R@10 0.67 at 7× the latency. The
+fine-tuned dense encoder collapses to R@10 0.21.
+
+The honest takeaway: hybrid + rerank produces real gains on
+queries that aren't already in BM25's wheelhouse, but on this
+specific eval set BM25's wheelhouse covers most of the ground.
+Two follow-ups for Phase 3+:
+
+- **Re-tune the fusion.** RRF with equal weighting is the simplest
+  thing that could have worked; on this eval set it doesn't. Worth
+  exploring `k_rrf` values, BM25-weighted RRF, or a learned linear
+  combination on a held-out tune split.
+- **Diagnose the rerank regression.** The cross-encoder
+  (`ms-marco-MiniLM-L-6-v2`) was trained on web-search-style data;
+  on Australian housing-policy passages it may be miscalibrated.
+  Worth trying a domain-adjacent reranker or a domain-tuned one
+  (Phase 2's failed encoder fine-tune story argues for fine-tuning
+  a cross-encoder *instead* — better signal-to-noise per training
+  example).
 
 The two unsolved failure classes from Phase 1 — temporal queries and
 multi-concept decomposition — are still unsolved. Both are explicitly
 Phase 3 territory: temporal needs a phrase parser and recency boost on
 the retrieval side, decomposition wants either query rewriting or
-ColBERT-style late interaction. Neither is a fine-tuning problem.
+ColBERT-style late interaction. Neither is a retrieval-stack tuning
+problem.
 
 ---
 
