@@ -12,10 +12,11 @@ That gives us recall at *any* K up to `top_k` without re-running
 retrieval — perfect for a smooth curve.
 
     python -m src.eval.plot_recall_curves \
-        --variant "base BGE=results/baseline.json" \
-        --variant "+ hybrid=results/hybrid.json" \
-        --variant "+ hybrid + rerank=results/reranked.json" \
-        --variant "ft + hybrid + rerank=results/finetuned.json" \
+        --variant "base BGE (dense)=results/baseline.json" \
+        --variant "BM25=results/bm25.json" \
+        --variant "BGE + BM25 (hybrid)=results/hybrid.json" \
+        --variant "hybrid + cross-encoder=results/reranked.json" \
+        --variant "fine-tuned BGE (dense)=results/finetuned.json" \
         --out docs/figures/recall_curves.png
 
 Variants whose JSON doesn't exist are skipped with a warning rather
@@ -35,10 +36,11 @@ if hasattr(sys.stdout, "reconfigure"):
 log = logging.getLogger(__name__)
 
 DEFAULT_VARIANTS = (
-    ("base BGE", Path("results/baseline.json")),
-    ("+ hybrid", Path("results/hybrid.json")),
-    ("+ hybrid + rerank", Path("results/reranked.json")),
-    ("ft + hybrid + rerank", Path("results/finetuned.json")),
+    ("base BGE (dense)", Path("results/baseline.json")),
+    ("BM25", Path("results/bm25.json")),
+    ("BGE + BM25 (hybrid)", Path("results/hybrid.json")),
+    ("hybrid + cross-encoder", Path("results/reranked.json")),
+    ("fine-tuned BGE (dense)", Path("results/finetuned.json")),
 )
 
 

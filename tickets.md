@@ -101,8 +101,8 @@
 
 ### Day 14 — Ablation + blog
 
-- [ ] **Task 2.16** — Build ablation comparison (base BGE / +hybrid / +hybrid+rerank / ft+hybrid+rerank); emit `results/ablation.json` + Markdown table
-- [ ] **Task 2.17** — Plot Recall@K curves for all variants; save to `docs/figures/recall_curves.png`
+- [x] **Task 2.16** — Build ablation comparison (base BGE / +hybrid / +hybrid+rerank / ft+hybrid+rerank); emit `results/ablation.json` + Markdown table
+- [x] **Task 2.17** — Plot Recall@K curves for all variants; save to `docs/figures/recall_curves.png`
 - [ ] **Task 2.18** — Write Week 2 section of `docs/blog_draft.md` covering hybrid, rerank, fine-tuning story
 
 ---
