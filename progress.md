@@ -167,14 +167,66 @@ in this session.)
     effect, the node behaviour on both paths, the conditional-edge
     logic, and end-to-end graph short-circuit + pass-through
 
+### Day — Week 2 fine-tune A/B + ablation revisit
+
+- [x] **Tasks 2.06–2.10** — Pair generation, hard-negative mining,
+  training pipeline merged across PRs #88–#93 (Gemini + OpenAI
+  providers for `generate_pairs.py`, cost-projection helper, Colab
+  T4 notebook, fp16 + max-seq-length flags + CSV-glob fix on
+  `train_embeddings.py`). Bi-encoder `bge-au-housing-v1` trained
+  on Colab T4 against ~3.7k synthetic pairs.
+- [x] **Task 2.13** — Re-embedded entire corpus with the fine-tuned
+  model (offline `.npy` matmul; Qdrant collection upsert
+  `cadastre_chunks_ft` deferred — Docker daemon outage on dev box).
+- [x] **Task 2.14** — `src/eval/retrieval_eval_offline.py`
+  (PR #94, 2026-04-29) — Qdrant-free brute-force-cosine eval over
+  `data/processed/finetuned/embeddings.npy`. Reuses
+  `retrieval_eval.run()` for scoring/aggregation. **Result:
+  fine-tune regressed** vs. base BGE on every metric
+  (R@10 0.45 → 0.21, MRR 0.36 → 0.13). Diagnosed as
+  publisher-collapse: the FT model retrieves AHURI papers for
+  almost any query regardless of topic.
+- [x] **Task 2.15** — `scripts/finetune_persona_breakdown.py`
+  (PR #95, 2026-04-29) — pure JSON-in / Markdown-out helper.
+  Confirms FT regresses on every persona; investor has 0 query-
+  level wins (FT worse on all 25 investor queries). Single
+  largest FT win is ΔMRR=+1.00 on a researcher query — there is
+  *some* salvageable signal but not enough to ship the checkpoint.
+- [x] **Task 2.16** — `scripts/build_ablation.py` (PR #96,
+  2026-04-29) — emits `results/ablation.{json,md}` from the five
+  measured variants. **BM25 alone wins all four metrics** on this
+  100-query eval set (R@10=0.91, MRR=0.73). Hybrid (BM25+BGE via
+  RRF) drops R@10 to 0.75; cross-encoder rerank drops it further
+  to 0.67. The `ft+hybrid+rerank` cell is left explicitly "not
+  run" — needs the deferred `cadastre_chunks_ft` Qdrant collection.
+- [x] **Task 2.17** — Refreshed `src/eval/plot_recall_curves.py`
+  (PR #97, 2026-04-29) — DEFAULT_VARIANTS now includes BM25 and
+  fixes a prior mislabeling where "ft + hybrid + rerank" pointed
+  at `results/finetuned.json` (which was the FT-dense run).
+  Regenerates `docs/figures/recall_curves.png` with five lines:
+  BM25 on top throughout K=1..10, FT on the bottom.
+- [x] **Task 2.18** — Week 2 blog write-up (PR #98, 2026-04-30).
+  New "End-to-end pipeline (full 100-query eval set)" table next
+  to the synthetic-41 one; new "Reading the fine-tune regression"
+  subsection covering publisher-collapse and five candidate
+  next-experiments (stratified pair sampling, anchor-style
+  alignment, lower lr, eval-query mix-in, cross-encoder
+  fine-tune); rewrote "Reading Phase 2" to be honest about the
+  two-splits-two-stories outcome and surface follow-ups
+  (re-tune RRF weighting, diagnose cross-encoder regression on
+  this corpus).
+
 ### Still gating launch
 
 - **Tasks 3.22 / 3.23 / 3.24** — agent eval v1, failure analysis, v2.
   Need `ANTHROPIC_API_KEY` + a populated Qdrant. Harness is
   unit-tested end-to-end against a stub graph (`tests/test_agent_eval`).
-- **Tasks 2.06–2.14** — BGE bi-encoder fine-tune (synthetic pair
-  generation, hard-negative mining, training, A/B). Need API key +
-  Colab GPU. Pipeline is checked in.
+- **`ft+hybrid+rerank` ablation cell** — needs Docker back up so
+  we can upsert `cadastre_chunks_ft` and re-run
+  `retrieval_eval --retriever hybrid --rerank --dense-collection
+  cadastre_chunks_ft`. Realistic expectation given the
+  publisher-collapse failure mode upstream: it won't rescue the
+  FT model. Tracked under Task 2.16 follow-up.
 - **Tasks 4.14 / 4.15 / 4.16** — Qdrant Cloud + Modal-or-HF deploy +
   smoke test. Need cloud accounts.
 - **Tasks 4.17 / 4.18** — full eval suite + final results table.
