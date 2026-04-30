@@ -97,7 +97,7 @@
 
 - [x] **Task 2.13** — Re-embed entire corpus with fine-tuned model and upsert to new Qdrant collection `cadastre_chunks_ft`
 - [x] **Task 2.14** — Run full retrieval eval on fine-tuned embeddings; target MRR +15–25% over base BGE; save `results/finetuned.json`
-- [ ] **Task 2.15** — Produce per-category breakdown (homebuyer/investor/researcher) to identify where fine-tune helps most
+- [x] **Task 2.15** — Produce per-category breakdown (homebuyer/investor/researcher) to identify where fine-tune helps most
 
 ### Day 14 — Ablation + blog
 

@@ -1,0 +1,122 @@
+{
+  "variants": [
+    {
+      "key": "baseline",
+      "label": "base BGE (dense)",
+      "notes": "",
+      "n": 100,
+      "recall@5": 0.38333333333333336,
+      "recall@10": 0.45,
+      "mrr@10": 0.35194444444444445,
+      "ndcg@10": 0.34939908359685234,
+      "median_ms": null,
+      "p95_ms": null,
+      "retriever": {
+        "model": "BAAI/bge-base-en-v1.5",
+        "collection": "cadastre_chunks"
+      }
+    },
+    {
+      "key": "bm25",
+      "label": "BM25 only",
+      "notes": "",
+      "n": 100,
+      "recall@5": 0.8,
+      "recall@10": 0.9066666666666667,
+      "mrr@10": 0.7318571428571429,
+      "ndcg@10": 0.7602751631871497,
+      "median_ms": null,
+      "p95_ms": null,
+      "retriever": {
+        "kind": "bm25",
+        "docs": 41959
+      }
+    },
+    {
+      "key": "hybrid",
+      "label": "base BGE + BM25 (hybrid)",
+      "notes": "",
+      "n": 100,
+      "recall@5": 0.5633333333333334,
+      "recall@10": 0.7466666666666667,
+      "mrr@10": 0.6261349206349206,
+      "ndcg@10": 0.5847577476651888,
+      "median_ms": 389.3811000016285,
+      "p95_ms": 490.158300002804,
+      "retriever": {
+        "kind": "hybrid",
+        "shortlist": 50,
+        "k_rrf": 60,
+        "dense": {
+          "kind": "dense",
+          "model": "BAAI/bge-base-en-v1.5",
+          "collection": "cadastre_chunks"
+        },
+        "sparse": {
+          "kind": "bm25",
+          "docs": 41959
+        }
+      }
+    },
+    {
+      "key": "reranked",
+      "label": "hybrid + cross-encoder",
+      "notes": "",
+      "n": 100,
+      "recall@5": 0.55,
+      "recall@10": 0.6733333333333333,
+      "mrr@10": 0.5597896825396825,
+      "ndcg@10": 0.5365997385815069,
+      "median_ms": 2851.0754000017187,
+      "p95_ms": 2954.8669999931008,
+      "retriever": {
+        "kind": "reranked",
+        "shortlist": 30,
+        "model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+        "device": "cpu",
+        "base": {
+          "kind": "hybrid",
+          "shortlist": 50,
+          "k_rrf": 60,
+          "dense": {
+            "kind": "dense",
+            "model": "BAAI/bge-base-en-v1.5",
+            "collection": "cadastre_chunks"
+          },
+          "sparse": {
+            "kind": "bm25",
+            "docs": 41959
+          }
+        }
+      }
+    },
+    {
+      "key": "finetuned",
+      "label": "fine-tuned BGE (dense)",
+      "notes": "offline matmul; Qdrant unavailable",
+      "n": 100,
+      "recall@5": 0.17666666666666667,
+      "recall@10": 0.21,
+      "mrr@10": 0.1278730158730159,
+      "ndcg@10": 0.14566655813748686,
+      "median_ms": 37.919100001090555,
+      "p95_ms": 53.909800000838004,
+      "retriever": {
+        "kind": "NpyRetriever"
+      }
+    },
+    {
+      "key": "ft_hybrid_rerank",
+      "label": "ft + hybrid + cross-encoder",
+      "notes": "not run — needs Qdrant collection cadastre_chunks_ft",
+      "n": null,
+      "recall@5": null,
+      "recall@10": null,
+      "mrr@10": null,
+      "ndcg@10": null,
+      "median_ms": null,
+      "p95_ms": null,
+      "retriever": null
+    }
+  ]
+}
