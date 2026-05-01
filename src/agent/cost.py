@@ -34,6 +34,14 @@ log = logging.getLogger(__name__)
 
 # Per-1M-token rates, USD. Cache write = 1.25× input, cache read = 0.1×.
 # Source: Anthropic pricing page, cached 2026-04-15. Update here on price changes.
+#
+# OpenAI entries (Task X.08) are bundled in the same table so the same
+# log_cost path covers both providers. The cache-read multiplier below
+# is Anthropic-tuned (10% of input rate); OpenAI's automatic cache
+# discount is 50%, so cost lines emitted on the OpenAI branch slightly
+# *over*-attribute the cache-read savings (i.e. report a lower input
+# bill than reality). Acceptable for now — tracked in `src/agent/llm.py`
+# rather than fragmenting the multiplier per provider.
 _PRICING: dict[str, tuple[float, float]] = {
     # model_id : (input_per_1m, output_per_1m)
     "claude-opus-4-7": (5.00, 25.00),
@@ -41,6 +49,10 @@ _PRICING: dict[str, tuple[float, float]] = {
     "claude-sonnet-4-6": (3.00, 15.00),
     "claude-sonnet-4-5": (3.00, 15.00),
     "claude-haiku-4-5": (1.00, 5.00),
+    # OpenAI — public pricing page, cached 2026-04-15.
+    "gpt-4o": (2.50, 10.00),
+    "gpt-4o-mini": (0.15, 0.60),
+    "gpt-4-turbo": (10.00, 30.00),
 }
 
 CACHE_WRITE_MULTIPLIER = 1.25
