@@ -216,11 +216,49 @@ in this session.)
   (re-tune RRF weighting, diagnose cross-encoder regression on
   this corpus).
 
+### Day — Agent provider switch (X.08 / X.08b)
+
+- [x] **Task X.08** — Provider abstraction for the 5 agent nodes
+  (PR #100, 2026-05-01). New `src/agent/llm.py` exposes
+  `get_provider()`, `call_with_tool()`, `call_text()`. Switched by
+  `CADASTRE_LLM_PROVIDER=anthropic|openai`; OpenAI defaults to
+  `gpt-4o-mini` for classify/decompose/route/reflect and `gpt-4o`
+  for synth, both overridable via per-node env vars. Anthropic
+  branch preserves the exact `anthropic.Anthropic(...).messages.create(...)`
+  chain plus `cache_control: ephemeral`, so the ~30 existing tests
+  that monkey-patch `anthropic.Anthropic` keep working unchanged.
+  Tool schemas written once in Anthropic shape and translated to
+  OpenAI's function-calling shape inside `llm.py`; usage normalised
+  to Anthropic's keys so `cost.py` stays single-shape (added
+  `gpt-4o` / `gpt-4o-mini` / `gpt-4-turbo` pricing entries; flagged
+  the OpenAI cache-discount over-attribution in code, didn't fix).
+  Motivation: Tasks 3.22–3.24 (agent eval) need to run on whichever
+  credit is available without forking the node code.
+- [x] **Task 3.22 (prep)** — `src/eval/agent_eval.py`
+  faithfulness judge follows the same provider switch (PR #101,
+  2026-05-01). Was hard-coded to `anthropic.Anthropic` even after
+  PR #100, so `--with-judge` would 401 in OpenAI mode. Now defaults
+  to `gpt-4o-mini` on OpenAI / `claude-haiku-4-5` on Anthropic;
+  both overridable via `CADASTRE_OPENAI_JUDGE_MODEL` and
+  `CADASTRE_JUDGE_MODEL`.
+- [x] **Task X.08b** — `tests/test_llm.py` (PR #102, 2026-05-01).
+  17 unit tests covering the provider abstraction directly: env
+  resolution (default / casing / unknown), Anthropic↔OpenAI tool
+  payload translation, usage normalisation including the OpenAI
+  cache-split, `call_with_tool` / `call_text` dispatch on both
+  branches with the OpenAI SDK stubbed via `sys.modules` (so no
+  `openai` install or network call is required), missing-key
+  RuntimeError, and degraded-response handling (empty
+  `tool_calls`, invalid JSON arguments). 370 tests now pass
+  (was 353 before this PR).
+
 ### Still gating launch
 
 - **Tasks 3.22 / 3.23 / 3.24** — agent eval v1, failure analysis, v2.
-  Need `ANTHROPIC_API_KEY` + a populated Qdrant. Harness is
-  unit-tested end-to-end against a stub graph (`tests/test_agent_eval`).
+  Code-side now provider-agnostic (PR #100 + #101 + #102). Still
+  needs a populated Qdrant + either `ANTHROPIC_API_KEY` or
+  `OPENAI_API_KEY` exported. Harness is unit-tested end-to-end
+  against a stub graph (`tests/test_agent_eval`).
 - **`ft+hybrid+rerank` ablation cell** — needs Docker back up so
   we can upsert `cadastre_chunks_ft` and re-run
   `retrieval_eval --retriever hybrid --rerank --dense-collection
