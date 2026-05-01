@@ -18,6 +18,7 @@ import logging
 import os
 import re
 
+from src.agent import llm
 from src.agent.cost import log_cost
 from src.agent.graph import AgentState, Classification
 from src.agent.guardrails import log_refusal, screen_query
@@ -31,8 +32,23 @@ from src.agent.persona import (
 
 log = logging.getLogger(__name__)
 
+# Per-node model defaults, resolved at call time via `_resolve_*_model()`
+# so the active provider (`CADASTRE_LLM_PROVIDER`) can swap between the
+# Anthropic and OpenAI columns without re-importing this module. The
+# existing import-time constants (`CLASSIFIER_MODEL`, ...) are preserved
+# as the Anthropic-side default for backward compat with anything that
+# imports them directly.
 CLASSIFIER_MODEL = os.environ.get("CADASTRE_CLASSIFIER_MODEL", "claude-haiku-4-5")
+CLASSIFIER_MODEL_OPENAI_DEFAULT = "gpt-4o-mini"
 CLASSIFIER_MAX_TOKENS = 256
+
+
+def _resolve_classifier_model() -> str:
+    if llm.get_provider() == "openai":
+        return os.environ.get(
+            "CADASTRE_OPENAI_CLASSIFIER_MODEL", CLASSIFIER_MODEL_OPENAI_DEFAULT
+        )
+    return CLASSIFIER_MODEL
 
 
 def guardrail_screen(state: AgentState) -> dict:
@@ -164,62 +180,56 @@ def _user_query(state: AgentState) -> str:
 
 
 def classify_query(state: AgentState) -> dict:
-    """Route the question via Claude Haiku with a forced tool call.
+    """Route the question via the active provider's small model with a
+    forced tool call.
 
     Returns a partial state with both the full `classification` dict
     and the top-level `query_type` mirror so downstream nodes that
     only care about query_type don't have to reach into the dict.
 
-    Requires `ANTHROPIC_API_KEY` in the environment. Raises
-    `RuntimeError` if the key is missing or the model returns an
-    unexpected payload — silent fallback to a stub here would mask
-    routing bugs.
+    Requires the provider's API key (ANTHROPIC_API_KEY or OPENAI_API_KEY,
+    depending on `CADASTRE_LLM_PROVIDER`). Raises `RuntimeError` if the
+    key is missing or the model returns an unexpected payload — silent
+    fallback to a stub here would mask routing bugs.
     """
-    import anthropic  # local import — keeps module import light
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY is not set; classify_query needs Claude Haiku."
-        )
     query = _user_query(state)
     if not query:
         raise RuntimeError("classify_query: no user message in state")
 
-    client = anthropic.Anthropic(api_key=api_key)
-    log.debug("classify_query → %s", CLASSIFIER_MODEL)
-    resp = client.messages.create(
-        model=CLASSIFIER_MODEL,
+    model = _resolve_classifier_model()
+    log.debug("classify_query → %s (%s)", model, llm.get_provider())
+    cls_input, usage = llm.call_with_tool(
+        system=_CLASSIFIER_SYSTEM,
+        user=query,
+        tool_def=_CLASSIFY_TOOL,
+        tool_name="submit_classification",
         max_tokens=CLASSIFIER_MAX_TOKENS,
-        system=[{
-            "type": "text",
-            "text": _CLASSIFIER_SYSTEM,
-            "cache_control": {"type": "ephemeral"},
-        }],
-        tools=[_CLASSIFY_TOOL],
-        tool_choice={"type": "tool", "name": "submit_classification"},
-        messages=[{"role": "user", "content": query}],
+        model=model,
     )
-    log_cost(getattr(resp, "usage", None), CLASSIFIER_MODEL, "classify_query")
+    log_cost(usage, model, "classify_query")
 
-    tool_use = next(
-        (b for b in resp.content if getattr(b, "type", None) == "tool_use"),
-        None,
-    )
-    if tool_use is None:
+    if cls_input is None:
         raise RuntimeError(
-            f"classify_query: model {CLASSIFIER_MODEL} returned no tool_use block "
-            f"(content types: {[getattr(b, 'type', None) for b in resp.content]})"
+            f"classify_query: model {model} returned no tool_use / tool_call"
         )
-    cls: Classification = tool_use.input  # type: ignore[assignment]
+    cls: Classification = cls_input  # type: ignore[assignment]
     log.info("classify_query: %s", json.dumps(cls, ensure_ascii=False))
     return {"classification": cls, "query_type": cls["query_type"]}
 
 
 DECOMPOSER_MODEL = os.environ.get("CADASTRE_DECOMPOSER_MODEL", "claude-haiku-4-5")
+DECOMPOSER_MODEL_OPENAI_DEFAULT = "gpt-4o-mini"
 DECOMPOSER_MAX_TOKENS = 512
 DECOMPOSE_MIN = 2
 DECOMPOSE_MAX = 4
+
+
+def _resolve_decomposer_model() -> str:
+    if llm.get_provider() == "openai":
+        return os.environ.get(
+            "CADASTRE_OPENAI_DECOMPOSER_MODEL", DECOMPOSER_MODEL_OPENAI_DEFAULT
+        )
+    return DECOMPOSER_MODEL
 
 _DECOMPOSE_TOOL = {
     "name": "submit_subquestions",
@@ -269,42 +279,27 @@ def decompose(state: AgentState) -> dict:
         log.debug("decompose: needs_decomposition=False, skipping")
         return {"sub_questions": []}
 
-    import anthropic
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY is not set; decompose needs Claude Haiku."
-        )
     query = _user_query(state)
     if not query:
         raise RuntimeError("decompose: no user message in state")
 
-    client = anthropic.Anthropic(api_key=api_key)
-    log.debug("decompose → %s", DECOMPOSER_MODEL)
-    resp = client.messages.create(
-        model=DECOMPOSER_MODEL,
+    model = _resolve_decomposer_model()
+    log.debug("decompose → %s (%s)", model, llm.get_provider())
+    tool_input, usage = llm.call_with_tool(
+        system=_DECOMPOSER_SYSTEM,
+        user=query,
+        tool_def=_DECOMPOSE_TOOL,
+        tool_name="submit_subquestions",
         max_tokens=DECOMPOSER_MAX_TOKENS,
-        system=[{
-            "type": "text",
-            "text": _DECOMPOSER_SYSTEM,
-            "cache_control": {"type": "ephemeral"},
-        }],
-        tools=[_DECOMPOSE_TOOL],
-        tool_choice={"type": "tool", "name": "submit_subquestions"},
-        messages=[{"role": "user", "content": query}],
+        model=model,
     )
-    log_cost(getattr(resp, "usage", None), DECOMPOSER_MODEL, "decompose")
+    log_cost(usage, model, "decompose")
 
-    tool_use = next(
-        (b for b in resp.content if getattr(b, "type", None) == "tool_use"),
-        None,
-    )
-    if tool_use is None:
+    if tool_input is None:
         raise RuntimeError(
-            f"decompose: model {DECOMPOSER_MODEL} returned no tool_use block"
+            f"decompose: model {model} returned no tool_use / tool_call"
         )
-    raw = tool_use.input.get("sub_questions") or []  # type: ignore[union-attr]
+    raw = tool_input.get("sub_questions") or []
     sub_qs = [s.strip() for s in raw if isinstance(s, str) and s.strip()]
     if not (DECOMPOSE_MIN <= len(sub_qs) <= DECOMPOSE_MAX):
         # Anthropic's schema enforces this server-side, but if the model
@@ -323,9 +318,18 @@ def decompose(state: AgentState) -> dict:
 
 
 ROUTER_MODEL = os.environ.get("CADASTRE_ROUTER_MODEL", "claude-haiku-4-5")
+ROUTER_MODEL_OPENAI_DEFAULT = "gpt-4o-mini"
 ROUTER_MAX_TOKENS = 1024
 DOCS_TOP_K = 5
 MAX_TOOL_CALLS_PER_QUESTION = 4
+
+
+def _resolve_router_model() -> str:
+    if llm.get_provider() == "openai":
+        return os.environ.get(
+            "CADASTRE_OPENAI_ROUTER_MODEL", ROUTER_MODEL_OPENAI_DEFAULT
+        )
+    return ROUTER_MODEL
 
 # Tool catalogue: name → (callable, required arg keys, optional arg keys).
 # Keeping this as a module-level dict means tests can monkey-patch entries
@@ -464,50 +468,35 @@ _ROUTER_SYSTEM = (
 
 
 def _plan_subquestion(query: str, persona: str | None = None) -> dict:
-    """Ask Claude Haiku for a routing plan for one sub-question.
+    """Ask the active provider's small model for a routing plan for one
+    sub-question.
 
     Factored out so tests can monkey-patch this without touching the
-    Anthropic SDK. Raises RuntimeError on missing API key or malformed
-    response — silent fallbacks would hide planning bugs.
+    SDK. Raises RuntimeError on missing API key or malformed response —
+    silent fallbacks would hide planning bugs.
 
     `persona` (optional) appends a one-line tool-selection hint to the
     router system prompt — biases ties without restricting the toolset.
     """
-    import anthropic
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY is not set; retrieve_or_tool needs Claude Haiku."
-        )
     system_prompt = _ROUTER_SYSTEM
     hint = persona_router_hints(persona) if persona else ""
     if hint:
         system_prompt = f"{_ROUTER_SYSTEM}\n\n{hint}"
-    client = anthropic.Anthropic(api_key=api_key)
-    log.debug("router → %s (persona=%s)", ROUTER_MODEL, persona)
-    resp = client.messages.create(
-        model=ROUTER_MODEL,
+    model = _resolve_router_model()
+    log.debug("router → %s (%s, persona=%s)", model, llm.get_provider(), persona)
+    plan, usage = llm.call_with_tool(
+        system=system_prompt,
+        user=query,
+        tool_def=_ROUTER_TOOL,
+        tool_name="submit_routing_plan",
         max_tokens=ROUTER_MAX_TOKENS,
-        system=[{
-            "type": "text",
-            "text": system_prompt,
-            "cache_control": {"type": "ephemeral"},
-        }],
-        tools=[_ROUTER_TOOL],
-        tool_choice={"type": "tool", "name": "submit_routing_plan"},
-        messages=[{"role": "user", "content": query}],
+        model=model,
     )
-    log_cost(getattr(resp, "usage", None), ROUTER_MODEL, "retrieve_or_tool")
-    tool_use = next(
-        (b for b in resp.content if getattr(b, "type", None) == "tool_use"),
-        None,
-    )
-    if tool_use is None:
+    log_cost(usage, model, "retrieve_or_tool")
+    if plan is None:
         raise RuntimeError(
-            f"router: model {ROUTER_MODEL} returned no tool_use block"
+            f"router: model {model} returned no tool_use / tool_call"
         )
-    plan = tool_use.input  # type: ignore[assignment]
     log.info("router plan for %r: %s", query, json.dumps(plan, ensure_ascii=False))
     return plan
 
@@ -651,7 +640,16 @@ def retrieve_or_tool(state: AgentState) -> dict:
 
 
 REFLECTOR_MODEL = os.environ.get("CADASTRE_REFLECTOR_MODEL", "claude-haiku-4-5")
+REFLECTOR_MODEL_OPENAI_DEFAULT = "gpt-4o-mini"
 REFLECTOR_MAX_TOKENS = 768
+
+
+def _resolve_reflector_model() -> str:
+    if llm.get_provider() == "openai":
+        return os.environ.get(
+            "CADASTRE_OPENAI_REFLECTOR_MODEL", REFLECTOR_MODEL_OPENAI_DEFAULT
+        )
+    return REFLECTOR_MODEL
 # Per-chunk text preview length. Big enough to judge coverage; small
 # enough that 12 chunks fits in budget.
 REFLECT_EVIDENCE_PREVIEW_CHARS = 240
@@ -798,29 +796,30 @@ def reflect(state: AgentState) -> dict:
     (Task 3.18). Live-call failures fall back to is_complete=True so a
     transient API error doesn't trap the agent in a loop until the cap.
     """
-    import anthropic
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY is not set; reflect needs Claude Haiku."
-        )
-
     prompt = _build_reflect_prompt(state)
-    client = anthropic.Anthropic(api_key=api_key)
-    log.debug("reflect → %s", REFLECTOR_MODEL)
+    provider = llm.get_provider()
+    # Pre-check the active provider's API key so missing-key configuration
+    # raises loudly (caller bug) rather than silently flipping the agent
+    # into the fallback "is_complete=True" branch below.
+    if provider == "anthropic" and not os.environ.get("ANTHROPIC_API_KEY"):
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not set; reflect needs Claude."
+        )
+    if provider == "openai" and not os.environ.get("OPENAI_API_KEY"):
+        raise RuntimeError(
+            "OPENAI_API_KEY is not set; reflect needs GPT "
+            "(CADASTRE_LLM_PROVIDER=openai)."
+        )
+    model = _resolve_reflector_model()
+    log.debug("reflect → %s (%s)", model, provider)
     try:
-        resp = client.messages.create(
-            model=REFLECTOR_MODEL,
+        raw, usage = llm.call_with_tool(
+            system=_REFLECTOR_SYSTEM,
+            user=prompt,
+            tool_def=_REFLECT_TOOL,
+            tool_name="submit_reflection",
             max_tokens=REFLECTOR_MAX_TOKENS,
-            system=[{
-                "type": "text",
-                "text": _REFLECTOR_SYSTEM,
-                "cache_control": {"type": "ephemeral"},
-            }],
-            tools=[_REFLECT_TOOL],
-            tool_choice={"type": "tool", "name": "submit_reflection"},
-            messages=[{"role": "user", "content": prompt}],
+            model=model,
         )
     except Exception as e:  # noqa: BLE001 — see fallback rationale above
         log.warning("reflect API call failed (%s: %s); marking complete", type(e).__name__, e)
@@ -831,14 +830,10 @@ def reflect(state: AgentState) -> dict:
                 "refined_query": None,
             }
         }
-    log_cost(getattr(resp, "usage", None), REFLECTOR_MODEL, "reflect")
+    log_cost(usage, model, "reflect")
 
-    tool_use = next(
-        (b for b in resp.content if getattr(b, "type", None) == "tool_use"),
-        None,
-    )
-    if tool_use is None:
-        log.warning("reflect: no tool_use block; marking complete")
+    if raw is None:
+        log.warning("reflect: no tool_use / tool_call; marking complete")
         return {
             "reflection": {
                 "is_complete": True,
@@ -847,7 +842,6 @@ def reflect(state: AgentState) -> dict:
             }
         }
 
-    raw = tool_use.input  # type: ignore[assignment]
     is_complete = bool(raw.get("is_complete", True))
     missing = [m for m in (raw.get("missing") or []) if isinstance(m, str) and m.strip()]
     refined = (raw.get("refined_query") or "").strip() or None
@@ -871,7 +865,17 @@ def reflect(state: AgentState) -> dict:
 
 
 SYNTHESIZER_MODEL = os.environ.get("CADASTRE_SYNTHESIZER_MODEL", "claude-sonnet-4-6")
+SYNTHESIZER_MODEL_OPENAI_DEFAULT = "gpt-4o"
 SYNTHESIZER_MAX_TOKENS = 1536
+
+
+def _resolve_synthesizer_model() -> str:
+    if llm.get_provider() == "openai":
+        return os.environ.get(
+            "CADASTRE_OPENAI_SYNTHESIZER_MODEL", SYNTHESIZER_MODEL_OPENAI_DEFAULT
+        )
+    return SYNTHESIZER_MODEL
+
 SYNTH_CHUNK_TEXT_LIMIT = 600  # Per chunk in the prompt; full text sits in state.
 SYNTH_MAX_CHUNKS_IN_PROMPT = 12
 
@@ -1080,14 +1084,6 @@ def synthesize(state: AgentState) -> dict:
     tagged `(unverified)` so the eval harness can score citation
     discipline without the post-processor silently fixing things up.
     """
-    import anthropic
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY is not set; synthesize needs Claude Sonnet."
-        )
-
     msgs = state.get("messages", [])
     prompt = _build_synth_prompt(state)
     persona = effective_persona(state)
@@ -1096,18 +1092,29 @@ def synthesize(state: AgentState) -> dict:
         f"{persona_prompt_addendum(persona)}\n\n"
         f"{persona_disclaimer(persona)}"
     )
-    client = anthropic.Anthropic(api_key=api_key)
-    log.debug("synthesize → %s (persona=%s)", SYNTHESIZER_MODEL, persona)
+
+    # Pre-check the active provider's API key so misconfiguration raises
+    # loudly (caller bug). Transient API errors below still fall through
+    # to the stub draft so the graph can terminate.
+    provider = llm.get_provider()
+    if provider == "anthropic" and not os.environ.get("ANTHROPIC_API_KEY"):
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not set; synthesize needs Claude Sonnet."
+        )
+    if provider == "openai" and not os.environ.get("OPENAI_API_KEY"):
+        raise RuntimeError(
+            "OPENAI_API_KEY is not set; synthesize needs GPT "
+            "(CADASTRE_LLM_PROVIDER=openai)."
+        )
+
+    model = _resolve_synthesizer_model()
+    log.debug("synthesize → %s (%s, persona=%s)", model, provider, persona)
     try:
-        resp = client.messages.create(
-            model=SYNTHESIZER_MODEL,
+        raw, usage = llm.call_text(
+            system=system_prompt,
+            user=prompt,
             max_tokens=SYNTHESIZER_MAX_TOKENS,
-            system=[{
-                "type": "text",
-                "text": system_prompt,
-                "cache_control": {"type": "ephemeral"},
-            }],
-            messages=[{"role": "user", "content": prompt}],
+            model=model,
         )
     except Exception as e:  # noqa: BLE001 — graph must still terminate
         log.warning("synthesize API call failed (%s: %s)", type(e).__name__, e)
@@ -1120,12 +1127,8 @@ def synthesize(state: AgentState) -> dict:
             "answer_draft": draft,
             "messages": msgs + [{"role": "assistant", "content": draft}],
         }
-    log_cost(getattr(resp, "usage", None), SYNTHESIZER_MODEL, "synthesize")
+    log_cost(usage, model, "synthesize")
 
-    text_blocks = [
-        getattr(b, "text", "") for b in resp.content if getattr(b, "type", None) == "text"
-    ]
-    raw = "\n".join(t for t in text_blocks if t).strip()
     if not raw:
         raw = "(no answer produced)"
 
