@@ -168,21 +168,36 @@ _JUDGE_TOOL = {
 }
 
 
+def _resolve_judge_model() -> str:
+    """Pick the judge model based on the active agent provider.
+
+    Anthropic → Haiku 4.5 (the existing default — strict + cheap).
+    OpenAI    → gpt-4o-mini (matches the small-node default in
+    ``src/agent/nodes.py``). Both can be overridden via env so an
+    eval run can pin a beefier judge without code changes.
+    """
+    import os
+
+    from src.agent import llm
+
+    if llm.get_provider() == "openai":
+        return os.environ.get("CADASTRE_OPENAI_JUDGE_MODEL", "gpt-4o-mini")
+    return os.environ.get("CADASTRE_JUDGE_MODEL", "claude-haiku-4-5")
+
+
 def faithfulness_with_judge(
     query: str,
     evidence_block: str,
     answer: str,
     *,
-    model: str = "claude-haiku-4-5",
+    model: str | None = None,
 ) -> dict:
-    """Claude-as-judge faithfulness — needs ANTHROPIC_API_KEY."""
-    import os
+    """LLM-as-judge faithfulness — routes through the active provider.
 
-    import anthropic
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY not set; --with-judge can't run")
+    Uses ``src.agent.llm.call_with_tool`` so the same eval run that
+    drives the agent on OpenAI also judges on OpenAI (and likewise for
+    Anthropic). ``model`` defaults to ``_resolve_judge_model()``."""
+    from src.agent import llm
 
     prompt = (
         f"QUESTION:\n{query}\n\n"
@@ -190,22 +205,21 @@ def faithfulness_with_judge(
         f"ANSWER:\n{answer}\n\n"
         "Score every factual or numeric claim in the answer."
     )
-    client = anthropic.Anthropic(api_key=api_key)
-    resp = client.messages.create(
-        model=model,
-        max_tokens=512,
+    raw, _usage = llm.call_with_tool(
         system=_JUDGE_SYSTEM,
-        tools=[_JUDGE_TOOL],
-        tool_choice={"type": "tool", "name": "submit_judgement"},
-        messages=[{"role": "user", "content": prompt}],
+        user=prompt,
+        tool_def=_JUDGE_TOOL,
+        tool_name="submit_judgement",
+        max_tokens=512,
+        model=model or _resolve_judge_model(),
     )
-    tool_use = next(
-        (b for b in resp.content if getattr(b, "type", None) == "tool_use"),
-        None,
-    )
-    if tool_use is None:
-        return {"faithfulness": None, "n_claims": None, "n_supported": None, "unsupported": []}
-    raw = tool_use.input  # type: ignore[assignment]
+    if raw is None:
+        return {
+            "faithfulness": None,
+            "n_claims": None,
+            "n_supported": None,
+            "unsupported": [],
+        }
     n_claims = int(raw.get("n_claims", 0))
     n_sup = int(raw.get("n_supported", 0))
     return {
