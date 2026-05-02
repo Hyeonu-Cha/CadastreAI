@@ -14,9 +14,13 @@ Edge layout (Task 3.11):
 
 The reflection-driven loop-back is what makes this an *agent* rather
 than a pipeline — the model can decide a draft is incomplete and ask
-for another retrieval/tool round. `MAX_ITERATIONS = 4` guards against
+for another retrieval/tool round. `MAX_ITERATIONS = 2` guards against
 runaway loops; we exit unconditionally once that cap is hit, even if
-reflection still says incomplete.
+reflection still says incomplete. The cap was 4 in v1 — Task 3.24's
+agent eval failure analysis showed 27/30 queries saturating at the
+ceiling because the reflect prompt biased toward "needs more" even
+when a single-tool query had its answer. Two iterations is enough
+to cover the legit decompose → retrieve → reflect → fill-gap path.
 
 Field guide
 -----------
@@ -153,7 +157,7 @@ def initial_state(query: str, *, user_persona: str | None = None) -> AgentState:
     return state
 
 
-MAX_ITERATIONS = 4
+MAX_ITERATIONS = 2
 
 
 def _route_after_reflect(state: AgentState) -> str:
