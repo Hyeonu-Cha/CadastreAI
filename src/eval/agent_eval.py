@@ -324,6 +324,19 @@ def run_agent_eval(
     if limit:
         records = records[:limit]
 
+    # Pre-warm the dense retriever before the LangGraph/OpenAI stack fully
+    # loads. On the 4GB-pagefile Windows host, lazy-loading sentence-transformers
+    # mid-run after openai+langchain are resident segfaults during the torch
+    # DLL init (same family as the BGE-reranker note in src/retrieval/rerank.py).
+    # Loading first means the eval reaches doc queries on a stable runtime.
+    try:
+        from src.retrieval.retriever import retrieve as _warm_retrieve
+
+        _warm_retrieve("warmup", k=1)
+        log.info("retriever warmed up")
+    except Exception as e:  # noqa: BLE001 — eval can still run without docs
+        log.warning("retriever warmup failed: %s", e)
+
     g = build_graph()
     rows: list[dict] = []
     failures: list[dict] = []
