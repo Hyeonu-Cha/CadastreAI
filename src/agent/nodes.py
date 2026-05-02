@@ -669,10 +669,13 @@ _REFLECT_TOOL = {
             "is_complete": {
                 "type": "boolean",
                 "description": (
-                    "True only when every sub-question is answered, "
-                    "every numeric claim is backed by a tool result or "
-                    "cited chunk, and no obvious gaps remain. Be strict — "
-                    "default to False when in doubt."
+                    "True when the draft answers the user's question "
+                    "using the available tool results and retrieved "
+                    "chunks. Default to True unless there is a SPECIFIC, "
+                    "concrete gap you can name and a refined query that "
+                    "would plausibly fill it. Do not loop just because "
+                    "more evidence might be nice — the agent has a "
+                    "2-iteration budget."
                 ),
             },
             "missing": {
@@ -702,13 +705,18 @@ _REFLECT_TOOL = {
 _REFLECTOR_SYSTEM = (
     "You audit a draft answer for an Australian housing-market research "
     "agent. Your job is to decide whether the draft is good enough to "
-    "ship, or whether the agent should run another retrieval/tool pass. "
-    "A draft is complete only when (a) every sub-question is addressed, "
-    "(b) every numeric or factual claim has supporting evidence in the "
-    "retrieved chunks or tool results, and (c) there are no obvious gaps. "
-    "When incomplete, name the gaps concretely and propose ONE refined "
-    "query that targets the most important missing piece. Submit via "
-    "the submit_reflection tool."
+    "ship, or whether the agent should run ONE more retrieval/tool pass. "
+    "Default is to ship: mark is_complete=True unless there is a concrete, "
+    "answerable gap. Specifically, mark complete when EITHER (a) every "
+    "sub-question has at least one tool result OR retrieved chunk that "
+    "addresses it, OR (b) the draft already states an answer and cites "
+    "evidence. Only mark incomplete when you can name a specific missing "
+    "piece (e.g. 'Melbourne leg of the comparison absent', 'no NSW stamp "
+    "duty number for the $700k case') AND propose a refined query that "
+    "would plausibly retrieve it. Do not loop on stylistic concerns, "
+    "phrasing, or generic 'more context would help'. The agent has only "
+    "2 iterations total — looping costs the user latency for marginal "
+    "gain. Submit via the submit_reflection tool."
 )
 
 
@@ -918,6 +926,12 @@ _SYNTHESIZER_SYSTEM = (
     "Answer the user's question concisely and ONLY from the supplied "
     "evidence. Numbers must come from tool results; explanatory framing "
     "must come from retrieved chunks.\n\n"
+    "USE THE EVIDENCE. When EVIDENCE — TOOL RESULTS contains data that "
+    "addresses the question, you MUST quote that data (with the "
+    "[tool:..., retrieved:...] citation). Never fall back to 'I cannot "
+    "provide' or 'consult a real estate website' when the answer is in "
+    "the tool results above. The tool's data fields are the authoritative "
+    "current value as of `retrieved_at` — treat them as fresh.\n\n"
     + _DISCLAIMER_BASELINE
     + "\n\n"
     + _CITATION_RULES
