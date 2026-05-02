@@ -252,13 +252,35 @@ in this session.)
   `tool_calls`, invalid JSON arguments). 370 tests now pass
   (was 353 before this PR).
 
+### Day — Agent eval v1 → v2 (3.22 / 3.23 / 3.24)
+
+- [x] **Task 3.22** — `python -m src.eval.agent_eval --provider openai
+  --with-judge --out results/agent_v1.json` n=30 (PR #104, 2026-05-02).
+  Pre-warmup of the BGE retriever moved to the top of `run_agent_eval`
+  to dodge a sentence-transformers / OpenAI DLL load-order segfault on
+  the 4 GB-pagefile Windows host. Aggregate: tool_acc 0.894, tool_recall
+  0.956, faithfulness 0.570, trajectory_efficiency 0.299, groundedness
+  0.373. 27/30 queries pegged at the 4-iteration ceiling.
+- [x] **Task 3.23** — `results/agent_failure_analysis.md` (PR #105,
+  2026-05-02). Three failure buckets: A — reflect never converges
+  (27/30), B — tool result not reaching synth (6/30 "I cannot provide …"
+  while the tool returned the answer), C — publisher recall on doc-only
+  queries (5/7). Top-3 fixes ranked by leverage.
+- [x] **Task 3.24** — agent v2 (PR #106, 2026-05-02). Two
+  prompt/graph fixes landed: `MAX_ITERATIONS` 4 → 2 in
+  `src/agent/graph.py` plus the reflect prompt flipped from "default to
+  False when in doubt" to "default to True unless there is a SPECIFIC,
+  concrete gap"; `_SYNTHESIZER_SYSTEM` got a "USE THE EVIDENCE" rule so
+  the synth stops refusing when the tool result above contains the
+  answer. Re-run vs v1: tool_acc 0.894 → 0.919, tool_recall 0.956 →
+  0.978, trajectory_efficiency 0.299 → 0.672 (+124% relative),
+  faithfulness 0.570 → 0.648, groundedness 0.373 → 0.296 (citation-
+  adjacency formatting class — judge sees support, regex doesn't,
+  flagged for v3 in `results/agent_v1_vs_v2.md`). Per-query latency
+  roughly halves. Fix 3 (publisher-diversity rerank) deferred to v3.
+
 ### Still gating launch
 
-- **Tasks 3.22 / 3.23 / 3.24** — agent eval v1, failure analysis, v2.
-  Code-side now provider-agnostic (PR #100 + #101 + #102). Still
-  needs a populated Qdrant + either `ANTHROPIC_API_KEY` or
-  `OPENAI_API_KEY` exported. Harness is unit-tested end-to-end
-  against a stub graph (`tests/test_agent_eval`).
 - **`ft+hybrid+rerank` ablation cell** — needs Docker back up so
   we can upsert `cadastre_chunks_ft` and re-run
   `retrieval_eval --retriever hybrid --rerank --dense-collection
