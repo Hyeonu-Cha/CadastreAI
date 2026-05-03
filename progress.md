@@ -278,6 +278,26 @@ in this session.)
   adjacency formatting class — judge sees support, regex doesn't,
   flagged for v3 in `results/agent_v1_vs_v2.md`). Per-query latency
   roughly halves. Fix 3 (publisher-diversity rerank) deferred to v3.
+- [x] **Task 3.25** — configurable agent retriever, hybrid default
+  (PR #108, 2026-05-03). v1/v2 of the agent shipped on dense-only
+  retrieval; the honest-split eval in `results/hybrid_comparison.md`
+  showed hybrid (BGE dense + BM25 RRF) wins every metric. New
+  `_agent_retriever()` in `src/agent/nodes.py` is process-cached and
+  picks dense / bm25 / hybrid via `CADASTRE_AGENT_RETRIEVER` env
+  (default hybrid), with lazy backend imports so test/CLI users don't
+  pay the 212 MB BM25 pickle. The hybrid branch pre-imports torch
+  ahead of the BM25 pickle to dodge the cuBLAS DLL load-order segfault
+  on the 4 GB-pagefile Windows host. `agent_eval` warmup now goes
+  through `_retrieve_docs` so hybrid mode warms both legs in one shot.
+  8 new unit tests in `tests/test_agent_retriever.py` cover default
+  selection, env routing, casing normalisation, unknown-value error,
+  cache persistence, and the `_retrieve_docs` reshape contract;
+  retriever classes are monkey-patched so no Qdrant or BM25 pickle is
+  touched. The v3 re-eval against v2 was blocked on this host by an
+  environmental Python SDK hang (`import openai` / `client.create()`
+  hang while raw curl works) — configurability ships here; v3 vs v2
+  numbers + `results/agent_v2_vs_v3.md` deferred to the next stable
+  env.
 
 ### Still gating launch
 
