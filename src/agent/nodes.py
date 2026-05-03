@@ -323,6 +323,15 @@ ROUTER_MAX_TOKENS = 1024
 DOCS_TOP_K = 5
 MAX_TOOL_CALLS_PER_QUESTION = 4
 
+# Doc retriever for the agent. Default is hybrid (BGE dense + BM25 RRF)
+# per Task 3.25 — `results/hybrid_comparison.md` showed hybrid wins
+# every metric on the honest synthetic split, while v1/v2 of the agent
+# shipped on dense-only. Override with `CADASTRE_AGENT_RETRIEVER=
+# dense|bm25|hybrid` so eval runs can A/B against the v2 baseline
+# without touching code.
+DOCS_RETRIEVER_DEFAULT = "hybrid"
+_AGENT_RETRIEVER: object | None = None
+
 
 def _resolve_router_model() -> str:
     if llm.get_provider() == "openai":
@@ -552,15 +561,58 @@ def _execute_tool(name: str, args: dict) -> dict:
     )
 
 
-def _retrieve_docs(query: str, k: int = DOCS_TOP_K) -> list[dict]:
-    """Pull top-k chunks via the dense retriever.
+def _agent_retriever() -> object:
+    """Process-wide cached doc retriever for the agent (Task 3.25).
 
-    Wrapped so tests can monkey-patch this without spinning up Qdrant.
+    Default is hybrid (BGE dense + BM25 RRF). Honest-split eval
+    (`results/hybrid_comparison.md`) shows hybrid wins every metric;
+    the dense-only build that shipped in v1/v2 was the weakest of the
+    three options measured in `results/ablation.md`. Override with
+    `CADASTRE_AGENT_RETRIEVER=dense|bm25|hybrid`.
+
+    Lazy import on first call so test/CLI users that never hit doc
+    retrieval don't pay the BM25 pickle (~212 MB) or sentence-
+    transformers load.
+    """
+    global _AGENT_RETRIEVER
+    if _AGENT_RETRIEVER is not None:
+        return _AGENT_RETRIEVER
+    kind = os.environ.get("CADASTRE_AGENT_RETRIEVER", DOCS_RETRIEVER_DEFAULT).lower()
+    if kind == "dense":
+        from src.retrieval.retriever import Retriever
+
+        _AGENT_RETRIEVER = Retriever()
+    elif kind == "bm25":
+        from src.index.bm25 import DEFAULT_INDEX as _BM25_INDEX
+        from src.index.bm25 import BM25Index
+
+        _AGENT_RETRIEVER = BM25Index.load(_BM25_INDEX)
+    elif kind == "hybrid":
+        # Pre-import torch on small-pagefile Windows hosts: cuBLAS DLLs
+        # must allocate workspace BEFORE the 212 MB BM25 pickle becomes
+        # resident, otherwise the eventual sentence-transformers load
+        # OOMs on cuBLAS init. Importing torch reserves the DLL space;
+        # the model loads later when the dense leg first runs.
+        import torch  # noqa: F401
+        from src.index.hybrid import HybridRetriever
+
+        _AGENT_RETRIEVER = HybridRetriever()
+    else:
+        raise ValueError(
+            f"unknown CADASTRE_AGENT_RETRIEVER={kind!r} (expected dense|bm25|hybrid)"
+        )
+    return _AGENT_RETRIEVER
+
+
+def _retrieve_docs(query: str, k: int = DOCS_TOP_K) -> list[dict]:
+    """Pull top-k chunks via the configured retriever (Task 3.25).
+
+    Default retriever is hybrid (BGE dense + BM25 RRF) — see
+    `_agent_retriever` for the env-driven override. Wrapped so tests
+    can monkey-patch this without spinning up Qdrant or BM25 pickles.
     Returns the agent-state shape (`{chunk_id, score, payload}`).
     """
-    from src.retrieval.retriever import retrieve as do_retrieve
-
-    hits = do_retrieve(query, k=k)
+    hits = _agent_retriever().retrieve(query, k=k)
     return [
         {
             "chunk_id": payload.get("chunk_id", ""),
