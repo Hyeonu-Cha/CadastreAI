@@ -43,28 +43,66 @@ CadastreAI answers questions about the Australian residential property market by
 
 ## 📊 Results
 
-Retrieval eval over a 100-query held-out set across the four personas
-(homebuyer / investor / researcher / policy). Numbers are top-10:
+### Retrieval
 
-| Configuration                    | Recall@5 | Recall@10 | MRR@10  | nDCG@10 |
-|----------------------------------|----------|-----------|---------|---------|
-| Dense only (BAAI/bge-base-en-v1.5) | 0.383    | 0.450     | 0.352   | 0.349   |
-| BM25 only                          | 0.800    | **0.907** | **0.732** | **0.760** |
-| Hybrid (BM25 + Dense) + RRF        | 0.563    | 0.747     | 0.626   | 0.585   |
-| Hybrid + cross-encoder rerank      | 0.550    | 0.673     | 0.560   | 0.537   |
+The 100-query eval set has two groups with different provenance:
 
-*Headline finding:* on a domain-specific Australian housing corpus
-where queries share heavy lexical overlap with the source documents
-(e.g. *"first home buyer grant NSW"* lands directly on the relevant
-section heading), **BM25 outperforms dense and hybrid retrieval** out
-of the box. Hybrid + reranker make the dense channel less useful here,
-not more. This motivates Week 2's BGE fine-tune on synthetic
-(query, chunk) pairs to close the gap on more abstractive queries —
-that work is in flight; numbers will land in this table when the run
-completes.
+- **59 BM25-annotated** queries (Tasks 1.24–1.27): gold chunks were
+  picked by humans from BM25 top-10 candidate lists, so any pure-BM25
+  metric on this split is **circular by construction**.
+- **41 synthetic** queries (Task 1.28): each gold chunk came first,
+  the query was authored *for* that chunk with no retriever
+  involvement. This is the honest head-to-head.
 
-See [`docs/blog.md`](./docs/blog.md) for the full write-up,
-ablations, and per-persona breakdowns.
+Reporting both splits matters: pooled numbers make BM25 look like the
+clear winner, but that's the BM25-annotated split inflating the mean.
+The honest split tells a different story.
+
+**Honest split (41 synthetic queries, top-10):**
+
+| Configuration                  | Recall@5  | Recall@10 | MRR@10    | nDCG@10   |
+|--------------------------------|-----------|-----------|-----------|-----------|
+| Dense (BAAI/bge-base-en-v1.5)  | 0.756     | 0.829     | 0.602     | 0.656     |
+| BM25 only                      | 0.585     | 0.780     | 0.452     | 0.528     |
+| **Hybrid (BM25 + Dense) + RRF** | **0.805** | **0.878** | **0.640** | **0.698** |
+
+Hybrid wins every metric: +5 R@10 over dense, +10 R@10 over BM25. The
+RRF fusion picks up rare domain terms (Division 43, FHG, NASHH, NFIP)
+that BM25 nails but dense dilutes, while keeping dense's grasp on
+paraphrased queries.
+
+**Pooled (all 100 queries, for reference):**
+
+| Configuration                    | Recall@5  | Recall@10 | MRR@10    | nDCG@10   |
+|----------------------------------|-----------|-----------|-----------|-----------|
+| Dense (BAAI/bge-base-en-v1.5)    | 0.383     | 0.450     | 0.352     | 0.349     |
+| BM25 only                        | 0.800     | **0.907** | **0.732** | **0.760** |
+| Hybrid (BM25 + Dense) + RRF      | 0.563     | 0.747     | 0.626     | 0.585     |
+| Hybrid + cross-encoder rerank    | 0.550     | 0.673     | 0.560     | 0.537     |
+
+The agent ships with hybrid as the default retriever (per Task 3.25)
+based on the honest split. Full discussion of the circularity, the
+fine-tune publisher-collapse failure mode, and per-persona breakdowns
+in [`results/hybrid_comparison.md`](./results/hybrid_comparison.md)
+and [`results/ablation.md`](./results/ablation.md).
+
+### Agent
+
+Agent eval over 30 queries with judge-graded faithfulness
+(`results/agent_v1_vs_v2.md`):
+
+| Metric                  | v1 (initial)  | v2 (PR #106)  | Δ        |
+|-------------------------|---------------|---------------|----------|
+| tool_acc                | 0.894         | 0.919         | +0.025   |
+| tool_recall             | 0.956         | 0.978         | +0.022   |
+| trajectory_efficiency   | 0.299         | **0.672**     | +0.373   |
+| faithfulness (judge)    | 0.570         | 0.648         | +0.078   |
+
+v2 dropped `MAX_ITERATIONS` 4 → 2 and tightened the reflect/synth
+prompts. v3 (PR #108) makes the retriever configurable and defaults
+to hybrid; numbers will refresh when the next eval run completes.
+
+See [`docs/blog.md`](./docs/blog.md) for the full write-up.
 
 ---
 
