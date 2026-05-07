@@ -1,0 +1,1134 @@
+{
+  "queries_path": "data\\eval\\agent_queries.jsonl",
+  "with_judge": true,
+  "aggregate": {
+    "mean_tool_call_accuracy": 0.9133333333333333,
+    "mean_tool_call_recall": 0.9555555555555556,
+    "mean_tool_call_precision": 0.9166666666666666,
+    "mean_publisher_recall": 0.825,
+    "mean_trajectory_efficiency": 0.7194444444444444,
+    "mean_groundedness": 0.3156857956857957,
+    "mean_faithfulness": 0.6636507936507936,
+    "n": 30
+  },
+  "rows": [
+    {
+      "id": "agent-001",
+      "query": "What is the current RBA cash rate?",
+      "expected_tools": [
+        "rba_cash_rate"
+      ],
+      "actual_tools": [
+        "rba_cash_rate"
+      ],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 5,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "RBA"
+      ],
+      "trajectory_efficiency": 1.0,
+      "groundedness": 0.2,
+      "n_numeric_claims": 5,
+      "n_grounded": 1,
+      "faithfulness": 1.0,
+      "n_claims": 1,
+      "n_supported": 1,
+      "unsupported": [],
+      "elapsed_seconds": 13.31
+    },
+    {
+      "id": "agent-002",
+      "query": "What's the median Sydney house price right now?",
+      "expected_tools": [
+        "abs_property_price_index"
+      ],
+      "actual_tools": [
+        "abs_property_price_index",
+        "abs_property_price_index"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 8,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "AHURI",
+        "PropTrack",
+        "SQM Research"
+      ],
+      "trajectory_efficiency": 0.5,
+      "groundedness": 1.0,
+      "n_numeric_claims": 0,
+      "n_grounded": 0,
+      "faithfulness": 0.0,
+      "n_claims": 3,
+      "n_supported": 0,
+      "unsupported": [
+        "The answer states there is currently no access to the latest median Sydney house prices, which implies audience expectations of recent figures; however, the evidence provided contains references to house prices, including median prices from a 2016 report ($750,000) and mentions of house prices for 2024.",
+        "The agent mentions consulting sources such as AHURI, PropTrack, and SQM Research without any concrete numerical claims backing this up or current pricing, which does not inform about the latest prices as the question requests.",
+        "The statement that the information provided is general and not personal financial advice does not constitute a claim about the house pricing directly related to the question."
+      ],
+      "elapsed_seconds": 17.79
+    },
+    {
+      "id": "agent-003",
+      "query": "How tight is the rental market in Melbourne at the moment?",
+      "expected_tools": [
+        "sqm_rental_vacancy"
+      ],
+      "actual_tools": [
+        "sqm_rental_vacancy",
+        "abs_property_price_index"
+      ],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 5,
+      "tool_call_accuracy": 0.5,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 0.5,
+      "extra_tools": [
+        "abs_property_price_index"
+      ],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "PropTrack",
+        "RBA"
+      ],
+      "trajectory_efficiency": 0.5,
+      "groundedness": 1.0,
+      "n_numeric_claims": 0,
+      "n_grounded": 0,
+      "faithfulness": 0.6,
+      "n_claims": 5,
+      "n_supported": 3,
+      "unsupported": [
+        "Melbourne rental market is somewhat less competitive for tenants.",
+        "Renters have more choice and face less competition.",
+        "They are increasingly successful in negotiating for lower rent prices."
+      ],
+      "elapsed_seconds": 12.26
+    },
+    {
+      "id": "agent-004",
+      "query": "How many dwellings were approved in NSW in the latest month?",
+      "expected_tools": [
+        "abs_building_approvals"
+      ],
+      "actual_tools": [
+        "abs_building_approvals",
+        "abs_building_approvals"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 8,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "AHURI",
+        "Housing Australia (NHFIC)",
+        "PropTrack"
+      ],
+      "trajectory_efficiency": 0.5,
+      "groundedness": 1.0,
+      "n_numeric_claims": 0,
+      "n_grounded": 0,
+      "faithfulness": 0.0,
+      "n_claims": 3,
+      "n_supported": 0,
+      "unsupported": [
+        "The data needed to answer the question about the number of dwellings approved in New South Wales for the latest month is not available in the retrieved evidence."
+      ],
+      "elapsed_seconds": 20.49
+    },
+    {
+      "id": "agent-005",
+      "query": "What's the latest value of new housing loan commitments in Australia?",
+      "expected_tools": [
+        "abs_lending_indicators"
+      ],
+      "actual_tools": [
+        "abs_lending_indicators"
+      ],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 5,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "AHURI",
+        "PropTrack",
+        "RBA"
+      ],
+      "trajectory_efficiency": 1.0,
+      "groundedness": 0.0,
+      "n_numeric_claims": 3,
+      "n_grounded": 0,
+      "faithfulness": 1.0,
+      "n_claims": 1,
+      "n_supported": 1,
+      "unsupported": [],
+      "elapsed_seconds": 10.19
+    },
+    {
+      "id": "agent-006",
+      "query": "What are the current standard variable rates banks are offering for owner-occupier loans?",
+      "expected_tools": [
+        "rba_mortgage_rates"
+      ],
+      "actual_tools": [
+        "rba_mortgage_rates"
+      ],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 5,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "RBA"
+      ],
+      "trajectory_efficiency": 1.0,
+      "groundedness": 0.0,
+      "n_numeric_claims": 1,
+      "n_grounded": 0,
+      "faithfulness": 1.0,
+      "n_claims": 2,
+      "n_supported": 2,
+      "unsupported": [],
+      "elapsed_seconds": 8.45
+    },
+    {
+      "id": "agent-007",
+      "query": "If I buy a $700,000 apartment as a first home buyer in NSW, what stamp duty do I owe?",
+      "expected_tools": [
+        "compute_stamp_duty_nsw"
+      ],
+      "actual_tools": [
+        "compute_stamp_duty_nsw",
+        "compute_stamp_duty_nsw"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 0,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [],
+      "trajectory_efficiency": 0.5,
+      "groundedness": 0.0,
+      "n_numeric_claims": 1,
+      "n_grounded": 0,
+      "faithfulness": 0.0,
+      "n_claims": 5,
+      "n_supported": 0,
+      "unsupported": [
+        "The claim that a stamp duty amount cannot be provided without necessary tool input is vague and does not address the specific context of the question about a $700,000 apartment.",
+        "The suggestion to consult the NSW Government's Revenue website or use a stamp duty calculator, while pragmatic, does not provide any specific or factual information about the actual stamp duty owed.",
+        "The general statement about property purchase being a large financial decision, while true, does not relate to the specific question regarding stamp duty.",
+        "The mention that the answer is general information and not financial, legal, tax, or buyer-agent advice does not support any claims about the stamp duty or the situation described.",
+        "The disclaimer about consulting various professionals does not provide any factual information regarding the stamp duty for a $700,000 apartment."
+      ],
+      "elapsed_seconds": 18.67
+    },
+    {
+      "id": "agent-008",
+      "query": "What's the monthly repayment on a $650,000 loan at 6.10% over 30 years?",
+      "expected_tools": [
+        "compute_mortgage_repayment"
+      ],
+      "actual_tools": [
+        "compute_mortgage_repayment",
+        "compute_mortgage_repayment"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 0,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [],
+      "trajectory_efficiency": 0.5,
+      "groundedness": 0.0,
+      "n_numeric_claims": 22,
+      "n_grounded": 0,
+      "faithfulness": 0.7142857142857143,
+      "n_claims": 7,
+      "n_supported": 5,
+      "unsupported": [
+        "Monthly repayment amount is not explicitly calculated in the answer.",
+        "The exact value of 6.10% is not recalculated as a decimal in the answer."
+      ],
+      "elapsed_seconds": 16.93
+    },
+    {
+      "id": "agent-009",
+      "query": "Compute the gross rental yield on a $750,000 property renting for $620 a week.",
+      "expected_tools": [
+        "compute_rental_yield"
+      ],
+      "actual_tools": [
+        "compute_rental_yield"
+      ],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 0,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [],
+      "trajectory_efficiency": 1.0,
+      "groundedness": 0.0,
+      "n_numeric_claims": 12,
+      "n_grounded": 0,
+      "faithfulness": 1.0,
+      "n_claims": 6,
+      "n_supported": 6,
+      "unsupported": [],
+      "elapsed_seconds": 9.19
+    },
+    {
+      "id": "agent-010",
+      "query": "What is negative gearing in Australia and how does it work?",
+      "expected_tools": [],
+      "actual_tools": [],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 5,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 0.3333333333333333,
+      "missing_publishers": [
+        "Australian Treasury",
+        "Productivity Commission"
+      ],
+      "actual_publishers": [
+        "AHURI"
+      ],
+      "trajectory_efficiency": 1.0,
+      "groundedness": 1.0,
+      "n_numeric_claims": 0,
+      "n_grounded": 0,
+      "faithfulness": 0.6666666666666666,
+      "n_claims": 3,
+      "n_supported": 2,
+      "unsupported": [
+        "Negative gearing in Australia refers to a tax arrangement where the expenses related to owning a rental property, such as interest payments on loans and maintenance costs, exceed the rental income earned from that property.",
+        "This practice is notable in Australia for being more generous compared to similar provisions in other OECD countries."
+      ],
+      "elapsed_seconds": 9.57
+    },
+    {
+      "id": "agent-011",
+      "query": "How does build-to-rent work in Australia and what tax settings apply?",
+      "expected_tools": [],
+      "actual_tools": [],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 5,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 0.6666666666666666,
+      "missing_publishers": [
+        "Housing Australia (NHFIC)"
+      ],
+      "actual_publishers": [
+        "AHURI",
+        "Australian Treasury"
+      ],
+      "trajectory_efficiency": 1.0,
+      "groundedness": 0.0,
+      "n_numeric_claims": 4,
+      "n_grounded": 0,
+      "faithfulness": 0.6666666666666666,
+      "n_claims": 6,
+      "n_supported": 4,
+      "unsupported": [
+        "The specific numeric reduction of the withholding tax rate from 30% to 15% is not directly supported by the evidence; while evidence mentions tax incentives, it does not provide specific rates. ",
+        "The claim that the capital works tax deduction (depreciation) rate has been increased from 2.5% to 4% per year is not directly supported by the evidence; the evidence does not provide specific rates for this deduction."
+      ],
+      "elapsed_seconds": 11.15
+    },
+    {
+      "id": "agent-012",
+      "query": "What's the role of APRA in regulating mortgage lending standards?",
+      "expected_tools": [],
+      "actual_tools": [],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 5,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 0.5,
+      "missing_publishers": [
+        "RBA"
+      ],
+      "actual_publishers": [
+        "APRA"
+      ],
+      "trajectory_efficiency": 1.0,
+      "groundedness": 1.0,
+      "n_numeric_claims": 0,
+      "n_grounded": 0,
+      "faithfulness": 1.0,
+      "n_claims": 9,
+      "n_supported": 9,
+      "unsupported": [],
+      "elapsed_seconds": 9.9
+    },
+    {
+      "id": "agent-013",
+      "query": "Compare median Sydney house prices to Melbourne over the last quarter and explain what's driving the difference.",
+      "expected_tools": [
+        "abs_property_price_index"
+      ],
+      "actual_tools": [
+        "abs_property_price_index",
+        "abs_property_price_index",
+        "abs_property_price_index",
+        "abs_property_price_index"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 8,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 0.3333333333333333,
+      "missing_publishers": [
+        "CoreLogic / Cotality",
+        "RBA"
+      ],
+      "actual_publishers": [
+        "AHURI",
+        "PropTrack",
+        "SQM Research"
+      ],
+      "trajectory_efficiency": 0.5,
+      "groundedness": 0.0,
+      "n_numeric_claims": 5,
+      "n_grounded": 0,
+      "faithfulness": 0.6666666666666666,
+      "n_claims": 6,
+      "n_supported": 4,
+      "unsupported": [
+        "Sydney's typical house commands a 70% premium over Melbourne's typical house price",
+        "making Melbourne houses approximately 41% cheaper than Sydney's",
+        "This gap translates to a more than $600,000 difference in median house prices",
+        "By June 2024, Melbourne's housing prices were still 3.89% lower than their previous peak"
+      ],
+      "elapsed_seconds": 23.9
+    },
+    {
+      "id": "agent-014",
+      "query": "I'm a first home buyer in NSW looking at a $950k house. What stamp duty would I pay, what's the monthly repayment with a 20% deposit at 6%, and how does that compare to current rental yields in Sydney?",
+      "expected_tools": [
+        "compute_stamp_duty_nsw",
+        "compute_mortgage_repayment",
+        "compute_rental_yield"
+      ],
+      "actual_tools": [
+        "compute_stamp_duty_nsw",
+        "compute_mortgage_repayment",
+        "sqm_rental_vacancy",
+        "abs_property_price_index",
+        "compute_stamp_duty_nsw",
+        "compute_mortgage_repayment",
+        "sqm_rental_vacancy"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 5,
+      "tool_call_accuracy": 0.4,
+      "tool_call_recall": 0.6666666666666666,
+      "tool_call_precision": 0.5,
+      "extra_tools": [
+        "abs_property_price_index",
+        "sqm_rental_vacancy"
+      ],
+      "missing_tools": [
+        "compute_rental_yield"
+      ],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "AHURI",
+        "Housing Australia (NHFIC)",
+        "PropTrack"
+      ],
+      "trajectory_efficiency": 0.25,
+      "groundedness": 0.07692307692307693,
+      "n_numeric_claims": 13,
+      "n_grounded": 1,
+      "faithfulness": 0.6666666666666666,
+      "n_claims": 9,
+      "n_supported": 6,
+      "unsupported": [
+        "Stamp duty for a $950,000 house for a first home buyer in NSW is not provided in the evidence.",
+        "Monthly repayment calculated as $4,558.32 is not directly supported by the retrieved evidence as it requires specific mortgage calculation tools.",
+        "Stating the gross rental yields for houses in Sydney are approximately 2.8% without a specific source citation is unsupported."
+      ],
+      "elapsed_seconds": 32.28
+    },
+    {
+      "id": "agent-015",
+      "query": "As an investor in Brisbane, what gross yield should I expect on a $750,000 property renting for $620 a week, and is vacancy tight there at the moment?",
+      "expected_tools": [
+        "compute_rental_yield",
+        "sqm_rental_vacancy"
+      ],
+      "actual_tools": [
+        "compute_rental_yield",
+        "sqm_rental_vacancy",
+        "sqm_rental_vacancy"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 8,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "SQM Research"
+      ],
+      "trajectory_efficiency": 0.5,
+      "groundedness": 0.0,
+      "n_numeric_claims": 12,
+      "n_grounded": 0,
+      "faithfulness": 0.6666666666666666,
+      "n_claims": 6,
+      "n_supported": 4,
+      "unsupported": [
+        "The gross yield is calculated to be approximately 4.3%, which is not directly supported by the evidence as the exact yield calculation required confirmation of the annual rent and the property value checked against current data; The vacancy rate is 1.0% as of February 2025, which has been stated but may not necessarily reflect current conditions in Brisbane directly based on the evidence provided."
+      ],
+      "elapsed_seconds": 26.37
+    },
+    {
+      "id": "agent-016",
+      "query": "Has the cash rate moved this year, and what does the RBA say about future direction?",
+      "expected_tools": [
+        "rba_cash_rate"
+      ],
+      "actual_tools": [
+        "rba_cash_rate",
+        "rba_mortgage_rates"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 8,
+      "tool_call_accuracy": 0.5,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 0.5,
+      "extra_tools": [
+        "rba_mortgage_rates"
+      ],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "Housing Australia (NHFIC)",
+        "RBA"
+      ],
+      "trajectory_efficiency": 0.3333333333333333,
+      "groundedness": 0.3333333333333333,
+      "n_numeric_claims": 3,
+      "n_grounded": 1,
+      "faithfulness": 0.75,
+      "n_claims": 4,
+      "n_supported": 3,
+      "unsupported": [
+        "The cash rate is expected to remain at its current level until 2024.",
+        "Financial markets anticipate an increase sooner."
+      ],
+      "elapsed_seconds": 20.05
+    },
+    {
+      "id": "agent-017",
+      "query": "How have building approvals trended in Victoria over the past year, and what's the policy backdrop?",
+      "expected_tools": [
+        "abs_building_approvals"
+      ],
+      "actual_tools": [],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 8,
+      "tool_call_accuracy": 0.0,
+      "tool_call_recall": 0.0,
+      "tool_call_precision": 0.0,
+      "extra_tools": [],
+      "missing_tools": [
+        "abs_building_approvals"
+      ],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "AHURI",
+        "Housing Australia (NHFIC)",
+        "Productivity Commission",
+        "PropTrack"
+      ],
+      "trajectory_efficiency": 1.0,
+      "groundedness": 0.5,
+      "n_numeric_claims": 4,
+      "n_grounded": 2,
+      "faithfulness": 0.625,
+      "n_claims": 8,
+      "n_supported": 5,
+      "unsupported": [
+        "Over the past year, total home building approvals in Australia rose by 20%.",
+        "Higher-density approvals increased by 55%.",
+        "Building approvals in Victoria have experienced recovery."
+      ],
+      "elapsed_seconds": 21.67
+    },
+    {
+      "id": "agent-018",
+      "query": "What's the current cash rate, and how does that compare to standard variable mortgage rates banks are charging?",
+      "expected_tools": [
+        "rba_cash_rate",
+        "rba_mortgage_rates"
+      ],
+      "actual_tools": [
+        "rba_cash_rate",
+        "rba_mortgage_rates",
+        "rba_cash_rate",
+        "rba_mortgage_rates"
+      ],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 8,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "Housing Australia (NHFIC)",
+        "RBA"
+      ],
+      "trajectory_efficiency": 1.0,
+      "groundedness": 0.25,
+      "n_numeric_claims": 12,
+      "n_grounded": 3,
+      "faithfulness": 1.0,
+      "n_claims": 8,
+      "n_supported": 8,
+      "unsupported": [],
+      "elapsed_seconds": 18.15
+    },
+    {
+      "id": "agent-019",
+      "query": "If I take out a $850,000 loan at 6.25% over 25 years, what's my monthly repayment, and how does that compare to median rental yields in Perth?",
+      "expected_tools": [
+        "compute_mortgage_repayment",
+        "abs_property_price_index",
+        "sqm_rental_vacancy"
+      ],
+      "actual_tools": [
+        "compute_mortgage_repayment",
+        "sqm_rental_vacancy",
+        "abs_property_price_index",
+        "compute_mortgage_repayment",
+        "abs_property_price_index"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 8,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "AHURI",
+        "PropTrack",
+        "SQM Research"
+      ],
+      "trajectory_efficiency": 0.5,
+      "groundedness": 0.2222222222222222,
+      "n_numeric_claims": 9,
+      "n_grounded": 2,
+      "faithfulness": 0.4,
+      "n_claims": 5,
+      "n_supported": 2,
+      "unsupported": [
+        "Monthly repayment calculation methods are general and not based on the evidence provided.",
+        "The specific yields for suburbs mentioned (5.7% for Leederville and 5.4% for Bayswater) are not directly supported by the evidence; only broader claims about median rental yields are supported."
+      ],
+      "elapsed_seconds": 25.06
+    },
+    {
+      "id": "agent-020",
+      "query": "What's the current vacancy rate in Adelaide, and how have new lending commitments to investors trended?",
+      "expected_tools": [
+        "sqm_rental_vacancy",
+        "abs_lending_indicators"
+      ],
+      "actual_tools": [
+        "sqm_rental_vacancy",
+        "abs_lending_indicators",
+        "sqm_rental_vacancy"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 5,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "AHURI",
+        "PropTrack"
+      ],
+      "trajectory_efficiency": 0.5,
+      "groundedness": 0.0,
+      "n_numeric_claims": 4,
+      "n_grounded": 0,
+      "faithfulness": 0.6,
+      "n_claims": 5,
+      "n_supported": 3,
+      "unsupported": [
+        "The current vacancy rate for rental properties in Adelaide is not directly available from the provided data.",
+        "It's noted that over recent months, vacancy rates have started to rise, offering renters some relief amidst the ongoing rental crisis.",
+        "as of late 2025, the number of new loan commitments to investors was 63,348, with the total value being AUD 45,402.2 million."
+      ],
+      "elapsed_seconds": 21.73
+    },
+    {
+      "id": "agent-021",
+      "query": "How does the First Home Owner Grant in NSW differ from the First Home Buyer Assistance Scheme, and what would I save on a $800,000 purchase?",
+      "expected_tools": [
+        "compute_stamp_duty_nsw"
+      ],
+      "actual_tools": [
+        "compute_stamp_duty_nsw",
+        "compute_stamp_duty_nsw"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 8,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 0.5,
+      "missing_publishers": [
+        "Australian Treasury"
+      ],
+      "actual_publishers": [
+        "AHURI",
+        "Housing Australia (NHFIC)",
+        "Productivity Commission",
+        "PropTrack"
+      ],
+      "trajectory_efficiency": 0.5,
+      "groundedness": 0.0,
+      "n_numeric_claims": 8,
+      "n_grounded": 0,
+      "faithfulness": 0.5,
+      "n_claims": 10,
+      "n_supported": 5,
+      "unsupported": [
+        "The grant amount and exact eligibility specifics for NSW are not detailed in the retrieved content",
+        "Historically, grants around $10,000 have been common for new homes, but this can vary",
+        "The exact savings for an $800,000 purchase cannot be determined from the data available",
+        "For properties valued at up to $800,000, first-home buyers may be eligible for full exemption from stamp duty under the FHBAS",
+        "Stamp duty on an $800,000 property in NSW might otherwise cost you around $29,000, based on examples of similar savings in different regions"
+      ],
+      "elapsed_seconds": 34.9
+    },
+    {
+      "id": "agent-022",
+      "query": "What's the relationship between the cash rate and housing prices historically, and where do they sit today?",
+      "expected_tools": [
+        "rba_cash_rate",
+        "abs_property_price_index"
+      ],
+      "actual_tools": [
+        "rba_cash_rate",
+        "abs_property_price_index",
+        "abs_property_price_index",
+        "abs_property_price_index",
+        "abs_property_price_index",
+        "abs_property_price_index",
+        "abs_property_price_index",
+        "abs_property_price_index",
+        "abs_property_price_index",
+        "abs_property_price_index"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 8,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 0.6666666666666666,
+      "missing_publishers": [
+        "Productivity Commission"
+      ],
+      "actual_publishers": [
+        "AHURI",
+        "PropTrack",
+        "RBA"
+      ],
+      "trajectory_efficiency": 0.5,
+      "groundedness": 0.5,
+      "n_numeric_claims": 2,
+      "n_grounded": 1,
+      "faithfulness": 0.75,
+      "n_claims": 8,
+      "n_supported": 6,
+      "unsupported": [
+        "Currently, the cash rate in Australia sits at 4.1% as of April 2026",
+        "the cash rate in Australia sits at 4.1% as of April 2026",
+        "interest rate cycles do not appear to have a significant correlation with housing price growth",
+        "the cash rate in Australia sits at 4.1%"
+      ],
+      "elapsed_seconds": 23.34
+    },
+    {
+      "id": "agent-023",
+      "query": "What policy reforms have been proposed to address Australian housing affordability?",
+      "expected_tools": [],
+      "actual_tools": [],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 5,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 0.25,
+      "missing_publishers": [
+        "Australian Treasury",
+        "Grattan Institute",
+        "Productivity Commission"
+      ],
+      "actual_publishers": [
+        "AHURI"
+      ],
+      "trajectory_efficiency": 1.0,
+      "groundedness": 1.0,
+      "n_numeric_claims": 0,
+      "n_grounded": 0,
+      "faithfulness": 0.8571428571428571,
+      "n_claims": 7,
+      "n_supported": 6,
+      "unsupported": [
+        "The suggestion comes from the Henry Review is unsupported; the evidence does not specify this detail. The claim that the Henry Review proposed a comprehensive reform agenda is based on the agent's knowledge and cannot be verified by the supplied evidence."
+      ],
+      "elapsed_seconds": 12.74
+    },
+    {
+      "id": "agent-024",
+      "query": "How do APRA's serviceability buffer requirements affect what first home buyers can borrow?",
+      "expected_tools": [],
+      "actual_tools": [],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 5,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "APRA",
+        "RBA"
+      ],
+      "trajectory_efficiency": 1.0,
+      "groundedness": 0.0,
+      "n_numeric_claims": 1,
+      "n_grounded": 0,
+      "faithfulness": 0.5,
+      "n_claims": 2,
+      "n_supported": 1,
+      "unsupported": [
+        "minimum buffer of 3% above the actual housing loan interest rate"
+      ],
+      "elapsed_seconds": 9.96
+    },
+    {
+      "id": "agent-025",
+      "query": "What's the gross rental yield on a $1.1M Sydney house renting for $1,100 a week, and how does that compare to the typical mortgage rate today?",
+      "expected_tools": [
+        "compute_rental_yield",
+        "rba_mortgage_rates"
+      ],
+      "actual_tools": [
+        "compute_rental_yield",
+        "rba_mortgage_rates"
+      ],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 5,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "APRA",
+        "Housing Australia (NHFIC)",
+        "PropTrack",
+        "RBA"
+      ],
+      "trajectory_efficiency": 1.0,
+      "groundedness": 0.07142857142857142,
+      "n_numeric_claims": 14,
+      "n_grounded": 1,
+      "faithfulness": 0.8571428571428571,
+      "n_claims": 7,
+      "n_supported": 6,
+      "unsupported": [
+        "The gross rental yield for this property is 5.2%.",
+        "The typical new mortgage rate for owner-occupied properties in Australia is currently 5.7%.",
+        "The gross rental yield of 5.2% is slightly below the typical current mortgage rate for new owner-occupied loans."
+      ],
+      "elapsed_seconds": 16.92
+    },
+    {
+      "id": "agent-026",
+      "query": "How does negative gearing work, what does it cost the federal budget, and what reforms have been proposed?",
+      "expected_tools": [],
+      "actual_tools": [],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 8,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 0.5,
+      "missing_publishers": [
+        "Australian Treasury",
+        "Grattan Institute"
+      ],
+      "actual_publishers": [
+        "AHURI",
+        "Productivity Commission"
+      ],
+      "trajectory_efficiency": 1.0,
+      "groundedness": 0.3333333333333333,
+      "n_numeric_claims": 6,
+      "n_grounded": 2,
+      "faithfulness": 0.875,
+      "n_claims": 8,
+      "n_supported": 7,
+      "unsupported": [
+        "The claim about the cost of negative gearing being approximately $3.04 billion per year is not directly supported by the specifically cited evidence in section 4.2.3 as no clear figure was provided in the evidence."
+      ],
+      "elapsed_seconds": 20.07
+    },
+    {
+      "id": "agent-027",
+      "query": "I'm a first home buyer in NSW with $200k saved. On a $1M house, what stamp duty would apply, what's the monthly repayment at 6.30% over 30 years, and would I qualify for any concessions?",
+      "expected_tools": [
+        "compute_stamp_duty_nsw",
+        "compute_mortgage_repayment"
+      ],
+      "actual_tools": [
+        "compute_stamp_duty_nsw",
+        "compute_mortgage_repayment",
+        "compute_stamp_duty_nsw",
+        "compute_mortgage_repayment"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 6,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "AHURI",
+        "PropTrack"
+      ],
+      "trajectory_efficiency": 0.5,
+      "groundedness": 0.25,
+      "n_numeric_claims": 8,
+      "n_grounded": 2,
+      "faithfulness": 0.3333333333333333,
+      "n_claims": 6,
+      "n_supported": 2,
+      "unsupported": [
+        "Stamp duty for a $1M house is $21,330 plus 5.5% of the purchase price over $500,000 is not fully substantiated as no direct calculation was shown for the total amount as the total tax rate for the house price was required.",
+        "The mention of significant monthly repayment is vague and the exact calculation was not provided, thus making it unsupported.",
+        "The answer suggests consulting a mortgage calculator or financial advisor, which implies that the monthly repayment figure presented is not supported by the evidence but rather is a conjectural statement."
+      ],
+      "elapsed_seconds": 32.83
+    },
+    {
+      "id": "agent-028",
+      "query": "How do build-to-rent tax settings in Australia compare to traditional investor tax incentives, and what reforms have been proposed?",
+      "expected_tools": [],
+      "actual_tools": [],
+      "iteration_count": 1,
+      "n_retrieved_chunks": 5,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 0.5,
+      "missing_publishers": [
+        "Housing Australia (NHFIC)",
+        "Productivity Commission"
+      ],
+      "actual_publishers": [
+        "AHURI",
+        "Australian Treasury"
+      ],
+      "trajectory_efficiency": 1.0,
+      "groundedness": 0.0,
+      "n_numeric_claims": 5,
+      "n_grounded": 0,
+      "faithfulness": 0.5,
+      "n_claims": 10,
+      "n_supported": 5,
+      "unsupported": [
+        "The withholding tax rate for eligible fund payments from managed investment trusts attributed to newly constructed BTR developments is reduced from 30% to 15%.",
+        "The capital works tax deduction (depreciation) rate has been increased from 2.5% to 4% per year.",
+        "Traditional property investors in Australia generally benefit from negative gearing and concessional capital gains tax (CGT) discounts.",
+        "Specific reforms for traditional investor incentives were not detailed in the available evidence.",
+        "AHURI notes that these issues have been exacerbated by existing tax policy settings."
+      ],
+      "elapsed_seconds": 14.08
+    },
+    {
+      "id": "agent-029",
+      "query": "What is the current cash rate, what's the typical owner-occupier mortgage rate, and how have new housing loan commitments trended this year?",
+      "expected_tools": [
+        "rba_cash_rate",
+        "rba_mortgage_rates",
+        "abs_lending_indicators"
+      ],
+      "actual_tools": [
+        "rba_cash_rate",
+        "rba_mortgage_rates",
+        "abs_lending_indicators"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 8,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 1.0,
+      "missing_publishers": [],
+      "actual_publishers": [
+        "Housing Australia (NHFIC)",
+        "RBA"
+      ],
+      "trajectory_efficiency": 0.5,
+      "groundedness": 0.4,
+      "n_numeric_claims": 5,
+      "n_grounded": 2,
+      "faithfulness": 1.0,
+      "n_claims": 6,
+      "n_supported": 6,
+      "unsupported": [],
+      "elapsed_seconds": 26.03
+    },
+    {
+      "id": "agent-030",
+      "query": "Compare current vacancy and median price between Sydney and Brisbane, and explain what's been driving the divergence.",
+      "expected_tools": [
+        "sqm_rental_vacancy",
+        "abs_property_price_index"
+      ],
+      "actual_tools": [
+        "sqm_rental_vacancy",
+        "sqm_rental_vacancy",
+        "abs_property_price_index",
+        "abs_property_price_index",
+        "sqm_rental_vacancy",
+        "sqm_rental_vacancy",
+        "abs_property_price_index",
+        "abs_property_price_index"
+      ],
+      "iteration_count": 2,
+      "n_retrieved_chunks": 8,
+      "tool_call_accuracy": 1.0,
+      "tool_call_recall": 1.0,
+      "tool_call_precision": 1.0,
+      "extra_tools": [],
+      "missing_tools": [],
+      "publisher_recall": 0.5,
+      "missing_publishers": [
+        "AHURI",
+        "CoreLogic / Cotality"
+      ],
+      "actual_publishers": [
+        "Housing Australia (NHFIC)",
+        "PropTrack",
+        "RBA",
+        "SQM Research"
+      ],
+      "trajectory_efficiency": 0.5,
+      "groundedness": 0.3333333333333333,
+      "n_numeric_claims": 3,
+      "n_grounded": 1,
+      "faithfulness": 0.7142857142857143,
+      "n_claims": 7,
+      "n_supported": 5,
+      "unsupported": [
+        "The residential dwelling vacancy rate in Sydney is 1.8%.",
+        "The residential dwelling vacancy rate in Brisbane is 1.9%.",
+        "The median price for properties shows noticeable differences due to various factors.",
+        "Brisbane's appeal is partly due to its affordability, with suburbs like Forestdale and Goodna attracting interest due to their relatively lower price points.",
+        "The higher property prices in Sydney are driven by demand in premium suburbs as well as broader economic factors like interest rate changes which impact residential investments."
+      ],
+      "elapsed_seconds": 27.05
+    }
+  ],
+  "failures": []
+}
