@@ -572,32 +572,72 @@ exercises `run_agent_eval` end-to-end without an API key, so the eval
 harness itself stays under unit-test pressure even when the live agent
 isn't reachable.
 
-### What's still open
+### From v1 to v5: five iterations against the same eval set
 
-The agent skeleton, all five nodes, the tool catalogue, the citation
-post-processor, and the eval harness are committed and unit-tested.
-Three things are explicitly *next*:
+The agent eval got run five times — `agent_v1.json` through
+`agent_v5.json` — with each iteration committing a single targeted
+change and re-running the harness. The numbers below are over the
+same 30 annotated queries, OpenAI provider (`gpt-4o-mini` for
+classify/route/reflect/judge, `gpt-4o` for synth), faithfulness graded
+by LLM judge.
 
-- **Run the eval (Task 3.22).** `python -m src.eval.agent_eval --out
-  results/agent_v1.json` — needs `ANTHROPIC_API_KEY` and a healthy
-  Qdrant. Numbers go in the `agent_v1` row of the comparison table.
-- **Failure analysis (Task 3.23).** Bucket the bottom 15 queries by
-  category — over-decomposition (decomposer turns a one-tool
-  question into three sub-questions), tool confusion (planner picks
-  `abs_lending_indicators` when the question is about rents), citation
-  drops (Sonnet-emitted but post-processor flagged as unverified) — and
-  pick the 2–3 highest-leverage fixes.
-- **Iteration to v2 (Task 3.24).** Apply the chosen fixes via prompt
-  tuning or graph restructuring; re-run to `results/agent_v2.json` and
-  diff.
+| Metric                  | v1     | v2     | v3     | v4     | v5     |
+|-------------------------|--------|--------|--------|--------|--------|
+| tool_call_accuracy      | 0.894  | 0.919  | 0.925  | 0.917  | 0.913  |
+| trajectory_efficiency   | 0.299  | 0.672  | **0.722** | 0.717 | 0.719 |
+| faithfulness (judge)    | 0.570  | 0.648  | 0.630  | 0.637  | **0.664** |
+| publisher_recall        | 0.789  | 0.778  | 0.764  | 0.772  | **0.825** |
+| groundedness (regex)    | 0.373  | 0.296  | 0.240  | **0.368** | 0.316 |
 
-The interesting question Phase 4 faces is *which* metric improves when
-we fix prompts vs when we fix the graph. Tool accuracy is mostly a
-planner-prompt problem; trajectory efficiency is mostly a reflector-
-contract problem; groundedness is mostly a synthesis-prompt problem;
-faithfulness reflects all three. Decomposing the dashboard into those
-four levers is what makes the agent debuggable — same idea as the
-six-category retrieval taxonomy from Phase 1, one layer up the stack.
+What each iteration changed, and what the diff said:
+
+- **v2 (PR #106): reflect-loop convergence + "use the evidence."**
+  v1 had 27/30 queries pegged at the iteration ceiling. Two changes:
+  `MAX_ITERATIONS` 4 → 2; the reflect prompt's `is_complete` default
+  flipped from "False unless certain" to "True unless there's a
+  specific gap." Trajectory efficiency 0.299 → 0.672 (+0.37) — the
+  single biggest agent-quality lift in the project. Plus a "USE THE
+  EVIDENCE" paragraph in the synth prompt that fixed v1's "I cannot
+  provide…" refusals when the tool result above contained the answer.
+- **v3 (PR #112): hybrid retriever (Task 3.25 default).** Aggregate
+  looked flat. Slicing by `n_retrieved_chunks > 0` showed the truth:
+  doc-using queries pulled +19% more chunks (8.93 vs 7.50) and
+  faithfulness slipped -0.076 because synth's citation discipline
+  cracked under the wider context. Tool-only queries are a no-op for
+  the retriever swap. **Aggregate eval can hide route-conditional
+  impact.**
+- **v4 (PR #114): citation adjacency + chunk cap.** Two surgical
+  fixes targeted at v3's doc-using regression. `_CITATION_RULES`
+  added "PLACEMENT IS LOAD-BEARING" with a worked GOOD/BAD example;
+  `_dedupe_and_cap_chunks(cap=8)` ran after `apply_publisher_boost`
+  to undo the multi-sub-question chunk pile-up. Doc-using subset
+  groundedness 0.268 → 0.485 (+0.217), faithfulness +0.055.
+- **v5 (PR #117): compute-tool routing disambiguation.** `_ROUTER_SYSTEM`
+  now says explicitly that `compute_*` tools require user-provided
+  numbers, with worked GOOD/BAD examples. Closes the canonical
+  `compute_rental_yield` vs market-lookup confusion (agent-019:
+  tool_acc 0.25 → 1.00). The worked example also nudged 12 queries
+  from tool-only to doc-using; on that switched cohort faithfulness
+  jumped +0.110 because the judge approves of doc-supported tool
+  answers. The aggregate groundedness regex dip is the same v3-era
+  regex/judge mismatch surfacing on a different cohort — a follow-up
+  for any future v6, but not gating launch.
+
+The interesting meta-pattern: tool accuracy is mostly a planner-prompt
+problem; trajectory efficiency is mostly a reflector-contract problem;
+groundedness is mostly a synthesis-prompt problem; faithfulness
+reflects all three. Decomposing the dashboard into those four levers
+is what makes the agent debuggable — same idea as the six-category
+retrieval taxonomy from Phase 1, one layer up the stack.
+
+A second meta-pattern that only became visible across iterations:
+**a worked example in a routing prompt is itself a routing change.**
+v5's example showed `use_docs=True`, and unrelated queries shifted
+into the doc-using regime. Faithfulness on that switched cohort
+jumped, but a different metric (groundedness regex) slipped because
+adjacent-citation discipline is harder under more chunks. When a
+prompt edit nudges the planner's regime, expect downstream metrics
+to redistribute — not just the metric you targeted.
 
 ---
 
@@ -747,13 +787,25 @@ spike), or whether a regression added a per-call timestamp that's
 silently busting the cache prefix. The telemetry has to expose the
 levers it's measuring.
 
-**Open threads.** The Phase 2 BGE fine-tune is the biggest unfinished
-item — pair generation, filtering, hard-negative mining, and the
-training script are all checked in; the actual run is waiting on Colab
-GPU time. The Phase 3 agent eval (`results/agent_v1.json`) is the
-other gating run; the harness is unit-tested end-to-end against a
-stub graph but the real numbers need an `ANTHROPIC_API_KEY`. Both will
-land in this post's results table when they do.
+**The fine-tune isn't dead, it's just lonely.** The Phase 2 BGE
+fine-tune collapsed onto a publisher dimension when used as a
+standalone dense retriever (R@10 dropped from 0.450 → 0.210). For a
+long time the table sat with that as the headline failure. The
+deferred ablation cell — `ft + hybrid + cross-encoder` — finally
+landed in PR #116 and showed the FT vectors actually beat both base
+hybrid (R@10 = 0.747) and base hybrid+rerank (R@10 = 0.673) on the
+pooled 100-query set, scoring 0.770. The reranker absorbs the
+publisher-collapse and reorders cleanly. Two lessons compound: a
+single-component eval can falsely declare a component dead, and a
+fine-tune can be useful as a *signal* in a stack even when it's
+useless as a *retriever* alone.
+
+**Open threads.** Cloud deployment (Qdrant Cloud + Modal/HF Spaces)
+is the remaining hands-on item before the v1.0.0 cut — the local
+docker-compose runs cleanly, but the demo URL is what makes the
+README clickable for someone arriving cold. Once the cloud upsert
+runs, the Phase 4 final-results table (`Tasks 4.17–4.18`) gets one
+last refresh and the launch is mechanical.
 
 ---
 
