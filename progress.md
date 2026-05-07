@@ -299,18 +299,83 @@ in this session.)
   numbers + `results/agent_v2_vs_v3.md` deferred to the next stable
   env.
 
+- [x] **Task 3.28** — agent eval v3 (PR #112, 2026-05-07). v1/v2 ran
+  dense-only; v3 ran on hybrid (Task 3.25 default). Aggregate looked
+  flat (`tool_acc 0.925`, `traj_eff 0.722`, `faith 0.630`,
+  `grounded 0.240`). Slicing by `n_retrieved_chunks > 0` exposed
+  route-conditional impact: tool-only queries are a no-op for the
+  retriever; doc-using queries pulled +19% more chunks (8.93 vs 7.50)
+  and synth's citation discipline slipped (-0.076 faith, -0.138
+  grounded vs v2 doc-using). Hybrid stays the ship default — the
+  retrieval benchmark on the honest split says it should — but the
+  agent's downstream synth wasn't yet capitalising. Three v4
+  follow-ups queued by leverage. Full breakdown in
+  `results/agent_v2_vs_v3.md`.
+- [x] **Task 3.29** — agent eval v4: citation adjacency + chunk cap
+  (PR #114, 2026-05-07). Two surgical fixes to the v3 doc-using
+  regression. (1) `_CITATION_RULES` now demands
+  `[tool:..., retrieved:...]` immediately after each numeric value,
+  with a worked GOOD/BAD example and "PLACEMENT IS LOAD-BEARING"
+  rule. (2) New `_dedupe_and_cap_chunks(cap=8)` after
+  `apply_publisher_boost` cuts the v3 doc-using chunk mean from 8.93
+  → 5.64 (max 25 → 8). Aggregate: groundedness 0.240 → 0.368
+  (+0.128). Doc-using subset: groundedness 0.268 → 0.485 (+0.217),
+  faithfulness 0.631 → 0.686 (+0.055). 7 new unit tests in
+  `tests/test_chunk_dedupe_cap.py`. Full breakdown in
+  `results/agent_v3_vs_v4.md`.
+- [x] **Task 3.30** — agent eval v5: compute-tool routing
+  disambiguation (PR #117, 2026-05-07). `_ROUTER_SYSTEM` now states
+  explicitly that `compute_*` tools require user-provided numbers,
+  with worked GOOD/BAD examples for the canonical
+  `compute_rental_yield` vs market-lookup confusion. Closes the
+  v2/v3/v4 carry-over on agent-019: tool_call_accuracy 0.250 →
+  1.000, faithfulness 0.000 → 0.400. Routing now picks
+  `sqm_rental_vacancy + abs_property_price_index` for "median rental
+  yields in Perth" instead of hallucinating `compute_rental_yield`
+  args. Aggregate vs v4: faithfulness +0.027, publisher_recall
+  +0.053, tool_recall +0.011, groundedness -0.052. The single prompt
+  change had two effects — fixed agent-019, and the worked example
+  shifted 12 unrelated queries from tool-only to doc-using; on that
+  switched cohort faithfulness jumped +0.110. The aggregate
+  groundedness regex slip is the same v3-era regex/judge mismatch
+  surfacing on a different cohort because more queries are now
+  doc-using; carry-over for any future v6 but not gating launch.
+  5 new unit tests in `tests/test_router_compute_disambiguation.py`
+  pin the disambiguation rules to the prompt. Full breakdown in
+  `results/agent_v4_vs_v5.md`.
+- [x] **Task 2.16 (deferred follow-up)** — ft+hybrid+cross-encoder
+  ablation cell (PR #116, 2026-05-07). The last unmeasured cell in
+  `results/ablation.md` was deferred during Phase 2 when Docker was
+  down. Process: `reembed_finetuned --skip-embed --collection
+  cadastre_chunks_ft` upserted the existing 41,959-vector .npy to a
+  new Qdrant collection (~67s); `retrieval_eval --retriever hybrid
+  --rerank --dense-collection cadastre_chunks_ft` ran on n=100 + the
+  honest n=40 synthetic split. Surprise upset: pooled R@10=0.770
+  beats both base hybrid (0.747) and base hybrid+rerank (0.673).
+  FT dense alone collapsed (R@10=0.21), but slotting it into the
+  hybrid+rerank stack rescues it. Honest n=40: R@5=0.850, R@10=0.850
+  (-0.028 vs base hybrid), MRR=0.711, nDCG=0.746 — wins R@5/MRR/nDCG,
+  trails R@10 by 0.028. Reranker tightens top-5 at small recall cost.
+  Agent default stays base hybrid (synth caps chunks at 8 anyway, so
+  R@10 at K=8 is what actually matters at the agent layer); the
+  ft+hybrid+rerank stack is documented for any future search-results
+  UI work.
+- [x] **Docs refresh PRs (2026-05-07)** — README + `docs/report_v2.md`
+  + `docs/blog.md` updated to reflect the v5 + ablation final state
+  (PRs #113, #115, #118, #119). The v1 → v5 agent table, the v3 → v4
+  and v4 → v5 narratives, and the FT-rescues-hybrid+rerank finding
+  are all in the public docs. Two new key learnings logged to
+  `docs/report_v2.md` §6: a worked example in a routing prompt is
+  itself a routing change (v5's switched cohort); a fine-tune can be
+  useful as a *signal* in a stack even when it's useless as a
+  *retriever* alone (PR #116).
+
 ### Still gating launch
 
-- **`ft+hybrid+rerank` ablation cell** — needs Docker back up so
-  we can upsert `cadastre_chunks_ft` and re-run
-  `retrieval_eval --retriever hybrid --rerank --dense-collection
-  cadastre_chunks_ft`. Realistic expectation given the
-  publisher-collapse failure mode upstream: it won't rescue the
-  FT model. Tracked under Task 2.16 follow-up.
 - **Tasks 4.14 / 4.15 / 4.16** — Qdrant Cloud + Modal-or-HF deploy +
   smoke test. Need cloud accounts.
 - **Tasks 4.17 / 4.18** — full eval suite + final results table.
-  Depends on the agent eval and the deploy.
+  Depends on the deploy.
 - **Tasks 4.19 / 4.23 / 4.24** — demo GIF + Loom walkthrough +
   embedded video. Manual screen recording.
 - **Task 4.22** — publish blog/socials. Manual.
