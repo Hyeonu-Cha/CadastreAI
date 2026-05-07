@@ -321,6 +321,12 @@ ROUTER_MODEL = os.environ.get("CADASTRE_ROUTER_MODEL", "claude-haiku-4-5")
 ROUTER_MODEL_OPENAI_DEFAULT = "gpt-4o-mini"
 ROUTER_MAX_TOKENS = 1024
 DOCS_TOP_K = 5
+# Per-query cap on retrieved_chunks after dedupe + publisher_boost (Task
+# 3.29). v3 averaged 8.93 chunks/query because each sub-question + each
+# reflect-loop appended its own top-5; the synth's citation discipline
+# slipped under that load. Cap at the v2 average to keep the synth
+# context tight.
+MAX_TOTAL_CHUNKS = 8
 MAX_TOOL_CALLS_PER_QUESTION = 4
 
 # Doc retriever for the agent. Default is hybrid (BGE dense + BM25 RRF)
@@ -604,6 +610,26 @@ def _agent_retriever() -> object:
     return _AGENT_RETRIEVER
 
 
+def _dedupe_and_cap_chunks(chunks: list[dict], cap: int) -> list[dict]:
+    """Dedupe by chunk_id (keep the first occurrence — already ordered
+    by boosted_score desc from apply_publisher_boost) and truncate to
+    `cap`. v3 piled chunks across sub-questions and reflect cycles to
+    +19% over v2; capping keeps the synth context tight (Task 3.29).
+    """
+    seen: set[str] = set()
+    out: list[dict] = []
+    for c in chunks:
+        cid = (c.get("chunk_id") or "").strip()
+        if cid and cid in seen:
+            continue
+        if cid:
+            seen.add(cid)
+        out.append(c)
+        if len(out) >= cap:
+            break
+    return out
+
+
 def _retrieve_docs(query: str, k: int = DOCS_TOP_K) -> list[dict]:
     """Pull top-k chunks via the configured retriever (Task 3.25).
 
@@ -683,6 +709,7 @@ def retrieve_or_tool(state: AgentState) -> dict:
             tool_results.append(entry)
 
     chunks = apply_publisher_boost(chunks, persona)
+    chunks = _dedupe_and_cap_chunks(chunks, MAX_TOTAL_CHUNKS)
 
     return {
         "retrieved_chunks": chunks,
@@ -955,8 +982,20 @@ _CITATION_RULES = (
     "Use ONLY the publishers, page numbers, tool names, and retrieved dates "
     "shown in EVIDENCE below. If you cannot support a claim from the "
     "evidence, OMIT the claim entirely — do not paraphrase from training "
-    "knowledge. End with a 'Sources' line that lists each cited publisher "
-    "and tool exactly once."
+    "knowledge.\n\n"
+    "PLACEMENT IS LOAD-BEARING. Put each citation IMMEDIATELY after the "
+    "value or fact it supports — same sentence, before the next punctuation "
+    "mark or conjunction. Do NOT defer citations to a trailing parenthesis "
+    "or to the Sources line.\n"
+    "  GOOD: The median Sydney house price is $1,515,000 "
+    "[tool:abs_property_price_index, retrieved:2026-05-02], up 4.2% YoY "
+    "[tool:abs_property_price_index, retrieved:2026-05-02].\n"
+    "  BAD : The median Sydney house price is $1,515,000, up 4.2% YoY. "
+    "[tool:abs_property_price_index, retrieved:2026-05-02]\n"
+    "If a sentence has two numeric values, EACH gets its own inline "
+    "citation token — do not share one citation across multiple values.\n\n"
+    "End with a 'Sources' line that lists each cited publisher and tool "
+    "exactly once."
 )
 
 # Universal compliance baseline (Task X.03). Applied to every persona
