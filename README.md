@@ -88,38 +88,40 @@ and [`results/ablation.md`](./results/ablation.md).
 
 ### Agent
 
-Agent eval over 30 queries with judge-graded faithfulness, four runs
+Agent eval over 30 queries with judge-graded faithfulness, five runs
 (`results/agent_v1_vs_v2.md`, `results/agent_v2_vs_v3.md`,
-`results/agent_v3_vs_v4.md`):
+`results/agent_v3_vs_v4.md`, `results/agent_v4_vs_v5.md`):
 
-| Metric                  | v1 (initial) | v2 (PR #106)  | v3 (PR #112)  | v4 (PR #114)  |
-|-------------------------|--------------|---------------|---------------|---------------|
-| tool_acc                | 0.894        | 0.919         | 0.925         | 0.917         |
-| tool_recall             | 0.956        | 0.978         | 0.944         | 0.944         |
-| trajectory_efficiency   | 0.299        | **0.672**     | **0.722**     | 0.717         |
-| faithfulness (judge)    | 0.570        | 0.648         | 0.630         | 0.637         |
-| groundedness (regex)    | 0.373        | 0.296         | 0.240         | **0.368**     |
+| Metric                  | v1     | v2 (PR #106)  | v3 (PR #112)  | v4 (PR #114)  | v5 (PR #117)  |
+|-------------------------|--------|---------------|---------------|---------------|---------------|
+| tool_acc                | 0.894  | 0.919         | 0.925         | 0.917         | 0.913         |
+| tool_recall             | 0.956  | 0.978         | 0.944         | 0.944         | 0.956         |
+| trajectory_efficiency   | 0.299  | 0.672         | **0.722**     | 0.717         | 0.719         |
+| faithfulness (judge)    | 0.570  | 0.648         | 0.630         | 0.637         | **0.664**     |
+| publisher_recall        | 0.789  | 0.778         | 0.764         | 0.772         | **0.825**     |
+| groundedness (regex)    | 0.373  | 0.296         | 0.240         | **0.368**     | 0.316         |
 
 v2 dropped `MAX_ITERATIONS` 4 → 2 and tightened the reflect/synth
 prompts (+0.37 trajectory, +0.08 faith). v3 swapped the retriever to
 hybrid (Task 3.25 default) — aggregate looked flat because the impact
-was route-conditional: tool-only queries are a no-op for the
-retriever, while doc-using queries pulled +19% more chunks (8.93 vs
-7.50) and synth's citation discipline slipped.
+was route-conditional: doc-using queries pulled +19% more chunks
+and synth's citation discipline slipped.
 
-v4 (Task 3.29) lands two targeted fixes:
+v4 (Task 3.29) added citation-adjacency rules + a chunk cap, lifting
+groundedness regex 0.240 → 0.368 (+0.128 aggregate, +0.217 on the
+doc-using subset).
 
-1. **Citation adjacency** — `_CITATION_RULES` now requires
-   `[tool:..., retrieved:...]` immediately after each value, with a
-   GOOD/BAD example. The regex grader checks adjacency.
-2. **Chunk cap with dedupe** — `_dedupe_and_cap_chunks(cap=8)` after
-   `apply_publisher_boost`. Cuts the v3 doc-using mean from 8.93
-   chunks/query to 5.64 (max 25 → 8).
-
-The doc-using subset (n=14, apples-to-apples) shows the wins clearly:
-groundedness +0.217 (0.268 → 0.485), faithfulness +0.055 (0.631 →
-0.686). Aggregate groundedness +0.128. No code change to retrieval
-quality — just to how synth consumes its output.
+v5 (Task 3.30) added compute-tool disambiguation rules to the router
+prompt — `compute_*` tools now explicitly require user-provided
+numbers, with worked GOOD/BAD examples. Closes the canonical
+`compute_rental_yield` vs market-lookup confusion (agent-019:
+tool_call_accuracy 0.25 → 1.00). The worked example also nudged 12
+queries from tool-only to doc-using; on that switched cohort
+faithfulness jumped +0.110 because the judge now sees doc-supported
+tool answers. Aggregate faithfulness +0.027, publisher_recall +0.053.
+The groundedness regex dip (-0.052) is the same regex/judge mismatch
+v4 fixed — surfaced again on a different cohort because more queries
+are now doc-using.
 
 See [`docs/blog.md`](./docs/blog.md) for the full write-up.
 
