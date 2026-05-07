@@ -88,19 +88,33 @@ and [`results/ablation.md`](./results/ablation.md).
 
 ### Agent
 
-Agent eval over 30 queries with judge-graded faithfulness
-(`results/agent_v1_vs_v2.md`):
+Agent eval over 30 queries with judge-graded faithfulness, three runs
+(`results/agent_v1_vs_v2.md`, `results/agent_v2_vs_v3.md`):
 
-| Metric                  | v1 (initial)  | v2 (PR #106)  | Δ        |
-|-------------------------|---------------|---------------|----------|
-| tool_acc                | 0.894         | 0.919         | +0.025   |
-| tool_recall             | 0.956         | 0.978         | +0.022   |
-| trajectory_efficiency   | 0.299         | **0.672**     | +0.373   |
-| faithfulness (judge)    | 0.570         | 0.648         | +0.078   |
+| Metric                  | v1 (initial) | v2 (PR #106)  | v3 (PR #112)  |
+|-------------------------|--------------|---------------|---------------|
+| tool_acc                | 0.894        | 0.919         | 0.925         |
+| tool_recall             | 0.956        | 0.978         | 0.944         |
+| trajectory_efficiency   | 0.299        | **0.672**     | **0.722**     |
+| faithfulness (judge)    | 0.570        | **0.648**     | 0.630         |
+| groundedness (regex)    | 0.373        | 0.296         | 0.240         |
 
 v2 dropped `MAX_ITERATIONS` 4 → 2 and tightened the reflect/synth
-prompts. v3 (PR #108) makes the retriever configurable and defaults
-to hybrid; numbers will refresh when the next eval run completes.
+prompts (+0.37 trajectory, +0.08 faith). v3 swapped the retriever to
+hybrid (Task 3.25 default). The aggregate looks flat because the
+impact is route-conditional:
+
+- **Tool-only queries (n=14):** within noise — retriever is a no-op
+  when the agent doesn't pull docs.
+- **Doc-using queries (n=14, apples-to-apples):** hybrid pulls +19%
+  more chunks (8.93 vs 7.50) and synth's citation discipline slips
+  — faithfulness -0.076, groundedness -0.138.
+
+Hybrid stays the default (the retrieval benchmark on the honest
+synthetic split says it should — R@10 0.878 vs 0.829), but the
+agent's downstream synth doesn't capitalise on it yet. Three v4
+follow-ups queued, sequenced by leverage: citation-adjacency in synth
+prompt, lower agent `docs.k` 10 → 5/6, publisher-diversity rerank.
 
 See [`docs/blog.md`](./docs/blog.md) for the full write-up.
 

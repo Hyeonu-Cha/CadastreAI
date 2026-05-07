@@ -1,8 +1,8 @@
 # CadastreAI — Project Report v2
 
-> Generated: 2026-05-06 | Branch: `docs/report-v2-refresh` | Replaces the
-> closed PR #88 draft (2026-04-28), which was superseded by Tasks
-> 3.22–3.25 and the README correction in #110.
+> Generated: 2026-05-07 | Branch: `docs/v3-results-update` | Updated
+> with v3 agent eval numbers from PR #112; replaces the 2026-05-06
+> v2-only snapshot (PR #111).
 
 ---
 
@@ -17,7 +17,7 @@ is operations.
 |-------------------------------------|---------------------|----------------------------------------------------------|
 | **1 — Ingestion + baseline RAG**    | Complete            | —                                                        |
 | **2 — Hybrid retrieval + FT A/B**   | Complete            | `ft+hybrid+rerank` cell deferred (needs Qdrant up)       |
-| **3 — Agentic layer**               | Complete (v2)       | v3 re-eval against hybrid retriever                      |
+| **3 — Agentic layer**               | Complete (v3)       | v4 follow-ups (citation-adjacency, lower docs.k, pub-diversity rerank) |
 | **4 — Polish, deploy, write-up**    | ~85%                | Cloud deploy (4.14–4.16), demo recording, blog publish   |
 
 **Today's headline numbers:**
@@ -25,10 +25,11 @@ is operations.
 | Surface                             | Metric                       | Value         |
 |-------------------------------------|------------------------------|---------------|
 | Retrieval — honest split (n=41)     | Hybrid R@10                  | **0.878**     |
-| Agent eval v2 (n=30)                | Faithfulness (judge)         | 0.648         |
-| Agent eval v2 vs v1                 | Trajectory efficiency Δ      | **+0.373**    |
+| Agent eval v3 (n=30)                | Faithfulness (judge)         | 0.630         |
+| Agent eval v3 (n=30)                | Trajectory efficiency        | **0.722**     |
+| Agent eval v2 → v3                  | Doc-using subset faith Δ     | -0.076        |
 | Codebase                            | Tests passing                | ~385 / 25 files |
-| Codebase                            | Merged PRs on `main`         | 110           |
+| Codebase                            | Merged PRs on `main`         | 112           |
 
 ---
 
@@ -98,21 +99,21 @@ until we either swap models or change the shortlist composition.
 
 ---
 
-## 3. Agent — v1 → v2
+## 3. Agent — v1 → v2 → v3
 
 Eval over 30 annotated queries, OpenAI provider (`gpt-4o-mini` for
 classify/route/reflect/judge, `gpt-4o` for synth), faithfulness graded
 by LLM judge.
 
-| Metric                    | v1 (initial) | v2 (PR #106)  | Δ          |
-|---------------------------|--------------|---------------|------------|
-| Tool-call accuracy        | 0.894        | 0.919         | +0.025     |
-| Tool-call recall          | 0.956        | 0.978         | +0.022     |
-| Tool-call precision       | 0.900        | 0.928         | +0.028     |
-| Trajectory efficiency     | 0.299        | **0.672**     | **+0.373** |
-| Faithfulness (judge)      | 0.570        | **0.648**     | **+0.078** |
-| Publisher recall          | 0.789        | 0.778         | -0.011     |
-| Groundedness (regex)      | 0.373        | 0.296         | -0.077     |
+| Metric                    | v1 (initial) | v2 (PR #106)  | v3 (PR #112)  |
+|---------------------------|--------------|---------------|---------------|
+| Tool-call accuracy        | 0.894        | 0.919         | 0.925         |
+| Tool-call recall          | 0.956        | 0.978         | 0.944         |
+| Tool-call precision       | 0.900        | 0.928         | 0.933         |
+| Trajectory efficiency     | 0.299        | 0.672         | **0.722**     |
+| Faithfulness (judge)      | 0.570        | **0.648**     | 0.630         |
+| Publisher recall          | 0.789        | 0.778         | 0.764         |
+| Groundedness (regex)      | 0.373        | 0.296         | 0.240         |
 
 ### 3a. What v2 changed
 
@@ -144,25 +145,49 @@ Two prompt/graph fixes from `results/agent_failure_analysis.md`:
   the lower iteration cap removed v1's accidental recovery rounds.
   Fix in v3: explicit tool-routing examples in `_ROUTER_SYSTEM`.
 
-### 3c. Task 3.25 — configurable retriever, hybrid default
+### 3c. v2 → v3 — hybrid retriever (Task 3.25 + PR #112)
 
 v1 and v2 ran on dense-only retrieval. The honest split says hybrid
-wins. PR #108 added `_agent_retriever()` with a process-wide cache,
-env-driven routing (`CADASTRE_AGENT_RETRIEVER=dense|bm25|hybrid`,
-default hybrid), and lazy backend imports so test/CLI users don't pay
-the 212 MB BM25 pickle when they don't need it. The hybrid branch
-pre-imports torch ahead of the BM25 pickle to dodge a cuBLAS DLL
-load-order segfault on the 4 GB-pagefile Windows host.
+wins, so PR #108 (Task 3.25) added `_agent_retriever()` with a
+process-wide cache, env-driven routing
+(`CADASTRE_AGENT_RETRIEVER=dense|bm25|hybrid`, default hybrid), and
+lazy backend imports so test/CLI users don't pay the 212 MB BM25
+pickle. Hybrid branch pre-imports torch ahead of the BM25 pickle to
+dodge a cuBLAS DLL load-order segfault on the 4 GB-pagefile Windows
+host. 8 new unit tests; retriever classes monkey-patched.
 
-**8 new unit tests cover** default selection, env routing, casing,
-unknown-value error, cache persistence, `_retrieve_docs` reshape
-contract — all retriever classes monkey-patched, no Qdrant or pickle
-touched.
+**v3 aggregate looks flat. The honest story is route-conditional.**
 
-The v3 re-eval against v2 was blocked on this host by an environmental
-Python-SDK hang (`import openai` / `client.create()` hang while raw
-curl works). Code shipped; v3 vs v2 numbers + `results/agent_v2_vs_v3.md`
-deferred to the next stable env.
+Splitting by retrieval status surfaces two opposing effects (full
+table in `results/agent_v2_vs_v3.md`):
+
+| Subset                       | n  | Faith Δ    | Traj Δ   | Read                                 |
+|------------------------------|----|------------|----------|--------------------------------------|
+| Tool-only (no retrieval)     | 14 | +0.048     | +0.083   | Within noise — retriever is no-op    |
+| Doc-using (apples-to-apples) | 14 | **-0.076** | +0.012   | Hybrid pulls +19% chunks; synth slips |
+
+Hybrid retrieves 8.93 chunks/query vs dense's 7.50 on the doc-using
+subset. The retrieval benchmark's R@10 said hybrid is strictly better;
+at the agent level the +19% chunk count is *diluting* synth's citation
+discipline. agent-022 (1.00 → 0.60), agent-023 (0.75 → 0.50), and
+agent-024 (0.83 → 0.57) all show the same pattern — answers cite more
+sources but each citation is less tightly grounded.
+
+**Hybrid stays the ship default** (the retrieval benchmark says it
+should, and the tool-only path confirms no regression on the bulk of
+agent queries), but the agent's downstream synth doesn't yet
+capitalise on the improved retrieval. Three v4 follow-ups queued by
+leverage:
+
+1. **Citation-adjacency in synth prompt** (carry-over from v1 → v2 →
+   v3). Single biggest measurable win — the regex grader misses
+   citations the judge sees.
+2. **Lower agent `docs.k` 10 → 5 or 6.** Hybrid's R@5 = 0.805 is
+   already strong; a tighter context window forces the synth to
+   commit to top-scored chunks instead of hedging across nine.
+3. **Publisher-diversity rerank.** Cap any single publisher at
+   `ceil(K/3)` of the top-K. Recovers the -0.030 publisher_recall
+   regression and the cluster-bias on BM25-favoured terms.
 
 ---
 
@@ -191,21 +216,21 @@ queries — the disclaimer is what carries those, not a refusal.
 
 | Item                                              | Blocker                          | Effort  |
 |---------------------------------------------------|----------------------------------|---------|
-| `ft+hybrid+rerank` ablation cell                  | Docker daemon down on dev host   | 30 min  |
+| Agent v4 (citation-adjacency + lower docs.k)      | None — code-only                 | 1–2 hrs |
+| `ft+hybrid+rerank` ablation cell                  | Need cadastre_chunks_ft upserted | 30 min  |
 | Tasks 4.14–4.16 — Qdrant Cloud + Modal/HF deploy  | Cloud accounts                   | 2–3 hrs |
-| Tasks 4.17–4.18 — full eval + final results table | Depends on 4.14–4.16 + agent v3  | 1 hr    |
+| Tasks 4.17–4.18 — full eval + final results table | Depends on 4.14–4.16             | 1 hr    |
 | Tasks 4.19 / 4.23 / 4.24 — demo GIF + Loom        | Manual screen recording          | 1 hr    |
 | Task 4.22 — publish blog + socials                | Manual                           | 30 min  |
 | Task 4.26 — tag `v1.0.0`, flip repo public        | User sign-off                    | 5 min   |
 
-Open environmental issue: Python SDK calls hang on the dev host
-(`import openai` / `client.create()`), most likely Windows Defender
-real-time scanning + 4 GB pagefile thrashing on first-run `.pyd`/
-`.dll` loads. Curl works. Workarounds tried: source-then-export of
-`.env`, pre-warming the BGE retriever before any OpenAI import,
-hybrid-mode torch pre-import. Cleaner unblock paths: WSL2, Defender
-exclusions for `%USERPROFILE%\AppData\Local\Programs\Python` and
-the project venv, or a clean `python:3.11-slim` Docker container.
+The earlier-flagged dev-host environmental issue (Python SDK hangs
+on `import openai` / `client.create()`) cleared once Docker Desktop
+was running — the Qdrant container coming up may have settled DLL
+load order or pagefile pressure. v3 eval (PR #112) ran cleanly end-
+to-end through OpenAI. If it recurs, mitigations queued: WSL2,
+Windows Defender exclusions for `%USERPROFILE%\AppData\Local\Programs\Python`
+and the project venv, or a clean `python:3.11-slim` Docker container.
 
 ---
 
@@ -232,7 +257,15 @@ the project venv, or a clean `python:3.11-slim` Docker container.
    the regex grader, not a quality attribute.** The v2 groundedness
    "regression" was the synth deciding to put citations at end of
    sentence instead of mid-sentence; the judge had no problem with
-   the answers.
+   the answers. The v3 retriever swap made this worse (more chunks
+   to weave, looser inline-citation discipline) — a single
+   prompt-level fix should claw back both v2 and v3's groundedness
+   drop.
+6. **Aggregate eval numbers can hide route-conditional impact.** v3's
+   flat aggregate split into a clean tool-only no-op vs a doc-using
+   regression once subset by `n_retrieved_chunks > 0`. A retriever
+   change is necessarily route-conditional; eval reporting should
+   subset by route by default.
 
 ---
 
@@ -241,8 +274,9 @@ the project venv, or a clean `python:3.11-slim` Docker container.
 - Per-ticket merge log: `git log --oneline --no-merges main | grep "Task "`
 - Retrieval numbers: `results/{baseline,bm25,hybrid,reranked}.json`,
   `results/hybrid_comparison.md`, `results/ablation.md`
-- Agent eval: `results/agent_v1.json`, `results/agent_v2.json`,
-  `results/agent_v1_vs_v2.md`, `results/agent_failure_analysis.md`
+- Agent eval: `results/agent_v{1,2,3}.json`,
+  `results/agent_v1_vs_v2.md`, `results/agent_v2_vs_v3.md`,
+  `results/agent_failure_analysis.md`
 - Per-task design notes: squash-merge commit bodies on `main`
   (Task numbers in subject)
 - Phase 4 progress.md notes: lines 12–319 of `progress.md` (gap
