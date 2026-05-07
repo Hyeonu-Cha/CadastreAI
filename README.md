@@ -88,33 +88,38 @@ and [`results/ablation.md`](./results/ablation.md).
 
 ### Agent
 
-Agent eval over 30 queries with judge-graded faithfulness, three runs
-(`results/agent_v1_vs_v2.md`, `results/agent_v2_vs_v3.md`):
+Agent eval over 30 queries with judge-graded faithfulness, four runs
+(`results/agent_v1_vs_v2.md`, `results/agent_v2_vs_v3.md`,
+`results/agent_v3_vs_v4.md`):
 
-| Metric                  | v1 (initial) | v2 (PR #106)  | v3 (PR #112)  |
-|-------------------------|--------------|---------------|---------------|
-| tool_acc                | 0.894        | 0.919         | 0.925         |
-| tool_recall             | 0.956        | 0.978         | 0.944         |
-| trajectory_efficiency   | 0.299        | **0.672**     | **0.722**     |
-| faithfulness (judge)    | 0.570        | **0.648**     | 0.630         |
-| groundedness (regex)    | 0.373        | 0.296         | 0.240         |
+| Metric                  | v1 (initial) | v2 (PR #106)  | v3 (PR #112)  | v4 (PR #114)  |
+|-------------------------|--------------|---------------|---------------|---------------|
+| tool_acc                | 0.894        | 0.919         | 0.925         | 0.917         |
+| tool_recall             | 0.956        | 0.978         | 0.944         | 0.944         |
+| trajectory_efficiency   | 0.299        | **0.672**     | **0.722**     | 0.717         |
+| faithfulness (judge)    | 0.570        | 0.648         | 0.630         | 0.637         |
+| groundedness (regex)    | 0.373        | 0.296         | 0.240         | **0.368**     |
 
 v2 dropped `MAX_ITERATIONS` 4 → 2 and tightened the reflect/synth
 prompts (+0.37 trajectory, +0.08 faith). v3 swapped the retriever to
-hybrid (Task 3.25 default). The aggregate looks flat because the
-impact is route-conditional:
+hybrid (Task 3.25 default) — aggregate looked flat because the impact
+was route-conditional: tool-only queries are a no-op for the
+retriever, while doc-using queries pulled +19% more chunks (8.93 vs
+7.50) and synth's citation discipline slipped.
 
-- **Tool-only queries (n=14):** within noise — retriever is a no-op
-  when the agent doesn't pull docs.
-- **Doc-using queries (n=14, apples-to-apples):** hybrid pulls +19%
-  more chunks (8.93 vs 7.50) and synth's citation discipline slips
-  — faithfulness -0.076, groundedness -0.138.
+v4 (Task 3.29) lands two targeted fixes:
 
-Hybrid stays the default (the retrieval benchmark on the honest
-synthetic split says it should — R@10 0.878 vs 0.829), but the
-agent's downstream synth doesn't capitalise on it yet. Three v4
-follow-ups queued, sequenced by leverage: citation-adjacency in synth
-prompt, lower agent `docs.k` 10 → 5/6, publisher-diversity rerank.
+1. **Citation adjacency** — `_CITATION_RULES` now requires
+   `[tool:..., retrieved:...]` immediately after each value, with a
+   GOOD/BAD example. The regex grader checks adjacency.
+2. **Chunk cap with dedupe** — `_dedupe_and_cap_chunks(cap=8)` after
+   `apply_publisher_boost`. Cuts the v3 doc-using mean from 8.93
+   chunks/query to 5.64 (max 25 → 8).
+
+The doc-using subset (n=14, apples-to-apples) shows the wins clearly:
+groundedness +0.217 (0.268 → 0.485), faithfulness +0.055 (0.631 →
+0.686). Aggregate groundedness +0.128. No code change to retrieval
+quality — just to how synth consumes its output.
 
 See [`docs/blog.md`](./docs/blog.md) for the full write-up.
 

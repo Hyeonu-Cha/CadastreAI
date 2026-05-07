@@ -1,8 +1,8 @@
 # CadastreAI — Project Report v2
 
-> Generated: 2026-05-07 | Branch: `docs/v3-results-update` | Updated
-> with v3 agent eval numbers from PR #112; replaces the 2026-05-06
-> v2-only snapshot (PR #111).
+> Generated: 2026-05-07 | Branch: `Development/Task329-DocsRefresh` |
+> Updated with v4 agent eval numbers from PR #114; supersedes the v3
+> snapshot (PR #113).
 
 ---
 
@@ -17,7 +17,7 @@ is operations.
 |-------------------------------------|---------------------|----------------------------------------------------------|
 | **1 — Ingestion + baseline RAG**    | Complete            | —                                                        |
 | **2 — Hybrid retrieval + FT A/B**   | Complete            | `ft+hybrid+rerank` cell deferred (needs Qdrant up)       |
-| **3 — Agentic layer**               | Complete (v3)       | v4 follow-ups (citation-adjacency, lower docs.k, pub-diversity rerank) |
+| **3 — Agentic layer**               | Complete (v4)       | Tool-routing v5 follow-up (carry-over `compute_rental_yield` confusion) |
 | **4 — Polish, deploy, write-up**    | ~85%                | Cloud deploy (4.14–4.16), demo recording, blog publish   |
 
 **Today's headline numbers:**
@@ -25,11 +25,12 @@ is operations.
 | Surface                             | Metric                       | Value         |
 |-------------------------------------|------------------------------|---------------|
 | Retrieval — honest split (n=41)     | Hybrid R@10                  | **0.878**     |
-| Agent eval v3 (n=30)                | Faithfulness (judge)         | 0.630         |
-| Agent eval v3 (n=30)                | Trajectory efficiency        | **0.722**     |
-| Agent eval v2 → v3                  | Doc-using subset faith Δ     | -0.076        |
-| Codebase                            | Tests passing                | ~385 / 25 files |
-| Codebase                            | Merged PRs on `main`         | 112           |
+| Agent eval v4 (n=30)                | Faithfulness (judge)         | 0.637         |
+| Agent eval v4 (n=30)                | Trajectory efficiency        | **0.717**     |
+| Agent eval v4 (n=30)                | Groundedness (regex)         | **0.368**     |
+| Agent eval v3 → v4                  | Doc-using grounded Δ         | **+0.217**    |
+| Codebase                            | Tests passing                | 392 / 26 files |
+| Codebase                            | Merged PRs on `main`         | 114           |
 
 ---
 
@@ -99,21 +100,21 @@ until we either swap models or change the shortlist composition.
 
 ---
 
-## 3. Agent — v1 → v2 → v3
+## 3. Agent — v1 → v2 → v3 → v4
 
 Eval over 30 annotated queries, OpenAI provider (`gpt-4o-mini` for
 classify/route/reflect/judge, `gpt-4o` for synth), faithfulness graded
 by LLM judge.
 
-| Metric                    | v1 (initial) | v2 (PR #106)  | v3 (PR #112)  |
-|---------------------------|--------------|---------------|---------------|
-| Tool-call accuracy        | 0.894        | 0.919         | 0.925         |
-| Tool-call recall          | 0.956        | 0.978         | 0.944         |
-| Tool-call precision       | 0.900        | 0.928         | 0.933         |
-| Trajectory efficiency     | 0.299        | 0.672         | **0.722**     |
-| Faithfulness (judge)      | 0.570        | **0.648**     | 0.630         |
-| Publisher recall          | 0.789        | 0.778         | 0.764         |
-| Groundedness (regex)      | 0.373        | 0.296         | 0.240         |
+| Metric                    | v1 (initial) | v2 (PR #106)  | v3 (PR #112)  | v4 (PR #114)  |
+|---------------------------|--------------|---------------|---------------|---------------|
+| Tool-call accuracy        | 0.894        | 0.919         | 0.925         | 0.917         |
+| Tool-call recall          | 0.956        | 0.978         | 0.944         | 0.944         |
+| Tool-call precision       | 0.900        | 0.928         | 0.933         | 0.925         |
+| Trajectory efficiency     | 0.299        | 0.672         | **0.722**     | 0.717         |
+| Faithfulness (judge)      | 0.570        | 0.648         | 0.630         | 0.637         |
+| Publisher recall          | 0.789        | 0.778         | 0.764         | 0.772         |
+| Groundedness (regex)      | 0.373        | 0.296         | 0.240         | **0.368**     |
 
 ### 3a. What v2 changed
 
@@ -175,19 +176,42 @@ sources but each citation is less tightly grounded.
 
 **Hybrid stays the ship default** (the retrieval benchmark says it
 should, and the tool-only path confirms no regression on the bulk of
-agent queries), but the agent's downstream synth doesn't yet
-capitalise on the improved retrieval. Three v4 follow-ups queued by
-leverage:
+agent queries), but at v3 the agent's downstream synth wasn't yet
+capitalising on the improved retrieval. v4 (next section) closes this.
 
-1. **Citation-adjacency in synth prompt** (carry-over from v1 → v2 →
-   v3). Single biggest measurable win — the regex grader misses
-   citations the judge sees.
-2. **Lower agent `docs.k` 10 → 5 or 6.** Hybrid's R@5 = 0.805 is
-   already strong; a tighter context window forces the synth to
-   commit to top-scored chunks instead of hedging across nine.
-3. **Publisher-diversity rerank.** Cap any single publisher at
-   `ceil(K/3)` of the top-K. Recovers the -0.030 publisher_recall
-   regression and the cluster-bias on BM25-favoured terms.
+### 3d. v3 → v4 — citation adjacency + chunk cap (Task 3.29 + PR #114)
+
+Two targeted fixes to the v3 doc-using regression. Full breakdown in
+`results/agent_v3_vs_v4.md`.
+
+1. **Citation adjacency in `_CITATION_RULES`.** The synth prompt now
+   demands `[tool:..., retrieved:...]` *immediately after* each
+   numeric value, with a worked GOOD/BAD example. The regex grader
+   checks adjacency; v3's prompt tolerated trailing-citation patterns
+   the judge accepted but the regex missed. (Carry-over from v1 → v2
+   → v3 — promised three times, finally landed.)
+2. **`_dedupe_and_cap_chunks(cap=8)`** in `retrieve_or_tool` after
+   `apply_publisher_boost`. v3 averaged 8.93 chunks/query (max 25 —
+   five sub-questions × top-5 each, no dedupe across reflect cycles),
+   diluting synth context. Cap at the v2 average. 7 new unit tests
+   in `tests/test_chunk_dedupe_cap.py`.
+
+| Subset                          | n  | Faith Δ    | Grounded Δ  | n_chunks Δ        |
+|---------------------------------|----|------------|-------------|-------------------|
+| Aggregate                       | 30 | +0.007     | **+0.128**  | (n/a — see below) |
+| Doc-using (apples-to-apples)    | 14 | **+0.055** | **+0.217**  | 8.93 → 5.64       |
+| Tool-only (no retrieval)        | 15 | -0.043     | +0.052      | 0 → 0             |
+
+The doc-using subset is where the v2 → v3 regression lived; v4 lands
+both planned wins on it (faithfulness +0.055, groundedness +0.217).
+Tool-only swings ±0.05 between any two judge runs — read it as a
+noise floor, not as evidence v4 hurt tool answers. Max chunks per
+query went 25 → 8; the cap is hitting cleanly.
+
+**One known issue stays open for v5.** The v2/v3 tool-confusion class
+(`compute_rental_yield` vs `abs_property_price_index` on agent-004 /
+agent-019) is a routing-prompt fix and v4 only touched citation rules
++ chunk cap. Carry-over.
 
 ---
 
@@ -216,13 +240,13 @@ queries — the disclaimer is what carries those, not a refusal.
 
 | Item                                              | Blocker                          | Effort  |
 |---------------------------------------------------|----------------------------------|---------|
-| Agent v4 (citation-adjacency + lower docs.k)      | None — code-only                 | 1–2 hrs |
 | `ft+hybrid+rerank` ablation cell                  | Need cadastre_chunks_ft upserted | 30 min  |
 | Tasks 4.14–4.16 — Qdrant Cloud + Modal/HF deploy  | Cloud accounts                   | 2–3 hrs |
 | Tasks 4.17–4.18 — full eval + final results table | Depends on 4.14–4.16             | 1 hr    |
 | Tasks 4.19 / 4.23 / 4.24 — demo GIF + Loom        | Manual screen recording          | 1 hr    |
 | Task 4.22 — publish blog + socials                | Manual                           | 30 min  |
 | Task 4.26 — tag `v1.0.0`, flip repo public        | User sign-off                    | 5 min   |
+| Agent v5 (tool-routing fix for `compute_rental_yield`) | None — code-only            | 1 hr    |
 
 The earlier-flagged dev-host environmental issue (Python SDK hangs
 on `import openai` / `client.create()`) cleared once Docker Desktop
@@ -258,9 +282,11 @@ and the project venv, or a clean `python:3.11-slim` Docker container.
    "regression" was the synth deciding to put citations at end of
    sentence instead of mid-sentence; the judge had no problem with
    the answers. The v3 retriever swap made this worse (more chunks
-   to weave, looser inline-citation discipline) — a single
-   prompt-level fix should claw back both v2 and v3's groundedness
-   drop.
+   to weave, looser inline-citation discipline). v4's prompt-level
+   fix (GOOD/BAD example + "PLACEMENT IS LOAD-BEARING") clawed back
+   the drop — aggregate groundedness 0.240 → 0.368, doc-using
+   subset 0.268 → 0.485. Confirmed: the regression was a contract
+   bug, not a quality bug.
 6. **Aggregate eval numbers can hide route-conditional impact.** v3's
    flat aggregate split into a clean tool-only no-op vs a doc-using
    regression once subset by `n_retrieved_chunks > 0`. A retriever
@@ -274,9 +300,9 @@ and the project venv, or a clean `python:3.11-slim` Docker container.
 - Per-ticket merge log: `git log --oneline --no-merges main | grep "Task "`
 - Retrieval numbers: `results/{baseline,bm25,hybrid,reranked}.json`,
   `results/hybrid_comparison.md`, `results/ablation.md`
-- Agent eval: `results/agent_v{1,2,3}.json`,
+- Agent eval: `results/agent_v{1,2,3,4}.json`,
   `results/agent_v1_vs_v2.md`, `results/agent_v2_vs_v3.md`,
-  `results/agent_failure_analysis.md`
+  `results/agent_v3_vs_v4.md`, `results/agent_failure_analysis.md`
 - Per-task design notes: squash-merge commit bodies on `main`
   (Task numbers in subject)
 - Phase 4 progress.md notes: lines 12–319 of `progress.md` (gap
