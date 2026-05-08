@@ -46,6 +46,17 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --upgrade pip \
     && pip install ".[agent,index,embed,tools,app,chunk]"
 
+# Pre-warm sentence-transformers caches into a known location so we can
+# COPY them into the runtime stage. Without this, first-query latency
+# is ~30-60s while HF downloads ~500 MB of weights from the network —
+# fatal for a portfolio demo URL where the user's first impression is
+# the cold start. Pinning HF_HOME makes the cache layout deterministic.
+ENV HF_HOME=/opt/hf-cache \
+    SENTENCE_TRANSFORMERS_HOME=/opt/hf-cache/sentence-transformers
+RUN python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; \
+    SentenceTransformer('BAAI/bge-base-en-v1.5'); \
+    CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"
+
 
 # ---- Stage 2: runtime ------------------------------------------------
 FROM python:3.11-slim AS runtime
@@ -53,6 +64,8 @@ FROM python:3.11-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
+    HF_HOME=/opt/hf-cache \
+    SENTENCE_TRANSFORMERS_HOME=/opt/hf-cache/sentence-transformers \
     STREAMLIT_SERVER_HEADLESS=true \
     STREAMLIT_SERVER_PORT=8501 \
     STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
@@ -71,6 +84,7 @@ RUN groupadd --gid 1000 cadastre \
     && useradd --uid 1000 --gid cadastre --shell /bin/bash --create-home cadastre
 
 COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /opt/hf-cache /opt/hf-cache
 
 WORKDIR /app
 COPY --chown=cadastre:cadastre src ./src
