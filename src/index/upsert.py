@@ -118,7 +118,9 @@ def upsert(
         )
 
     log.info("Connecting to Qdrant %s (api_key=%s)", url, "set" if api_key else "none")
-    client = QdrantClient(url=url, api_key=api_key)
+    # 120s timeout: per-batch payloads (~800KB) over a transcontinental
+    # cloud link routinely exceed the 5s qdrant-client default.
+    client = QdrantClient(url=url, api_key=api_key, timeout=120)
 
     if recreate:
         log.info("Recreating collection %s (dim=%d, Cosine)", collection, dim)
