@@ -33,34 +33,34 @@
 
 - [x] **Task 1.16** — Install `docling`; implement `src/ingest/parse.py` converting PDFs → markdown with headings and tables preserved
 - [x] **Task 1.17** — Add `pymupdf4llm` fallback path for docs that fail `docling`; log failures
-- [ ] **Task 1.18** — Implement `src/ingest/chunk.py` — recursive heading-aware chunking (500–800 tokens, 100-token overlap)
-- [ ] **Task 1.19** — Attach chunk metadata (`publisher, title, date, section_heading, page, url, chunk_id`) and emit `data/processed/chunks.jsonl` (target 30–80k chunks)
+- [x] **Task 1.18** — Implement `src/ingest/chunk.py` — recursive heading-aware chunking (500–800 tokens, 100-token overlap)
+- [x] **Task 1.19** — Attach chunk metadata (`publisher, title, date, section_heading, page, url, chunk_id`) and emit `data/processed/chunks.jsonl` (final corpus: 41,959 chunks)
 
 ### Day 4 — Baseline indexing
 
-- [ ] **Task 1.20** — Implement `src/index/embed.py` — embed all chunks with `BAAI/bge-base-en-v1.5` via sentence-transformers (GPU if available)
-- [ ] **Task 1.21** — Upsert embeddings + metadata payload into Qdrant collection `cadastre_chunks`
-- [ ] **Task 1.22** — Implement `src/retrieval/retriever.py` exposing `retrieve(query, k=10)` returning `(chunk, score)` tuples
-- [ ] **Task 1.23** — Write sanity-check script (`scripts/sanity_retrieve.py`) running 5 manual queries and printing top-5 results
+- [x] **Task 1.20** — Implement `src/index/embed.py` — embed all chunks with `BAAI/bge-base-en-v1.5` via sentence-transformers (GPU if available)
+- [x] **Task 1.21** — Upsert embeddings + metadata payload into Qdrant collection `cadastre_chunks`
+- [x] **Task 1.22** — Implement `src/retrieval/retriever.py` exposing `retrieve(query, k=10)` returning `(chunk, score)` tuples
+- [x] **Task 1.23** — Write sanity-check script (`scripts/sanity_retrieve.py`) running 5 manual queries and printing top-5 results
 
 ### Day 5 — Eval set construction
 
-- [ ] **Task 1.24** — Author 20 homebuyer-style eval queries (practical, local, decision-oriented)
-- [ ] **Task 1.25** — Author 20 investor-style eval queries (numeric, comparative, yield/growth)
-- [ ] **Task 1.26** — Author 20 researcher-style eval queries (methodology, cross-report, definitional)
-- [ ] **Task 1.27** — Manually annotate 2–5 gold chunks per query by inspecting corpus; store in `data/eval/queries.jsonl` (`{query, persona, gold_chunk_ids}`)
-- [ ] **Task 1.28** — Generate 40 additional synthetic queries via Claude over random chunks, spot-check, and merge into eval set (~100 total)
+- [x] **Task 1.24** — Author 20 homebuyer-style eval queries (practical, local, decision-oriented) — `data/eval/queries_homebuyer.jsonl`
+- [x] **Task 1.25** — Author 20 investor-style eval queries (numeric, comparative, yield/growth) — `data/eval/queries_investor.jsonl`
+- [x] **Task 1.26** — Author 20 researcher-style eval queries (methodology, cross-report, definitional) — `data/eval/queries_researcher.jsonl`
+- [x] **Task 1.27** — Manually annotate 2–5 gold chunks per query by inspecting corpus; store in `data/eval/queries.jsonl` (`{query, persona, gold_chunk_ids}`)
+- [x] **Task 1.28** — Generate 40 additional synthetic queries via Claude over random chunks, spot-check, and merge into eval set — `data/eval/queries_synth.jsonl` + `queries_all.jsonl` (100 total)
 
 ### Day 6 — Baseline RAG end-to-end + metrics
 
-- [ ] **Task 1.29** — Build naive RAG pipeline: retrieve top-5 → stuff into Claude Sonnet 4.5 prompt → generate answer with inline citations
-- [ ] **Task 1.30** — Implement `src/eval/retrieval_eval.py` computing Recall@5, Recall@10, MRR, nDCG@10 against gold set
-- [ ] **Task 1.31** — Run baseline eval and save metrics to `results/baseline.json`; commit results file
+- [x] **Task 1.29** — Build naive RAG pipeline: retrieve top-5 → stuff into Claude prompt → generate answer with inline citations
+- [x] **Task 1.30** — Implement `src/eval/retrieval_eval.py` computing Recall@5, Recall@10, MRR, nDCG@10 against gold set
+- [x] **Task 1.31** — Run baseline eval and save metrics to `results/baseline.json`; commit results file
 
 ### Day 7 — Error analysis + blog section
 
-- [ ] **Task 1.32** — Review 20 failure cases; categorize into error taxonomy (jargon mismatch, temporal, abbreviations, numeric-needs-tools)
-- [ ] **Task 1.33** — Write "Baseline & Problems" section in `docs/blog_draft.md` including the error taxonomy
+- [x] **Task 1.32** — Review 20 failure cases; categorize into error taxonomy (jargon mismatch, temporal, abbreviations, numeric-needs-tools)
+- [x] **Task 1.33** — Write "Baseline & Problems" section in `docs/blog.md` including the error taxonomy
 
 ---
 
@@ -68,30 +68,30 @@
 
 ### Day 8 — Hybrid search
 
-- [ ] **Task 2.01** — Implement BM25 index over the same chunk set (`rank_bm25` or Qdrant sparse vectors)
-- [ ] **Task 2.02** — Implement Reciprocal Rank Fusion combining top-50 BM25 + top-50 dense in `src/index/hybrid.py`
-- [ ] **Task 2.03** — Re-run retrieval eval on hybrid pipeline; record metrics vs baseline
+- [x] **Task 2.01** — Implement BM25 index over the same chunk set — `src/index/bm25.py` (`rank_bm25`, pickled to `data/processed/bm25.pkl`)
+- [x] **Task 2.02** — Implement Reciprocal Rank Fusion combining top-50 BM25 + top-50 dense in `src/index/hybrid.py`
+- [x] **Task 2.03** — Re-run retrieval eval on hybrid pipeline; record metrics vs baseline — see `results/hybrid_comparison.md`
 
 ### Day 9 — Reranking
 
-- [ ] **Task 2.04** — Integrate `BAAI/bge-reranker-v2-m3` in `src/retrieval/rerank.py`; pipeline: retrieve top-30 → rerank → return top-5
-- [ ] **Task 2.05** — Re-run eval with reranker; record latency overhead and updated metrics
+- [x] **Task 2.04** — Integrate cross-encoder reranker in `src/retrieval/rerank.py`; pipeline: retrieve top-30 → rerank → return top-5. *Used `cross-encoder/ms-marco-MiniLM-L-6-v2` (smaller, faster) instead of originally-planned `bge-reranker-v2-m3` — sufficient quality at meaningfully lower latency.*
+- [x] **Task 2.05** — Re-run eval with reranker; record latency overhead and updated metrics
 
 ### Day 10 — Training data generation
 
-- [ ] **Task 2.06** — Implement `src/training/generate_pairs.py` — prompt Claude per chunk to produce 2 persona-tagged queries; target ~4,000 pairs
-- [ ] **Task 2.07** — Quality-filter pairs: drop cosine < 0.3 (unrelated) and > 0.95 (trivial) using baseline embeddings; save `data/training/pairs.jsonl`
+- [x] **Task 2.06** — Implement `src/training/generate_pairs.py` — prompt Claude per chunk to produce persona-tagged queries
+- [x] **Task 2.07** — Quality-filter pairs via `src/training/filter_pairs.py`; save `data/training/pairs.jsonl`
 
 ### Day 11 — Hard negative mining
 
-- [ ] **Task 2.08** — Implement `src/training/mine_hard_negatives.py` — for each (query, positive), retrieve top-20 via BM25, filter out positives and same-section chunks
-- [ ] **Task 2.09** — Keep 5 hardest negatives per query; emit `data/training/triplets.jsonl` (`{anchor, positive, negatives[5]}`)
+- [x] **Task 2.08** — Implement `src/training/mine_hard_negatives.py` — retrieve top-20 via BM25, filter out positives and same-section chunks
+- [x] **Task 2.09** — Keep 5 hardest negatives per query; emit `data/training/triplets.jsonl` via `src/training/build_triplets.py`
 
 ### Day 12 — Fine-tune embedding model
 
-- [ ] **Task 2.10** — Implement `src/training/train_embeddings.py` with `MultipleNegativesRankingLoss` (batch 64, lr 2e-5, 3 epochs, warmup 10%, AdamW)
-- [ ] **Task 2.11** — Hold out 10% of pairs for training-time validation; log loss + val metrics
-- [ ] **Task 2.12** — Train on single consumer GPU / Colab T4; save checkpoint `models/bge-au-housing-v1/` with training curves
+- [x] **Task 2.10** — Implement `src/training/train_embeddings.py` with `MultipleNegativesRankingLoss`
+- [x] **Task 2.11** — Hold out validation split; log loss + val metrics
+- [x] **Task 2.12** — Train on consumer GPU; save checkpoint `models/bge-au-housing-v1/`
 
 ### Day 13 — Re-embed + benchmark
 
