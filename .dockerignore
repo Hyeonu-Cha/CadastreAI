@@ -22,10 +22,13 @@ build
 # Local secrets — never bake into an image
 .env
 
-# Data: raw + processed corpora + embedding cache. The runtime image
-# reads these from a mounted volume in production, not from inside.
+# Data: raw corpora + ingestion artifacts + embedding cache. The
+# runtime image needs only the BM25 pickle baked in (Qdrant holds the
+# dense vectors); chunks.jsonl / embeddings.npy / chunk_ids.txt are
+# ingestion-time artifacts and stay out of the image.
 data/raw
-data/processed
+data/processed/*
+!data/processed/bm25.pkl
 data/cache
 
 # Test + notebook scratch

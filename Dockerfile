@@ -76,6 +76,10 @@ WORKDIR /app
 COPY --chown=cadastre:cadastre src ./src
 COPY --chown=cadastre:cadastre pyproject.toml README.md ./
 
+# BM25 pickle is loaded at runtime by the hybrid retriever (Qdrant
+# holds dense vectors; the sparse index lives in-process). ~213 MB.
+COPY --chown=cadastre:cadastre data/processed/bm25.pkl ./data/processed/bm25.pkl
+
 # Cache dirs the agent writes to at runtime (embeddings, tool results).
 RUN mkdir -p /app/data/cache/embeddings \
     && chown -R cadastre:cadastre /app/data
