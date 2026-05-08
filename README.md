@@ -26,6 +26,18 @@
 > trace panel — will live here once recorded. Run it locally for now
 > (see [Quickstart](#-quickstart)).
 
+<!--
+  Task 4.19: when the GIF is recorded, save it as `assets/demo.gif`
+  and replace the blockquote above with this single line:
+
+      ![CadastreAI walkthrough](./assets/demo.gif)
+
+  Loom embed (Task 4.24): paste below the GIF —
+
+      [![CadastreAI walkthrough (3 min)](./assets/demo.gif)](LOOM_URL)
+-->
+
+
 ---
 
 ## 🏗️ What it does
@@ -181,6 +193,24 @@ docker run --rm -p 8501:8501 \
 ```
 
 Open `http://localhost:8501`, pick a persona, ask a question.
+
+### Verify a fork (or a deploy)
+
+`scripts/deploy_check.sh` runs three checks in fail-fast order: env
+vars set, Qdrant collection reachable with the expected point count,
+and a 5-query smoke test exercising the tool-only / docs-only /
+hybrid / compute / multi-step routes:
+
+```bash
+QDRANT_URL=http://localhost:6333 \
+QDRANT_API_KEY=cadastre-dev \
+ANTHROPIC_API_KEY=sk-... \
+./scripts/deploy_check.sh
+```
+
+Exit 0 = healthy, 1 = a smoke query failed, 2 = environment or
+Qdrant misconfigured. Same script verifies a Qdrant Cloud + HF
+Spaces deploy by swapping `QDRANT_URL` to the cluster URL.
 
 ---
 
