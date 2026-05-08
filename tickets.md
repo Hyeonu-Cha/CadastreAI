@@ -129,32 +129,36 @@
 
 ### Day 17 — Query decomposition + routing
 
-- [ ] **Task 3.13** — Implement `classify_query` with structured output `{persona, needs_docs, needs_data, needs_decomposition}`
-- [ ] **Task 3.14** — Implement `decompose` producing 2–4 atomic sub-questions when flagged complex
-- [ ] **Task 3.15** — Implement per-subquestion router deciding doc retrieval vs tool calls vs both
-- [ ] **Task 3.16** — Integrate LangSmith or Phoenix tracing and validate on 10 diverse queries
+- [x] **Task 3.13** — Implement `classify_query` with structured output `{persona, needs_docs, needs_data, needs_decomposition}`
+- [x] **Task 3.14** — Implement `decompose` producing 2–4 atomic sub-questions when flagged complex
+- [x] **Task 3.15** — Implement per-subquestion router deciding doc retrieval vs tool calls vs both
+- [x] **Task 3.16** — Integrate LangSmith or Phoenix tracing and validate on 10 diverse queries (`src/agent/tracing.py`)
 
 ### Day 18 — Self-reflection + citation discipline
 
-- [ ] **Task 3.17** — Implement `reflect` node checking coverage of sub-questions, citation presence, and gaps
-- [ ] **Task 3.18** — Add loop-back edge feeding refined queries when reflection flags gaps (respecting iteration cap)
-- [ ] **Task 3.19** — Enforce strict citation format `[source:publisher, page:N]` / `[tool:name, retrieved:date]` via prompt + post-processor
+- [x] **Task 3.17** — Implement `reflect` node checking coverage of sub-questions, citation presence, and gaps
+- [x] **Task 3.18** — Add loop-back edge feeding refined queries when reflection flags gaps (respecting iteration cap)
+- [x] **Task 3.19** — Enforce strict citation format `[source:publisher, page:N]` / `[tool:name, retrieved:date]` via prompt + post-processor
 
 ### Day 19 — Agent evaluation harness
 
-- [ ] **Task 3.20** — Author `data/eval/agent_queries.jsonl` with 30 complex multi-step queries annotated with expected tool calls and doc sources
-- [ ] **Task 3.21** — Implement `src/eval/agent_eval.py` measuring tool-call accuracy, trajectory efficiency, faithfulness (RAGAS), groundedness (% numeric claims cited)
-- [ ] **Task 3.22** — Run agent eval and save `results/agent_v1.json`
+- [x] **Task 3.20** — Author `data/eval/agent_queries.jsonl` with 30 complex multi-step queries annotated with expected tool calls and doc sources
+- [x] **Task 3.21** — Implement `src/eval/agent_eval.py` measuring tool-call accuracy, trajectory efficiency, faithfulness (RAGAS), groundedness (% numeric claims cited)
+- [x] **Task 3.22** — Run agent eval and save `results/agent_v1.json`
 
 ### Day 20 — Agent error analysis + iteration
 
-- [ ] **Task 3.23** — Analyze 15 agent failures; categorize (over-decomposition, tool confusion, citation drops)
-- [ ] **Task 3.24** — Fix top 2–3 issues via prompt tuning or graph restructuring; re-run eval to `results/agent_v2.json`
+- [x] **Task 3.23** — Analyze 15 agent failures; categorize (over-decomposition, tool confusion, citation drops)
+- [x] **Task 3.24** — Fix top 2–3 issues via prompt tuning or graph restructuring; re-run eval to `results/agent_v2.json` (PR #106)
 
 ### Day 21 — Buffer + blog
 
-- [ ] **Task 3.25** — Catch up on any slipped Week 3 tasks
-- [ ] **Task 3.26** — Write Week 3 agent section in `docs/blog_draft.md` with decomposition + reflection examples
+- [x] **Task 3.25** — Catch up on any slipped Week 3 tasks (hybrid retriever wired as agent default)
+- [x] **Task 3.26** — Write Week 3 agent section in `docs/blog_draft.md` with decomposition + reflection examples (now `docs/blog.md` Phase 3)
+- [x] **Task 3.27** — Agent v2: tighten reflect/synth prompts, drop `MAX_ITERATIONS` 4 → 2 (PR #106)
+- [x] **Task 3.28** — Agent v3 eval against hybrid retriever; route-conditional analysis (PR #112)
+- [x] **Task 3.29** — Agent v4: citation-adjacency rules + chunk cap with dedupe (PR #114)
+- [x] **Task 3.30** — Agent v5: compute-tool routing disambiguation + worked examples (PR #117)
 
 ---
 
@@ -162,31 +166,31 @@
 
 ### Day 22 — Persona UX
 
-- [ ] **Task 4.01** — Scaffold Streamlit app `src/app/streamlit_app.py` with persona selector (Homebuyer / Investor / Researcher / Just exploring)
-- [ ] **Task 4.02** — Wire persona into system prompt tone + retrieval weighting + tool-selection hints
-- [ ] **Task 4.03** — Render citations as clickable chips with sidebar source-excerpt panel
-- [ ] **Task 4.04** — Implement disambiguation flow for ambiguous place names (e.g., "Newtown")
+- [x] **Task 4.01** — Scaffold Streamlit app `src/app/streamlit_app.py` with persona selector (Homebuyer / Investor / Researcher / Just exploring)
+- [x] **Task 4.02** — Wire persona into system prompt tone + retrieval weighting + tool-selection hints
+- [x] **Task 4.03** — Render citations as clickable chips with sidebar source-excerpt panel
+- [x] **Task 4.04** — Implement disambiguation flow for ambiguous place names (e.g., "Newtown")
 
 ### Day 23 — Trace & transparency UI
 
-- [ ] **Task 4.05** — Add collapsible "Reasoning steps" panel showing sub-questions, tool calls, tool results
-- [ ] **Task 4.06** — Display top-K retrieved chunks with relevance scores in trace panel
+- [x] **Task 4.05** — Add collapsible "Reasoning steps" panel showing sub-questions, tool calls, tool results
+- [x] **Task 4.06** — Display top-K retrieved chunks with relevance scores in trace panel
 - [ ] **Task 4.07** — Embed `render_chart` PNGs inline with source caption underneath
-- [ ] **Task 4.08** — Add suggested follow-up question chips (3 per answer)
+- [x] **Task 4.08** — Add suggested follow-up question chips (3 per answer)
 
 ### Day 24 — Caching + cost optimization
 
-- [ ] **Task 4.09** — Implement disk-based embedding cache keyed on chunk hash
-- [ ] **Task 4.10** — Implement tool-result cache with TTL (24h for market data)
-- [ ] **Task 4.11** — Enable Anthropic prompt caching (`cache_control`) on system prompt + retrieved context
-- [ ] **Task 4.12** — Instrument cost-per-query logging and report before/after in `README.md`
+- [x] **Task 4.09** — Implement disk-based embedding cache keyed on chunk hash (`src/retrieval/embedding_cache.py`)
+- [x] **Task 4.10** — Implement tool-result cache with TTL (24h for market data, 7d for compute, 5min for charts)
+- [x] **Task 4.11** — Enable Anthropic prompt caching (`cache_control`) on system prompt + retrieved context
+- [x] **Task 4.12** — Instrument cost-per-query logging and report before/after in `README.md` (`src/agent/cost.py`)
 
 ### Day 25 — Deployment
 
-- [ ] **Task 4.13** — Write production `Dockerfile` bundling app + dependencies
-- [ ] **Task 4.14** — Provision Qdrant Cloud free tier; slim corpus if >1GB by keeping top-priority publishers only
-- [ ] **Task 4.15** — Deploy to Modal or HuggingFace Spaces with secrets configured
-- [ ] **Task 4.16** — Smoke-test public URL with 5 canonical queries across personas
+- [x] **Task 4.13** — Write production `Dockerfile` bundling app + dependencies (multi-stage; bm25.pkl + pre-warmed encoder cache baked in via PRs #121, #122)
+- [ ] **Task 4.14** — Provision Qdrant Cloud free tier; slim corpus if >1GB by keeping top-priority publishers only *(deploy-readiness audit + bm25.pkl bake done — PR #121; needs external signup)*
+- [ ] **Task 4.15** — Deploy to Modal or HuggingFace Spaces with secrets configured *(Dockerfile + encoder pre-warm ready — PR #122; needs external signup)*
+- [ ] **Task 4.16** — Smoke-test public URL with 5 canonical queries across personas *(`scripts/smoke_prod.py` + `scripts/deploy_check.sh` ready — PRs #123, #125; needs deployed URL)*
 
 ### Day 26 — Final eval report
 
@@ -195,13 +199,13 @@
 
 ### Day 27 — README polish
 
-- [ ] **Task 4.19** — Record UI demo GIF and add to README hero section
-- [ ] **Task 4.20** — Write problem statement, mermaid architecture diagram, quickstart (`docker compose up`), results table, tech choices in `README.md`
+- [ ] **Task 4.19** — Record UI demo GIF and add to README hero section *(README hero pre-staged with one-line swap-in — PR #127; needs recording)*
+- [x] **Task 4.20** — Write problem statement, architecture diagram, quickstart (`docker compose up`), results table, tech choices in `README.md` (uses `architecture.svg` rather than mermaid)
 
 ### Day 28 — Blog post finalization
 
-- [ ] **Task 4.21** — Consolidate `docs/blog_draft.md` into final post (problem → baseline → retrieval engineering → agent → eval → lessons)
-- [ ] **Task 4.22** — Publish to personal blog + cross-post (Medium, LinkedIn, r/LocalLLaMA, r/MachineLearning, r/AusFinance)
+- [x] **Task 4.21** — Consolidate `docs/blog_draft.md` into final post (now `docs/blog.md`; problem → baseline → retrieval engineering → agent → eval → lessons)
+- [ ] **Task 4.22** — Publish to personal blog + cross-post (Medium, LinkedIn, r/LocalLLaMA, r/MachineLearning, r/AusFinance) *(per-channel drafts ready in `docs/launch_posts.md` — PR #124; needs publishing + placeholders filled)*
 
 ### Day 29 — Demo video + social
 
@@ -210,14 +214,14 @@
 
 ### Day 30 — Buffer + retrospective
 
-- [ ] **Task 4.25** — Write private retrospective (what worked, cut, surprised)
+- [ ] **Task 4.25** — Write private retrospective (what worked, cut, surprised) *(skeleton in `docs/retrospective.md` — PR #126; needs filling in)*
 - [ ] **Task 4.26** — Clean up branches, tag `v1.0.0`, flip repo to public
 
 ---
 
 ## Cross-cutting / Ongoing
 
-- [ ] **Task X.01** — Maintain `progress.md` with status + notes per completed ticket
-- [ ] **Task X.02** — Keep `.env.example` in sync with any new secrets (ANTHROPIC_API_KEY, QDRANT_URL, etc.)
+- [x] **Task X.01** — Maintain `progress.md` with status + notes per completed ticket (most recent refresh: PR #120)
+- [x] **Task X.02** — Keep `.env.example` in sync with any new secrets (ANTHROPIC_API_KEY, QDRANT_URL, etc.)
 - [ ] **Task X.03** — Enforce persistent "not financial advice" disclaimer in system prompt (proportional by persona)
 - [ ] **Task X.04** — Guardrails: block financial-product recommendations (mortgage/insurance); log refusals
