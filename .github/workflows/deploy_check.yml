@@ -1,0 +1,60 @@
+name: deploy_check
+
+# Nightly health check (Task 4.16 follow-up): exercises the agent code
+# path end-to-end against the production Qdrant Cloud cluster. Catches:
+#   - Qdrant Cloud cluster going down or losing the collection
+#   - ANTHROPIC_API_KEY expiry / quota burn
+#   - Agent regressions that don't show up in unit tests
+#
+# This does NOT verify the deployed HF Space itself — that would be a
+# separate curl-the-Space-URL job. For now we trust the Space's own
+# Dockerfile HEALTHCHECK to catch its container-level failures, and use
+# this workflow to catch the upstream-data-plane failures the Space
+# can't detect (e.g. its Qdrant connection silently 401-ing).
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   QDRANT_URL          Qdrant Cloud cluster URL
+#   QDRANT_API_KEY      Qdrant Cloud API key
+#   ANTHROPIC_API_KEY   Anthropic console key
+#
+# Cost per run: ~$0.05 in Anthropic tokens (5 smoke queries) + a few
+# GHA minutes. Cheap enough to run nightly; expensive enough to not
+# run on every PR.
+
+on:
+  schedule:
+    # 03:00 UTC daily — well outside any sensible Australian work hours,
+    # so a failure paging the maintainer doesn't wake them up.
+    - cron: "0 3 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install runtime extras
+        # Same extras the agent needs at runtime — no `parse`, no `dev`.
+        # Keeps the install ~3 minutes instead of pulling docling/torch.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[agent,index,embed,tools,app,chunk]"
+
+      - name: Run deploy_check.sh
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: bash scripts/deploy_check.sh
