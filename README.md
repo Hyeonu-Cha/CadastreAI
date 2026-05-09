@@ -1,3 +1,21 @@
+<!--
+  HF Spaces frontmatter (Task 4.15 prep). Picked up automatically when this
+  repo is mirrored to a Docker-mode Space on huggingface.co/spaces. GitHub
+  hides this block from the rendered README. Three secrets need to be set
+  in the Space settings before the agent will run:
+      ANTHROPIC_API_KEY, QDRANT_URL, QDRANT_API_KEY
+-->
+---
+title: CadastreAI
+emoji: 🏠
+colorFrom: indigo
+colorTo: blue
+sdk: docker
+app_port: 8501
+pinned: false
+short_description: AI research agent for the Australian housing market
+---
+
 <div align="center">
   <img src="./logo.svg" alt="CadastreAI" width="400"/>
 
