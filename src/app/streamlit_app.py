@@ -159,7 +159,13 @@ def _render_citation_card(idx: int, citation: Citation, turn: TurnRecord) -> Non
         st.caption("No matching tool result — model may have overreached.")
         return
     result = env.get("result") or {}
-    if "data" in result:
+    data = result.get("data") if isinstance(result.get("data"), dict) else None
+    if data and data.get("mime_type") == "image/png" and data.get("png_base64"):
+        import base64
+
+        png_bytes = base64.b64decode(data["png_base64"])
+        st.image(png_bytes, caption=data.get("title"))
+    elif "data" in result:
         st.json(result["data"])
     if result.get("source"):
         st.caption(f"source: {result['source']}")
