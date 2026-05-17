@@ -111,21 +111,21 @@
 
 ### Day 15 — Tool implementations
 
-- [ ] **Task 3.01** — Implement `src/tools/rba_stats.py::rba_cash_rate(period)` pulling from RBA F1.1
-- [ ] **Task 3.02** — Extend `rba_stats.py` with `rba_mortgage_rates(period)` from F6
-- [ ] **Task 3.03** — Implement `src/tools/abs_stats.py::abs_property_price_index(capital_city, period)` (cat. 6432.0)
-- [ ] **Task 3.04** — Extend `abs_stats.py` with `abs_building_approvals(state, period)` (cat. 8731.0) and `abs_lending_indicators` (cat. 5601.0)
-- [ ] **Task 3.05** — Implement `src/tools/sqm.py::sqm_rental_vacancy(postcode_or_city)` via SQM chart-data scraping
-- [ ] **Task 3.06** — Implement `src/tools/chart.py::render_chart(series_dict, title)` producing base64 PNG via matplotlib
-- [ ] **Task 3.07** — Implement numeric helpers in `src/tools/compute.py`: `compute_rental_yield`, `compute_mortgage_repayment`, `compute_stamp_duty_nsw`
-- [ ] **Task 3.08** — Standardize all tool returns as `{data, source, retrieved_at, citation}` and define Pydantic schemas for each
+- [x] **Task 3.01** — Implement `src/tools/rba_stats.py::rba_cash_rate(period)` pulling from RBA F1.1
+- [x] **Task 3.02** — Extend `rba_stats.py` with `rba_mortgage_rates(period)` from F6
+- [x] **Task 3.03** — Implement `src/tools/abs_stats.py::abs_property_price_index(capital_city, period)` (cat. 6432.0)
+- [x] **Task 3.04** — Extend `abs_stats.py` with `abs_building_approvals(state, period)` (cat. 8731.0) and `abs_lending_indicators` (cat. 5601.0)
+- [x] **Task 3.05** — Implement `src/tools/sqm.py::sqm_rental_vacancy(postcode_or_city)` via SQM chart-data scraping
+- [x] **Task 3.06** — Implement `src/tools/chart.py::render_chart(series_dict, title)` producing base64 PNG via matplotlib
+- [x] **Task 3.07** — Implement numeric helpers in `src/tools/compute.py`: `compute_rental_yield`, `compute_mortgage_repayment`, `compute_stamp_duty_nsw`
+- [x] **Task 3.08** — Standardize all tool returns as `{data, source, retrieved_at, citation}` and define Pydantic schemas for each (`src/tools/schemas.py`)
 
 ### Day 16 — LangGraph agent skeleton
 
-- [ ] **Task 3.09** — Define agent state (`messages, query_type, sub_questions, retrieved_chunks, tool_results, answer_draft, reflection, iteration_count`) in `src/agent/graph.py`
-- [ ] **Task 3.10** — Implement node stubs in `src/agent/nodes.py`: `classify_query`, `decompose`, `retrieve_or_tool`, `reflect`, `synthesize`
-- [ ] **Task 3.11** — Wire LangGraph edges with conditional routing + `max_iterations=4` safety cap
-- [ ] **Task 3.12** — Smoke-test happy path on 3 queries and export graph diagram
+- [x] **Task 3.09** — Define agent state (`messages, query_type, sub_questions, retrieved_chunks, tool_results, answer_draft, reflection, iteration_count`) in `src/agent/graph.py`
+- [x] **Task 3.10** — Implement node stubs in `src/agent/nodes.py`: `classify_query`, `decompose`, `retrieve_or_tool`, `reflect`, `synthesize`
+- [x] **Task 3.11** — Wire LangGraph edges with conditional routing + `max_iterations=4` safety cap (later tightened to 2 in Task 3.27)
+- [x] **Task 3.12** — Smoke-test happy path on 3 queries and export graph diagram (`src/agent/smoke.py`)
 
 ### Day 17 — Query decomposition + routing
 
@@ -175,7 +175,7 @@
 
 - [x] **Task 4.05** — Add collapsible "Reasoning steps" panel showing sub-questions, tool calls, tool results
 - [x] **Task 4.06** — Display top-K retrieved chunks with relevance scores in trace panel
-- [ ] **Task 4.07** — Embed `render_chart` PNGs inline with source caption underneath
+- [x] **Task 4.07** — Embed `render_chart` PNGs inline with source caption underneath (`src/app/streamlit_app.py::_render_citation_card`, PR #131)
 - [x] **Task 4.08** — Add suggested follow-up question chips (3 per answer)
 
 ### Day 24 — Caching + cost optimization
