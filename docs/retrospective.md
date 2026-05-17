@@ -145,6 +145,24 @@ similar project. Write what you'd want to know.
 - {bullet}
 - {bullet}
 
+### Concrete v2 questions to answer (don't skip — this section
+is the most valuable for the next project and the easiest to skip)
+
+- Would I still pick BGE-base + BM25 + cross-encoder rerank, or
+  has a small reranker-free dense model overtaken it for my corpus
+  shape?
+- Would I keep LangGraph, switch to a managed-agent surface, or
+  hand-roll the agent loop with a thinner controller?
+- Streamlit vs. Next.js + a tiny FastAPI: did the demo benefit from
+  the Streamlit DX enough to justify it, or did I burn time fighting
+  layout?
+- Hybrid eval split design: would I still mix BM25-pooled + synthetic
+  queries, or commit to a single methodology even if it costs me
+  query count?
+- Would I run the fine-tune at all? — given that the dormant
+  ft+hybrid+rerank ablation was what made it worthwhile, and the
+  default-on retriever path didn't use it.
+
 ---
 
 ## Things I learned that aren't about this project
@@ -156,6 +174,11 @@ similar project. Write what you'd want to know.
 - **About agents:** {what}
 - **About evaluation:** {what}
 - **About shipping:** {what}
+- **About working with AI coding assistants:** {what} — this build
+  was done with Claude Code in the driver's seat for ~most of the
+  PRs. Where did delegating work well? Where did it produce code
+  I had to throw out? What did I learn about the boundary between
+  "describe outcome" and "specify the diff"?
 - **About my own working style:** {what}
 
 ---
