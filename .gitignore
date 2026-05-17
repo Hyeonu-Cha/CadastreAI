@@ -19,3 +19,18 @@ data/raw/
 data/processed/*
 !data/processed/.gitkeep
 data/cache/
+data/training/
+
+# Logs / scratch
+*.log
+.tmp_pytest/
+
+# Training artifacts (multi-GB checkpoints + fine-tuned weights live
+# outside the repo — models/bge-au-housing-v1 is rehydrated from HF or
+# the upstream training run, not committed)
+checkpoints/
+models/
+
+# Broken eval outputs (kept locally for debugging, never published)
+*.broken.json
+**/*.broken.*
