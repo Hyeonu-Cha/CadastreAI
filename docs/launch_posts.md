@@ -11,7 +11,6 @@ Replace these placeholders before posting:
 
 - `__DEMO_URL__` — the public Streamlit URL (post-Task 4.15)
 - `__LOOM_URL__` — the 3-min walkthrough Loom (post-Task 4.23)
-- `__YOUR_NAME__` — first-person attribution where the platform expects it
 - `#hashtag` lists are starting points, not gospel — strip ones that
   feel forced for your audience.
 
@@ -336,7 +335,13 @@ solicitor / financial adviser.
 
 - [ ] Replace `__DEMO_URL__` everywhere
 - [ ] Replace `__LOOM_URL__` in LinkedIn (or strip the line if no Loom yet)
-- [ ] Replace `__YOUR_NAME__` if you signed any of them personally
+- [ ] **Re-verify eval numbers against the README** — every R@K, MRR,
+      faithfulness, and tool-accuracy figure quoted in these drafts is
+      a snapshot. If a final re-run (Task 4.17/4.18) shifts a number,
+      update the post body before publishing. The split sizes
+      (synthetic-only n, pooled n) in particular have drifted between
+      docs in the past — spot-check both `README.md` (Results section)
+      and `data/eval/queries_synth.jsonl`'s line count before posting.
 - [ ] Sanity-check the GitHub URL renders + demo URL loads from
       a private window before posting
 - [ ] Post Reddit first (lowest stakes), Medium next, LinkedIn last
