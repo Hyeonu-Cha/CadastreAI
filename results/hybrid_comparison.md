@@ -7,9 +7,9 @@ Raw per-query numbers in `baseline.json` (dense), `bm25.json`, `hybrid.json`.
 
 The 100-query eval set has two groups with different provenance:
 
-- **59 BM25-annotated** queries (Tasks 1.24–1.27): human-picked gold
+- **60 BM25-annotated** queries (Tasks 1.24–1.27): human-picked gold
   from BM25 top-10 candidate lists.
-- **41 synthetic** queries (Task 1.28): each has a single gold chunk,
+- **40 synthetic** queries (Task 1.28): each has a single gold chunk,
   and the query was authored *for* that chunk, with no retriever
   involvement.
 

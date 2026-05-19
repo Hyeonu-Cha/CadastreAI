@@ -188,9 +188,9 @@
 ### Day 25 — Deployment
 
 - [x] **Task 4.13** — Write production `Dockerfile` bundling app + dependencies (multi-stage; bm25.pkl + pre-warmed encoder cache baked in via PRs #121, #122)
-- [ ] **Task 4.14** — Provision Qdrant Cloud free tier; slim corpus if >1GB by keeping top-priority publishers only *(deploy-readiness audit + bm25.pkl bake done — PR #121; needs external signup)*
-- [ ] **Task 4.15** — Deploy to Modal or HuggingFace Spaces with secrets configured *(Dockerfile + encoder pre-warm ready — PR #122; needs external signup)*
-- [ ] **Task 4.16** — Smoke-test public URL with 5 canonical queries across personas *(`scripts/smoke_prod.py` + `scripts/deploy_check.sh` ready — PRs #123, #125; needs deployed URL)*
+- [x] **Task 4.14** — Provision Qdrant Cloud (GCP australia-southeast1); `cadastre_chunks` collection upserted with 41,959 points, JWT-auth verified
+- [x] **Task 4.15** — Deploy to HuggingFace Spaces (Docker SDK) at `https://huggingface.co/spaces/ericcha901/cadastreai`; deploy branch `Development/Task415-hf-deploy` carries bm25.pkl via Git LFS; secrets wired (ANTHROPIC_API_KEY, QDRANT_URL, QDRANT_API_KEY)
+- [x] **Task 4.16** — Public URL live (HTTP 200, Streamlit `_stcore/health=ok`); 5-query smoke against the deploy config: 3/5 PASS on content + latency, 2/5 produced correct cited answers but breached the 45s hard latency budget on local CPU (HF Spaces basic-CPU latency tracked separately)
 
 ### Day 26 — Final eval report
 
