@@ -24,14 +24,14 @@ is operations.
 
 | Surface                             | Metric                       | Value         |
 |-------------------------------------|------------------------------|---------------|
-| Retrieval — honest split (n=40)     | Hybrid R@10                  | **0.878**     |
-| Retrieval — ft+hybrid+rerank n=100  | R@10                         | **0.770**     |
-| Agent eval v5 (n=30)                | Faithfulness (judge)         | **0.664**     |
-| Agent eval v5 (n=30)                | Publisher recall             | **0.825**     |
-| Agent eval v5 (n=30)                | Trajectory efficiency        | 0.719         |
-| Agent eval v4 → v5                  | Switched-cohort faith Δ      | **+0.110**    |
-| Codebase                            | Tests passing                | 397 / 27 files |
-| Codebase                            | Merged PRs on `main`         | 117           |
+| Retrieval — honest split (n=40)     | Hybrid R@10                  | **0.900**     |
+| Retrieval — hybrid + rerank (n=40)  | MRR@10                       | **0.697**     |
+| Agent eval v6 final (n=30)          | Tool-call accuracy           | **0.980**     |
+| Agent eval v6 final (n=30)          | Faithfulness (judge)         | **0.793**     |
+| Agent eval v6 final (n=30)          | Trajectory efficiency        | **0.811**     |
+| Agent eval v5 → v6                  | Faithfulness Δ               | **+0.129**    |
+| Codebase                            | Tests passing                | 401 / 28 files |
+| Codebase                            | Merged PRs on `main`         | 139           |
 
 ---
 
@@ -53,14 +53,17 @@ misleading.**
 
 | Configuration                       | R@5       | R@10      | MRR@10    | nDCG@10   |
 |-------------------------------------|-----------|-----------|-----------|-----------|
-| Dense (BAAI/bge-base-en-v1.5)       | 0.756     | 0.829     | 0.602     | 0.656     |
-| BM25 only                           | 0.585     | 0.780     | 0.452     | 0.528     |
-| **Hybrid (BM25 + Dense) + RRF**     | **0.805** | **0.878** | **0.640** | **0.698** |
+| Dense (BAAI/bge-base-en-v1.5)       | 0.750     | 0.825     | 0.592     | 0.648     |
+| BM25 only                           | 0.575     | 0.775     | 0.455     | 0.529     |
+| **Hybrid (BM25 + Dense) + RRF**     | 0.825     | **0.900** | 0.637     | 0.700     |
+| Hybrid + cross-encoder rerank       | **0.850** | 0.875     | **0.697** | **0.741** |
 
-Hybrid wins every metric. Dense was already strong here (BGE handles
-paraphrased semantic queries well); the +5 R@10 from RRF fusion comes
-from queries that hinge on rare domain tokens — *Division 43*, *FHG*,
-*NASHH*, *NFIP* — that BM25 nails but dense dilutes.
+Hybrid wins R@K outright. Adding the cross-encoder reranker trades 2.5
+points of R@10 (it can knock the 10th gold hit out of the top-10) for
+gains across R@5, MRR, and nDCG — it pulls the right answer *higher*
+in the list. RRF fusion picks up rare domain tokens — *Division 43*,
+*FHG*, *NASHH*, *NFIP* — that BM25 nails but dense dilutes. The agent
+ships with hybrid+rerank as the default retriever.
 
 ### 2b. Pooled (all 100, for reference only)
 

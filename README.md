@@ -92,14 +92,15 @@ The honest split tells a different story.
 
 | Configuration                  | Recall@5  | Recall@10 | MRR@10    | nDCG@10   |
 |--------------------------------|-----------|-----------|-----------|-----------|
-| Dense (BAAI/bge-base-en-v1.5)  | 0.756     | 0.829     | 0.602     | 0.656     |
-| BM25 only                      | 0.585     | 0.780     | 0.452     | 0.528     |
-| **Hybrid (BM25 + Dense) + RRF** | **0.805** | **0.878** | **0.640** | **0.698** |
+| Dense (BAAI/bge-base-en-v1.5)  | 0.750     | 0.825     | 0.592     | 0.648     |
+| BM25 only                      | 0.575     | 0.775     | 0.455     | 0.529     |
+| **Hybrid (BM25 + Dense) + RRF** | **0.825** | **0.900** | 0.637     | 0.700     |
+| Hybrid + cross-encoder rerank  | **0.850** | 0.875     | **0.697** | **0.741** |
 
-Hybrid wins every metric: +5 R@10 over dense, +10 R@10 over BM25. The
-RRF fusion picks up rare domain terms (Division 43, FHG, NASHH, NFIP)
-that BM25 nails but dense dilutes, while keeping dense's grasp on
-paraphrased queries.
+Hybrid wins R@K on its own; adding the cross-encoder reranker shifts
+the win from R@10 to MRR/nDCG (it pulls the right hit *higher*, even
+when the top-10 set itself is comparable). The agent ships with
+hybrid + rerank as the default retriever.
 
 **Pooled (all 100 queries, for reference):**
 
@@ -118,18 +119,19 @@ and [`results/ablation.md`](./results/ablation.md).
 
 ### Agent
 
-Agent eval over 30 queries with judge-graded faithfulness, five runs
+Agent eval over 30 queries with judge-graded faithfulness, six runs
 (`results/agent_v1_vs_v2.md`, `results/agent_v2_vs_v3.md`,
-`results/agent_v3_vs_v4.md`, `results/agent_v4_vs_v5.md`):
+`results/agent_v3_vs_v4.md`, `results/agent_v4_vs_v5.md`,
+`results/agent_v6_final.json`):
 
-| Metric                  | v1     | v2 (PR #106)  | v3 (PR #112)  | v4 (PR #114)  | v5 (PR #117)  |
-|-------------------------|--------|---------------|---------------|---------------|---------------|
-| tool_acc                | 0.894  | 0.919         | 0.925         | 0.917         | 0.913         |
-| tool_recall             | 0.956  | 0.978         | 0.944         | 0.944         | 0.956         |
-| trajectory_efficiency   | 0.299  | 0.672         | **0.722**     | 0.717         | 0.719         |
-| faithfulness (judge)    | 0.570  | 0.648         | 0.630         | 0.637         | **0.664**     |
-| publisher_recall        | 0.789  | 0.778         | 0.764         | 0.772         | **0.825**     |
-| groundedness (regex)    | 0.373  | 0.296         | 0.240         | **0.368**     | 0.316         |
+| Metric                  | v1     | v2     | v3     | v4     | v5     | **v6 final** |
+|-------------------------|--------|--------|--------|--------|--------|--------------|
+| tool_acc                | 0.894  | 0.919  | 0.925  | 0.917  | 0.913  | **0.980**    |
+| tool_recall             | 0.956  | 0.978  | 0.944  | 0.944  | 0.956  | **0.989**    |
+| trajectory_efficiency   | 0.299  | 0.672  | 0.722  | 0.717  | 0.719  | **0.811**    |
+| faithfulness (judge)    | 0.570  | 0.648  | 0.630  | 0.637  | 0.664  | **0.793**    |
+| publisher_recall        | 0.789  | 0.778  | 0.764  | 0.772  | **0.825** | 0.781    |
+| groundedness (regex)    | 0.373  | 0.296  | 0.240  | 0.368  | 0.316  | 0.124        |
 
 v2 dropped `MAX_ITERATIONS` 4 → 2 and tightened the reflect/synth
 prompts (+0.37 trajectory, +0.08 faith). v3 swapped the retriever to
@@ -149,11 +151,19 @@ tool_call_accuracy 0.25 → 1.00). The worked example also nudged 12
 queries from tool-only to doc-using; on that switched cohort
 faithfulness jumped +0.110 because the judge now sees doc-supported
 tool answers. Aggregate faithfulness +0.027, publisher_recall +0.053.
-The groundedness regex dip (-0.052) is the same regex/judge mismatch
-v4 fixed — surfaced again on a different cohort because more queries
-are now doc-using.
 
-See [`docs/blog.md`](./docs/blog.md) for the full write-up.
+**v6 (Task 4.17)** is the final-pass eval against the deployed config
+(Cloud Qdrant + Anthropic). Faithfulness +0.129 (0.664 → 0.793),
+trajectory efficiency +0.092, tool-call accuracy reached 0.980 with
+recall at 0.989. Publisher recall slipped 0.044 — fewer doc routes
+when tool answers were sufficient. The groundedness regex (0.124)
+reads low because it requires a citation literal within 50 characters
+of every numeric token; the judge-graded faithfulness (0.793) is the
+load-bearing number for whether the answer is actually supported.
+
+See [`docs/blog.md`](./docs/blog.md) for the full write-up and
+[`results/final_metrics.json`](./results/final_metrics.json) for the
+shipping numbers.
 
 ---
 

@@ -194,8 +194,8 @@
 
 ### Day 26 — Final eval report
 
-- [ ] **Task 4.17** — Run full eval suite on deployed pipeline (retrieval + agent + latency + cost)
-- [ ] **Task 4.18** — Produce headline results table (Baseline / +Hybrid+Rerank / +Fine-tuned / Full Agent) and save `results/final_metrics.json`
+- [x] **Task 4.17** — Final eval against deployed config: retrieval re-run on n=40 synth split (`results/synth_{dense,bm25,hybrid,hybrid_rerank}.json`) and agent v6 (n=30, judge on) at `results/agent_v6_final.json` — faithfulness 0.664 → 0.793, tool-call accuracy 0.913 → 0.980
+- [x] **Task 4.18** — Headline results table consolidated into `results/final_metrics.json`; README/`docs/report_v2.md` refreshed with current numbers
 
 ### Day 27 — README polish
 
