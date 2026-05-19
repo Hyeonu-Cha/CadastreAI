@@ -24,7 +24,7 @@ is operations.
 
 | Surface                             | Metric                       | Value         |
 |-------------------------------------|------------------------------|---------------|
-| Retrieval — honest split (n=41)     | Hybrid R@10                  | **0.878**     |
+| Retrieval — honest split (n=40)     | Hybrid R@10                  | **0.878**     |
 | Retrieval — ft+hybrid+rerank n=100  | R@10                         | **0.770**     |
 | Agent eval v5 (n=30)                | Faithfulness (judge)         | **0.664**     |
 | Agent eval v5 (n=30)                | Publisher recall             | **0.825**     |
@@ -41,15 +41,15 @@ The 100-query eval set has two groups with different provenance, and
 they tell opposite stories. **Reporting either one alone would be
 misleading.**
 
-- **59 BM25-annotated queries** (Tasks 1.24–1.27): gold chunks were
+- **60 BM25-annotated queries** (Tasks 1.24–1.27): gold chunks were
   picked by humans from BM25 top-10 candidate lists. Pure-BM25 metrics
   on this split are **circular by construction** — BM25 was the source
   of the candidates the annotators chose from.
-- **41 synthetic queries** (Task 1.28): each gold chunk came first,
+- **40 synthetic queries** (Task 1.28): each gold chunk came first,
   then the query was authored *for* that chunk with no retriever
   involvement. This is the honest head-to-head.
 
-### 2a. Honest split (41 synthetic queries, top-10)
+### 2a. Honest split (40 synthetic queries, top-10)
 
 | Configuration                       | R@5       | R@10      | MRR@10    | nDCG@10   |
 |-------------------------------------|-----------|-----------|-----------|-----------|
@@ -75,7 +75,7 @@ The earlier project narrative — "BM25 outperforms dense and hybrid out
 of the box" — was reading off this table without controlling for the
 circularity. It's left here so anyone tracking
 `results/{baseline,bm25,hybrid,reranked}.json` can reconcile the
-numbers, but **the honest 41 is what we believe and what the agent
+numbers, but **the honest 40 is what we believe and what the agent
 ships against.**
 
 ### 2c. The fine-tune A/B that didn't pan out

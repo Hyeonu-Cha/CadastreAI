@@ -77,10 +77,10 @@ CadastreAI answers questions about the Australian residential property market by
 
 The 100-query eval set has two groups with different provenance:
 
-- **59 BM25-annotated** queries (Tasks 1.24–1.27): gold chunks were
+- **60 BM25-annotated** queries (Tasks 1.24–1.27): gold chunks were
   picked by humans from BM25 top-10 candidate lists, so any pure-BM25
   metric on this split is **circular by construction**.
-- **41 synthetic** queries (Task 1.28): each gold chunk came first,
+- **40 synthetic** queries (Task 1.28): each gold chunk came first,
   the query was authored *for* that chunk with no retriever
   involvement. This is the honest head-to-head.
 
@@ -88,7 +88,7 @@ Reporting both splits matters: pooled numbers make BM25 look like the
 clear winner, but that's the BM25-annotated split inflating the mean.
 The honest split tells a different story.
 
-**Honest split (41 synthetic queries, top-10):**
+**Honest split (40 synthetic queries, top-10):**
 
 | Configuration                  | Recall@5  | Recall@10 | MRR@10    | nDCG@10   |
 |--------------------------------|-----------|-----------|-----------|-----------|
