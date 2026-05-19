@@ -1,0 +1,1126 @@
+{
+  "queries_path": "data\\eval\\queries_synth.jsonl",
+  "top_k": 10,
+  "retriever": {
+    "kind": "bm25",
+    "docs": 41959
+  },
+  "overall": {
+    "recall@5": 0.575,
+    "recall@10": 0.775,
+    "mrr@10": 0.4546428571428572,
+    "ndcg@10": 0.5287028314770159,
+    "n": 40
+  },
+  "latency": {
+    "mean_ms": 302.2401499999887,
+    "median_ms": 313.03010000010545,
+    "p95_ms": 371.54090000149154,
+    "max_ms": 433.6416000005556
+  },
+  "by_persona": {
+    "researcher": {
+      "recall@5": 0.6129032258064516,
+      "recall@10": 0.7741935483870968,
+      "mrr@10": 0.4605222734254993,
+      "ndcg@10": 0.533502521249998,
+      "n": 31
+    },
+    "investor": {
+      "recall@5": 0.4,
+      "recall@10": 0.6,
+      "mrr@10": 0.33333333333333337,
+      "ndcg@10": 0.39742738813589595,
+      "n": 5
+    },
+    "homebuyer": {
+      "recall@5": 0.5,
+      "recall@10": 1.0,
+      "mrr@10": 0.5607142857142857,
+      "ndcg@10": 0.6555995399128053,
+      "n": 4
+    }
+  },
+  "per_query": [
+    {
+      "query": "What structural factors does AHURI use to explain regional differences in homelessness entries and exits?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "ahuri/2015-00_entries-and-exits-from-homelessness-a-dynamic-analysis-of-the-relationship-betwe__0025"
+      ],
+      "retrieved_chunk_ids": [
+        "ahuri/2015-00_entries-and-exits-from-homelessness-a-dynamic-analysis-of-the-relationship-betwe__0009",
+        "ahuri/2015-00_entries-and-exits-from-homelessness-a-dynamic-analysis-of-the-relationship-betwe__0014",
+        "ahuri/2015-00_entries-and-exits-from-homelessness-a-dynamic-analysis-of-the-relationship-betwe__0034",
+        "ahuri/2015-00_entries-and-exits-from-homelessness-a-dynamic-analysis-of-the-relationship-betwe__0015",
+        "ahuri/2015-00_entries-and-exits-from-homelessness-a-dynamic-analysis-of-the-relationship-betwe__0000",
+        "ahuri/2015-00_entries-and-exits-from-homelessness-a-dynamic-analysis-of-the-relationship-betwe__0055",
+        "ahuri/2015-00_entries-and-exits-from-homelessness-a-dynamic-analysis-of-the-relationship-betwe__0049",
+        "ahuri/2015-00_entries-and-exits-from-homelessness-a-dynamic-analysis-of-the-relationship-betwe__0005",
+        "ahuri/2015-00_entries-and-exits-from-homelessness-a-dynamic-analysis-of-the-relationship-betwe__0006",
+        "ahuri/2015-00_entries-and-exits-from-homelessness-a-dynamic-analysis-of-the-relationship-betwe__0010"
+      ],
+      "gold_ranks": {
+        "ahuri/2015-00_entries-and-exits-from-homelessness-a-dynamic-analysis-of-the-relationship-betwe__0025": null
+      },
+      "recall@5": 0.0,
+      "recall@10": 0.0,
+      "mrr@10": 0.0,
+      "ndcg@10": 0.0,
+      "latency_ms": 301.5543000001344
+    },
+    {
+      "query": "What supports do crisis accommodation services need to help clients with mental health and substance use needs?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "ahuri/2023-00_crisis-accommodation-in-australia-now-and-for-the-future__0015"
+      ],
+      "retrieved_chunk_ids": [
+        "ahuri/2023-00_crisis-accommodation-in-australia-now-and-for-the-future__0088",
+        "ahuri/2021-00_leaving-rehab-enhancing-transitions-into-stable-housing__0139",
+        "ahuri/2022-00_inquiry-enhancing-the-coordination-of-housing-supports-for-individuals-leaving-i__0031",
+        "ahuri/2022-00_inquiry-enhancing-the-coordination-of-housing-supports-for-individuals-leaving-i__0030",
+        "ahuri/2023-00_crisis-accommodation-in-australia-now-and-for-the-future__0015",
+        "ahuri/2021-00_leaving-rehab-enhancing-transitions-into-stable-housing__0077",
+        "ahuri/2021-00_leaving-rehab-enhancing-transitions-into-stable-housing__0078",
+        "ahuri/2021-00_leaving-rehab-enhancing-transitions-into-stable-housing__0094",
+        "ahuri/2021-00_leaving-rehab-enhancing-transitions-into-stable-housing__0010",
+        "ahuri/2021-00_leaving-rehab-enhancing-transitions-into-stable-housing__0119"
+      ],
+      "gold_ranks": {
+        "ahuri/2023-00_crisis-accommodation-in-australia-now-and-for-the-future__0015": 5
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.2,
+      "ndcg@10": 0.38685280723454163,
+      "latency_ms": 355.1741999999649
+    },
+    {
+      "query": "Does community opposition to affordable housing developments fade after projects are completed?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "ahuri/2013-00_understanding-and-addressing-community-opposition-to-affordable-housing-developm__0011"
+      ],
+      "retrieved_chunk_ids": [
+        "ahuri/2013-00_understanding-and-addressing-community-opposition-to-affordable-housing-developm__0171",
+        "ahuri/2013-00_understanding-and-addressing-community-opposition-to-affordable-housing-developm__0082",
+        "ahuri/2013-00_understanding-and-addressing-community-opposition-to-affordable-housing-developm__0039",
+        "ahuri/2013-00_understanding-and-addressing-community-opposition-to-affordable-housing-developm__0144",
+        "ahuri/2013-00_understanding-and-addressing-community-opposition-to-affordable-housing-developm__0173",
+        "ahuri/2013-00_understanding-and-addressing-community-opposition-to-affordable-housing-developm__0055",
+        "ahuri/2013-00_understanding-and-addressing-community-opposition-to-affordable-housing-developm__0166",
+        "ahuri/2013-00_understanding-and-addressing-community-opposition-to-affordable-housing-developm__0009",
+        "ahuri/2013-00_understanding-and-addressing-community-opposition-to-affordable-housing-developm__0034",
+        "ahuri/2013-00_understanding-and-addressing-community-opposition-to-affordable-housing-developm__0011"
+      ],
+      "gold_ranks": {
+        "ahuri/2013-00_understanding-and-addressing-community-opposition-to-affordable-housing-developm__0011": 10
+      },
+      "recall@5": 0.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.1,
+      "ndcg@10": 0.2890648263178879,
+      "latency_ms": 210.21990000008373
+    },
+    {
+      "query": "Does retaining transfer duty alongside a broad-based land tax help dampen speculation on investment properties?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "ahuri/2017-00_pathways-to-state-property-tax-reform__0099"
+      ],
+      "retrieved_chunk_ids": [
+        "ahuri/2017-00_pathways-to-state-property-tax-reform__0099",
+        "ahuri/2017-00_pathways-to-state-property-tax-reform__0098",
+        "ahuri/2017-00_pathways-to-state-property-tax-reform__0047",
+        "ahuri/2017-00_pathways-to-state-property-tax-reform__0049",
+        "ahuri/2017-00_pathways-to-state-property-tax-reform__0048",
+        "ahuri/2017-00_pathways-to-state-property-tax-reform__0021",
+        "ahuri/2017-00_pathways-to-state-property-tax-reform__0097",
+        "ahuri/2018-00_pathways-to-housing-tax-reform__0057",
+        "ahuri/2017-00_pathways-to-state-property-tax-reform__0032",
+        "ahuri/2017-00_pathways-to-state-property-tax-reform__0086"
+      ],
+      "gold_ranks": {
+        "ahuri/2017-00_pathways-to-state-property-tax-reform__0099": 1
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0,
+      "latency_ms": 361.39430000002903
+    },
+    {
+      "query": "How do dwelling density and social housing concentration affect safety satisfaction for social renters versus private renters?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "ahuri/2014-00_wellbeing-outcomes-of-lower-income-renters-a-multilevel-analysis-of-area-effects__0079"
+      ],
+      "retrieved_chunk_ids": [
+        "ahuri/2014-00_wellbeing-outcomes-of-lower-income-renters-a-multilevel-analysis-of-area-effects__0077",
+        "ahuri/2014-00_wellbeing-outcomes-of-lower-income-renters-a-multilevel-analysis-of-area-effects__0010",
+        "ahuri/2014-00_wellbeing-outcomes-of-lower-income-renters-a-multilevel-analysis-of-area-effects__0104",
+        "ahuri/2014-00_wellbeing-outcomes-of-lower-income-renters-a-multilevel-analysis-of-area-effects__0102",
+        "ahuri/2014-00_wellbeing-outcomes-of-lower-income-renters-a-multilevel-analysis-of-area-effects__0056",
+        "ahuri/2014-00_wellbeing-outcomes-of-lower-income-renters-a-multilevel-analysis-of-area-effects__0078",
+        "ahuri/2014-00_wellbeing-outcomes-of-lower-income-renters-a-multilevel-analysis-of-area-effects__0049",
+        "ahuri/2014-00_wellbeing-outcomes-of-lower-income-renters-a-multilevel-analysis-of-area-effects__0009",
+        "ahuri/2014-00_wellbeing-outcomes-of-lower-income-renters-a-multilevel-analysis-of-area-effects__0136",
+        "ahuri/2014-00_wellbeing-outcomes-of-lower-income-renters-a-multilevel-analysis-of-area-effects__0079"
+      ],
+      "gold_ranks": {
+        "ahuri/2014-00_wellbeing-outcomes-of-lower-income-renters-a-multilevel-analysis-of-area-effects__0079": 10
+      },
+      "recall@5": 0.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.1,
+      "ndcg@10": 0.2890648263178879,
+      "latency_ms": 359.46660000081465
+    },
+    {
+      "query": "Where should new affordable rental housing be targeted in Sydney and Melbourne to support access to employment?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "ahuri/2021-00_urban-productivity-and-affordable-rental-housing-supply-in-australian-cities-and__0082"
+      ],
+      "retrieved_chunk_ids": [
+        "ahuri/2020-00_strategic-planning-city-deals-and-affordable-housing__0004",
+        "ahuri/2021-00_urban-productivity-and-affordable-rental-housing-supply-in-australian-cities-and__0082",
+        "ahuri/2021-00_urban-productivity-and-affordable-rental-housing-supply-in-australian-cities-and__0060",
+        "ahuri/2020-00_commuting-burden-and-housing-affordability-for-low-income-renters__0008",
+        "ahuri/2021-00_urban-productivity-and-affordable-rental-housing-supply-in-australian-cities-and__0044",
+        "ahuri/2020-00_strategic-planning-city-deals-and-affordable-housing__0005",
+        "ahuri/2019-00_the-supply-of-affordable-private-rental-housing-in-australian-cities-short-term__0078",
+        "ahuri/2021-00_urban-productivity-and-affordable-rental-housing-supply-in-australian-cities-and__0066",
+        "ahuri/2020-00_strategic-planning-city-deals-and-affordable-housing__0009",
+        "ahuri/2021-00_urban-productivity-and-affordable-rental-housing-supply-in-australian-cities-and__0051"
+      ],
+      "gold_ranks": {
+        "ahuri/2021-00_urban-productivity-and-affordable-rental-housing-supply-in-australian-cities-and__0082": 2
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.5,
+      "ndcg@10": 0.6309297535714575,
+      "latency_ms": 275.9710999998788
+    },
+    {
+      "query": "What gaps exist in transdisciplinary frameworks for assistive technology in ageing and disability housing?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "ahuri/2021-00_impacts-of-new-and-emerging-assistive-technologies-for-ageing-and-disabled-housi__0038"
+      ],
+      "retrieved_chunk_ids": [
+        "ahuri/2021-00_impacts-of-new-and-emerging-assistive-technologies-for-ageing-and-disabled-housi__0038",
+        "ahuri/2021-00_impacts-of-new-and-emerging-assistive-technologies-for-ageing-and-disabled-housi__0037",
+        "ahuri/2021-00_impacts-of-new-and-emerging-assistive-technologies-for-ageing-and-disabled-housi__0007",
+        "ahuri/2021-00_impacts-of-new-and-emerging-assistive-technologies-for-ageing-and-disabled-housi__0031",
+        "ahuri/2021-00_impacts-of-new-and-emerging-assistive-technologies-for-ageing-and-disabled-housi__0023",
+        "ahuri/2021-00_impacts-of-new-and-emerging-assistive-technologies-for-ageing-and-disabled-housi__0129",
+        "ahuri/2021-00_impacts-of-new-and-emerging-assistive-technologies-for-ageing-and-disabled-housi__0013",
+        "ahuri/2021-00_impacts-of-new-and-emerging-assistive-technologies-for-ageing-and-disabled-housi__0115",
+        "ahuri/2021-00_impacts-of-new-and-emerging-assistive-technologies-for-ageing-and-disabled-housi__0154",
+        "ahuri/2021-00_impacts-of-new-and-emerging-assistive-technologies-for-ageing-and-disabled-housi__0033"
+      ],
+      "gold_ranks": {
+        "ahuri/2021-00_impacts-of-new-and-emerging-assistive-technologies-for-ageing-and-disabled-housi__0038": 1
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0,
+      "latency_ms": 236.98530000001483
+    },
+    {
+      "query": "How does AHURI structure HILDA person-wave data in its econometric model of residential mobility decisions?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "ahuri/2021-00_population-growth-and-mobility-in-australia-implications-for-housing-and-urban-d__0061"
+      ],
+      "retrieved_chunk_ids": [
+        "ahuri/2021-00_population-growth-and-mobility-in-australia-implications-for-housing-and-urban-d__0061",
+        "ahuri/2021-00_population-growth-and-mobility-in-australia-implications-for-housing-and-urban-d__0060",
+        "ahuri/2017-00_inquiry-into-housing-policies-labour-force-participation-and-economic-growth__0031",
+        "ahuri/2025-00_understanding-contemporary-demographic-and-economic-drivers-of-household-mobilit__0105",
+        "ahuri/2019-00_moving-downsizing-and-housing-equity-consumption-choices-of-older-australians__0074",
+        "ahuri/2025-00_understanding-contemporary-demographic-and-economic-drivers-of-household-mobilit__0101",
+        "ahuri/2013-00_housing-and-social-inclusion-a-household-and-local-area-analysis__0094",
+        "ahuri/2017-00_housing-tenure-mobility-and-labour-market-behaviour__0080",
+        "ahuri/2019-00_moving-downsizing-and-housing-equity-consumption-choices-of-older-australians__0068",
+        "ahuri/2017-00_housing-tenure-mobility-and-labour-market-behaviour__0079"
+      ],
+      "gold_ranks": {
+        "ahuri/2021-00_population-growth-and-mobility-in-australia-implications-for-housing-and-urban-d__0061": 1
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0,
+      "latency_ms": 331.71149999907357
+    },
+    {
+      "query": "How does structural violence manifest in the emotional experience of people with lived experience of homelessness?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "ahuri/2024-00_lived-experience-participation-and-influence-in-homelessness-and-housing-policy__0039"
+      ],
+      "retrieved_chunk_ids": [
+        "ahuri/2024-00_lived-experience-participation-and-influence-in-homelessness-and-housing-policy__0008",
+        "ahuri/2024-00_lived-experience-participation-and-influence-in-homelessness-and-housing-policy__0050",
+        "ahuri/2024-00_lived-experience-participation-and-influence-in-homelessness-and-housing-policy__0038",
+        "ahuri/2024-00_lived-experience-participation-and-influence-in-homelessness-and-housing-policy__0049",
+        "ahuri/2024-00_lived-experience-participation-and-influence-in-homelessness-and-housing-policy__0040",
+        "ahuri/2024-00_lived-experience-participation-and-influence-in-homelessness-and-housing-policy__0039",
+        "ahuri/2024-00_lived-experience-participation-and-influence-in-homelessness-and-housing-policy__0056",
+        "ahuri/2022-00_urban-indigenous-homelessness-much-more-than-housing__0150",
+        "ahuri/2024-00_lived-experience-participation-and-influence-in-homelessness-and-housing-policy__0042",
+        "ahuri/2024-00_lived-experience-participation-and-influence-in-homelessness-and-housing-policy__0036"
+      ],
+      "gold_ranks": {
+        "ahuri/2024-00_lived-experience-participation-and-influence-in-homelessness-and-housing-policy__0039": 6
+      },
+      "recall@5": 0.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.16666666666666666,
+      "ndcg@10": 0.3562071871080222,
+      "latency_ms": 267.6202000002377
+    },
+    {
+      "query": "Why has private rental subsidy become the preferred housing assistance policy for vulnerable Australian families?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "ahuri/2020-00_inquiry-into-integrated-housing-support-for-vulnerable-families__0038"
+      ],
+      "retrieved_chunk_ids": [
+        "ahuri/2020-00_inquiry-into-integrated-housing-support-for-vulnerable-families__0038",
+        "ahuri/2025-00_the-impact-of-commonwealth-rent-assistance-on-low-income-privately-renting-paren__0022",
+        "productivity-commission/unknown_renters__0003",
+        "productivity-commission/unknown_public-housing__0076",
+        "ahuri/2020-00_inquiry-into-integrated-housing-support-for-vulnerable-families__0025",
+        "ahuri/2020-00_inquiry-into-integrated-housing-support-for-vulnerable-families__0019",
+        "ahuri/2018-00_matching-markets-in-housing-and-housing-assistance__0065",
+        "ahuri/2015-00_strategies-of-australias-leading-not-for-profit-housing-providers-a-national-stu__0041",
+        "ahuri/2016-00_the-role-of-private-rental-brokerage-in-housing-outcomes-for-vulnerable-australi__0137",
+        "ahuri/2020-00_supporting-families-effectively-through-the-homelessness-services-system__0049"
+      ],
+      "gold_ranks": {
+        "ahuri/2020-00_inquiry-into-integrated-housing-support-for-vulnerable-families__0038": 1
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0,
+      "latency_ms": 274.3601000001945
+    },
+    {
+      "query": "What makes private rental brokerage programs successful at placing 'rental ready' clients into tenancies?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "ahuri/2016-00_the-role-of-private-rental-brokerage-in-housing-outcomes-for-vulnerable-australi__0008"
+      ],
+      "retrieved_chunk_ids": [
+        "ahuri/2016-00_the-role-of-private-rental-brokerage-in-housing-outcomes-for-vulnerable-australi__0008",
+        "ahuri/2016-00_the-role-of-private-rental-brokerage-in-housing-outcomes-for-vulnerable-australi__0007",
+        "ahuri/2016-00_the-role-of-private-rental-brokerage-in-housing-outcomes-for-vulnerable-australi__0103",
+        "ahuri/2016-00_the-role-of-private-rental-brokerage-in-housing-outcomes-for-vulnerable-australi__0011",
+        "ahuri/2016-00_the-role-of-private-rental-brokerage-in-housing-outcomes-for-vulnerable-australi__0112",
+        "ahuri/2016-00_the-role-of-private-rental-brokerage-in-housing-outcomes-for-vulnerable-australi__0012",
+        "ahuri/2016-00_the-role-of-private-rental-brokerage-in-housing-outcomes-for-vulnerable-australi__0015",
+        "ahuri/2016-00_the-role-of-private-rental-brokerage-in-housing-outcomes-for-vulnerable-australi__0075",
+        "ahuri/2016-00_the-role-of-private-rental-brokerage-in-housing-outcomes-for-vulnerable-australi__0105",
+        "ahuri/2016-00_the-role-of-private-rental-brokerage-in-housing-outcomes-for-vulnerable-australi__0014"
+      ],
+      "gold_ranks": {
+        "ahuri/2016-00_the-role-of-private-rental-brokerage-in-housing-outcomes-for-vulnerable-australi__0008": 1
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0,
+      "latency_ms": 318.0738000010024
+    },
+    {
+      "query": "Why do ABS Census counts underestimate the number of insecurely housed older Australians?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "ahuri/2014-00_preventing-first-time-homelessness-amongst-older-australians__0034"
+      ],
+      "retrieved_chunk_ids": [
+        "ahuri/2014-00_preventing-first-time-homelessness-amongst-older-australians__0033",
+        "ahuri/2014-00_preventing-first-time-homelessness-amongst-older-australians__0034",
+        "ahuri/2019-00_an-effective-homelessness-services-system-for-older-australians__0017",
+        "productivity-commission/unknown_affordable-housing__0210",
+        "productivity-commission/unknown_renters__0029",
+        "ahuri/2015-00_the-structural-drivers-of-homelessness-in-australia-200111__0030",
+        "ahuri/2024-00_indigenous-mobility-and-its-impact-on-remote-infrastructural-needs-an-explorator__0095",
+        "ahuri/2014-00_the-spatial-dynamics-of-homelessness-in-australia-20012011__0034",
+        "ahuri/2023-00_mapping-australias-older-low-income-renters__0024",
+        "ahuri/2023-00_mapping-australias-older-low-income-renters__0017"
+      ],
+      "gold_ranks": {
+        "ahuri/2014-00_preventing-first-time-homelessness-amongst-older-australians__0034": 2
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.5,
+      "ndcg@10": 0.6309297535714575,
+      "latency_ms": 286.8189999990136
+    },
+    {
+      "query": "What cultural failures did APRA's Prudential Inquiry into Commonwealth Bank identify in the bank's risk management?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "rba/2018-00_download_7401382b__0011"
+      ],
+      "retrieved_chunk_ids": [
+        "rba/2019-00_download_1b2a77f5__0003",
+        "rba/2019-00_financial-stability-review-2019-10pdf__0079",
+        "rba/2018-00_download_7401382b__0010",
+        "rba/2018-00_financial-stability-review-2018-10pdf__0060",
+        "apra/unknown_apra-sets-out-stronger-more-transparent-approach-to-regulating-and__0002",
+        "apra/unknown_opening-statement-to-house-of-representatives-standing-committee-on-1__0002",
+        "apra/unknown_apra-sets-out-stronger-more-transparent-approach-to-regulating-and__0006",
+        "apra/unknown_opening-statement-to-house-of-representatives-standing-committee-on-1__0006",
+        "apra/unknown_opening-statement-to-house-of-representatives-standing-committee-on-0__0000",
+        "rba/2014-00_download_caf3411d__0011"
+      ],
+      "gold_ranks": {
+        "rba/2018-00_download_7401382b__0011": null
+      },
+      "recall@5": 0.0,
+      "recall@10": 0.0,
+      "mrr@10": 0.0,
+      "ndcg@10": 0.0,
+      "latency_ms": 385.18329999897105
+    },
+    {
+      "query": "How did the Australian low-doc loan market grow and what lenders entered it in the early 2000s?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "rba/2005-00_review_539b9dff__0049"
+      ],
+      "retrieved_chunk_ids": [
+        "rba/2005-00_review_539b9dff__0049",
+        "rba/2005-00_download_407d290a__0000",
+        "rba/2007-00_review_5a7b01a9__0039",
+        "rba/2005-00_review_539b9dff__0048",
+        "rba/2005-00_review_e84c9614__0035",
+        "rba/2005-00_review_539b9dff__0050",
+        "rba/2005-00_download_407d290a__0001",
+        "rba/2006-00_review_32a94914__0038",
+        "rba/2008-00_review_321af353__0061",
+        "rba/2006-00_review_32a94914__0033"
+      ],
+      "gold_ranks": {
+        "rba/2005-00_review_539b9dff__0049": 1
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0,
+      "latency_ms": 274.3372000004456
+    },
+    {
+      "query": "In the RBA's 2015 financial stability review, how do risks from commercial property compare with those from other non-financial businesses?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "rba/2015-00_review_ec5db784__0037"
+      ],
+      "retrieved_chunk_ids": [
+        "rba/2025-00_download-pdf_79e8fc1f__0022",
+        "rba/2024-00_download-pdf_fb6a2f5e__0043",
+        "rba/2024-00_download-pdf_fb6a2f5e__0044",
+        "rba/2023-00_download-pdf__0016",
+        "rba/2024-00_download-pdf_53cc13b0__0045",
+        "rba/2026-00_download-pdf__0051",
+        "rba/2025-00_download-pdf_de1b1545__0000",
+        "rba/2024-00_download-pdf_53cc13b0__0033",
+        "rba/2024-00_download-pdf_53cc13b0__0015",
+        "rba/2015-00_review_ec5db784__0041"
+      ],
+      "gold_ranks": {
+        "rba/2015-00_review_ec5db784__0037": null
+      },
+      "recall@5": 0.0,
+      "recall@10": 0.0,
+      "mrr@10": 0.0,
+      "ndcg@10": 0.0,
+      "latency_ms": 371.54090000149154
+    },
+    {
+      "query": "How did Australian lenders change pricing and non-price conditions on investor and interest-only mortgages through 2015?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "rba/2016-00_review_52e05e7b__0044"
+      ],
+      "retrieved_chunk_ids": [
+        "rba/2016-00_download_35468a89__0001",
+        "rba/2016-00_review_52e05e7b__0043",
+        "rba/2018-00_download_52d86ff4__0003",
+        "rba/2018-00_financial-stability-review-2018-10pdf__0093",
+        "rba/2015-00_review_ec5db784__0048",
+        "rba/2016-00_download_35468a89__0002",
+        "rba/2016-00_review_52e05e7b__0044",
+        "rba/2018-00_download_52d86ff4__0005",
+        "rba/2018-00_financial-stability-review-2018-10pdf__0095",
+        "rba/2015-00_download_cb443d6a__0004"
+      ],
+      "gold_ranks": {
+        "rba/2016-00_review_52e05e7b__0044": 7
+      },
+      "recall@5": 0.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.14285714285714285,
+      "ndcg@10": 0.3333333333333333,
+      "latency_ms": 340.23940000042785
+    },
+    {
+      "query": "How did arrears and charge-off rates on US bank commercial real estate loans evolve in the first half of 2023?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "rba/2023-00_financial-stability-risks-from-commercial-real-estate__0006"
+      ],
+      "retrieved_chunk_ids": [
+        "rba/2023-00_financial-stability-risks-from-commercial-real-estate__0005",
+        "rba/2008-00_review_321af353__0007",
+        "rba/2023-00_financial-stability-risks-from-commercial-real-estate__0007",
+        "rba/2009-00_review_e7621546__0006",
+        "rba/2024-00_download-pdf_53cc13b0__0012",
+        "rba/2023-00_financial-stability-risks-from-commercial-real-estate__0006",
+        "rba/2010-00_download_c5953cd0__0006",
+        "rba/2010-00_review_366dbe52__0009",
+        "rba/2010-00_download_35111dc0__0013",
+        "rba/2010-00_review_17106729__0016"
+      ],
+      "gold_ranks": {
+        "rba/2023-00_financial-stability-risks-from-commercial-real-estate__0006": 6
+      },
+      "recall@5": 0.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.16666666666666666,
+      "ndcg@10": 0.3562071871080222,
+      "latency_ms": 350.83379999923636
+    },
+    {
+      "query": "Who absorbs losses on prime loans in Australian residential mortgage-backed securities (RMBS)?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "rba/2004-00_download_81fbd111__0006"
+      ],
+      "retrieved_chunk_ids": [
+        "rba/2007-00_review_4372e45a__0004",
+        "rba/2004-00_download_81fbd111__0005",
+        "rba/2004-00_review_aa9350ae__0066",
+        "rba/2006-00_review_32a94914__0081",
+        "rba/2006-00_review_32a94914__0080",
+        "rba/2007-00_download_017c5ea4__0002",
+        "rba/2007-00_review_5a7b01a9__0028",
+        "rba/2007-00_review_4372e45a__0039",
+        "rba/2007-00_review_4372e45a__0005",
+        "rba/2006-00_review_32a94914__0078"
+      ],
+      "gold_ranks": {
+        "rba/2004-00_download_81fbd111__0006": null
+      },
+      "recall@5": 0.0,
+      "recall@10": 0.0,
+      "mrr@10": 0.0,
+      "ndcg@10": 0.0,
+      "latency_ms": 270.75690000128816
+    },
+    {
+      "query": "Which research on rent-setting systems and poverty traps did the 1993 Industry Commission public housing inquiry cite?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "productivity-commission/unknown_public-housing__0185"
+      ],
+      "retrieved_chunk_ids": [
+        "productivity-commission/unknown_public-housing__0427",
+        "productivity-commission/unknown_public-housing__0184",
+        "productivity-commission/unknown_public-housing__0561",
+        "productivity-commission/unknown_public-housing__0185",
+        "productivity-commission/unknown_public-housing__0124",
+        "productivity-commission/unknown_public-housing__0535",
+        "productivity-commission/unknown_public-housing__0026",
+        "productivity-commission/unknown_public-housing__0014",
+        "productivity-commission/unknown_public-housing__0121",
+        "productivity-commission/unknown_public-housing__0169"
+      ],
+      "gold_ranks": {
+        "productivity-commission/unknown_public-housing__0185": 4
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.25,
+      "ndcg@10": 0.43067655807339306,
+      "latency_ms": 360.8858000006876
+    },
+    {
+      "query": "How does client mix affect the equity, effectiveness and efficiency of social housing services in the Report on Government Services?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "productivity-commission/unknown_housing_f0804343__0007"
+      ],
+      "retrieved_chunk_ids": [
+        "productivity-commission/unknown_housing_f0804343__0006",
+        "ahuri/2016-00_individualised-housing-assistance-findings-and-policy-options__0024",
+        "productivity-commission/unknown_public-housing__0387",
+        "productivity-commission/unknown_public-housing__0133",
+        "ahuri/2018-00_social-housing-as-infrastructure-an-investment-pathway__0029",
+        "ahuri/2013-00_how-integrated-are-homelessness-mental-health-and-drug-and-alcohol-services-in-a__0018",
+        "ahuri/2013-00_how-integrated-are-homelessness-mental-health-and-drug-and-alcohol-services-in-a__0029",
+        "ahuri/2013-00_the-cost-of-homelessness-and-the-net-benefit-of-homelessness-programs-a-national_b82c22b5__0029",
+        "ahuri/2013-00_the-cost-of-homelessness-and-the-net-benefit-of-homelessness-programs-a-national_f86a5079__0017",
+        "ahuri/2015-00_the-cost-effectiveness-of-australian-tenancy-support-programs-for-formerly-homel__0013"
+      ],
+      "gold_ranks": {
+        "productivity-commission/unknown_housing_f0804343__0007": null
+      },
+      "recall@5": 0.0,
+      "recall@10": 0.0,
+      "mrr@10": 0.0,
+      "ndcg@10": 0.0,
+      "latency_ms": 338.6817999999039
+    },
+    {
+      "query": "What benefits have past reviews attributed to Australia's single national construction code (NCC)?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "productivity-commission/unknown_housing-construction__0056"
+      ],
+      "retrieved_chunk_ids": [
+        "productivity-commission/unknown_housing-construction__0056",
+        "productivity-commission/unknown_housing-construction__0060",
+        "productivity-commission/unknown_housing-construction__0055",
+        "productivity-commission/unknown_housing-construction__0038",
+        "ahuri/2024-00_a-national-roadmap-for-improving-the-building-quality-of-australian-housing-stoc__0055",
+        "productivity-commission/unknown_housing-construction__0006",
+        "productivity-commission/unknown_housing-construction__0058",
+        "ahuri/2023-00_delivering-sustainable-apartment-housing-new-build-and-retrofit__0077",
+        "ahuri/2024-00_a-national-roadmap-for-improving-the-building-quality-of-australian-housing-stoc__0056",
+        "ahuri/2024-00_a-national-roadmap-for-improving-the-building-quality-of-australian-housing-stoc__0007"
+      ],
+      "gold_ranks": {
+        "productivity-commission/unknown_housing-construction__0056": 1
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0,
+      "latency_ms": 305.20270000124583
+    },
+    {
+      "query": "Should public housing agencies compete with the private sector in upper-market residential land development?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "productivity-commission/unknown_public-housing__0238"
+      ],
+      "retrieved_chunk_ids": [
+        "productivity-commission/unknown_public-housing__0238",
+        "productivity-commission/unknown_land-management__0204",
+        "ahuri/2020-00_improving-outcomes-for-apartment-residents-and-neighbourhoods__0071",
+        "ahuri/2020-00_improving-outcomes-for-apartment-residents-and-neighbourhoods__0072",
+        "ahuri/2020-00_improving-outcomes-for-apartment-residents-and-neighbourhoods__0063",
+        "ahuri/2020-00_improving-outcomes-for-apartment-residents-and-neighbourhoods__0064",
+        "ahuri/2026-00_administering-australian-housing-policy-practitioner-perspectives__0013",
+        "ahuri/2022-00_understanding-how-policy-settings-affect-developer-decisions__0036",
+        "ahuri/2018-00_inquiry-into-increasing-affordable-housing-supply-evidence-based-principles-and__0052",
+        "productivity-commission/unknown_land-management__0301"
+      ],
+      "gold_ranks": {
+        "productivity-commission/unknown_public-housing__0238": 1
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0,
+      "latency_ms": 321.602800000619
+    },
+    {
+      "query": "Why should state housing authorities set public housing market rents comparable to equivalent private rental accommodation?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "productivity-commission/unknown_public-housing__0411"
+      ],
+      "retrieved_chunk_ids": [
+        "productivity-commission/unknown_public-housing__0411",
+        "productivity-commission/unknown_public-housing__0410",
+        "ahuri/2017-00_australian-demographic-trends-and-implications-for-housing-assistance-programs__0093",
+        "productivity-commission/unknown_public-housing__0425",
+        "productivity-commission/unknown_public-housing__0409",
+        "productivity-commission/unknown_public-housing__0408",
+        "productivity-commission/unknown_public-housing__0376",
+        "ahuri/2017-00_australian-demographic-trends-and-implications-for-housing-assistance-programs__0094",
+        "productivity-commission/unknown_public-housing__0412",
+        "productivity-commission/unknown_public-housing__0413"
+      ],
+      "gold_ranks": {
+        "productivity-commission/unknown_public-housing__0411": 1
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0,
+      "latency_ms": 335.50540000032925
+    },
+    {
+      "query": "Is investor activity returning to the Australian rental market, and is that slowing rent growth?",
+      "persona": "investor",
+      "gold_chunk_ids": [
+        "proptrack/unknown_boost-in-investor-activity-offers-relief-to-renters__0001"
+      ],
+      "retrieved_chunk_ids": [
+        "proptrack/2026-00_proptrack-westpac-investor-report-2026__0004",
+        "proptrack/2026-00_proptrack-westpac-investor-report-2026__0003",
+        "proptrack/2026-00_proptrack-westpac-investor-report-2026__0001",
+        "proptrack/unknown_10-charts-that-show-how-the-property-market-changed-this-year__0001",
+        "proptrack/2026-00_proptrack-westpac-investor-report-2026__0023",
+        "proptrack/unknown_loan-sizes-reach-record-high-despite-slowing-price-growth__0001",
+        "proptrack/2025-00_proptrack-home-price-index-september-2025__0001",
+        "housing-australia-nhfic/unknown_analysis-australias-rental-markets__0000",
+        "housing-australia-nhfic/unknown_state-nations-housing-report-2022-23__0002",
+        "rba/2010-00_review_17106729__0054"
+      ],
+      "gold_ranks": {
+        "proptrack/unknown_boost-in-investor-activity-offers-relief-to-renters__0001": null
+      },
+      "recall@5": 0.0,
+      "recall@10": 0.0,
+      "mrr@10": 0.0,
+      "ndcg@10": 0.0,
+      "latency_ms": 250.11799999992945
+    },
+    {
+      "query": "Why are Australian unit prices diverging from house prices as affordability constraints worsen?",
+      "persona": "homebuyer",
+      "gold_chunk_ids": [
+        "proptrack/2025-00_proptrack-home-price-index-april-2025__0002"
+      ],
+      "retrieved_chunk_ids": [
+        "proptrack/2024-00_proptrack-home-price-index-november-2024__0003",
+        "proptrack/2025-00_proptrack-home-price-index-january-2025__0002",
+        "proptrack/2024-00_proptrack-home-price-index-october-2024__0003",
+        "proptrack/2025-00_proptrack-home-price-index-june-2025__0001",
+        "housing-australia-nhfic/unknown_state-nations-housing-2021-22__0106",
+        "ahuri/2014-00_generational-change-in-home-purchase-opportunity-in-australia__0019",
+        "proptrack/2026-00_proptrack-home-price-index-february-2026__0001",
+        "proptrack/2025-00_proptrack-home-price-index-november-2025__0001",
+        "proptrack/2025-00_proptrack-home-price-index-february-2025__0001",
+        "proptrack/2025-00_proptrack-home-price-index-april-2025__0002"
+      ],
+      "gold_ranks": {
+        "proptrack/2025-00_proptrack-home-price-index-april-2025__0002": 10
+      },
+      "recall@5": 0.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.1,
+      "ndcg@10": 0.2890648263178879,
+      "latency_ms": 221.51579999990645
+    },
+    {
+      "query": "Is Australia on track to become a nation of renters rather than home-owners?",
+      "persona": "homebuyer",
+      "gold_chunk_ids": [
+        "proptrack/unknown_is-australia-on-track-to-become-a-nation-of-renters__0000"
+      ],
+      "retrieved_chunk_ids": [
+        "proptrack/unknown_is-australia-on-track-to-become-a-nation-of-renters__0002",
+        "ahuri/2024-00_planning-for-a-two-tenure-future__0077",
+        "ahuri/2024-00_planning-for-a-two-tenure-future__0078",
+        "ahuri/2026-00_implications-of-tenant-data-collection-in-housing-protecting-australian-renters__0024",
+        "ahuri/2024-00_planning-for-a-two-tenure-future__0009",
+        "ahuri/2024-00_planning-for-a-two-tenure-future__0060",
+        "proptrack/unknown_is-australia-on-track-to-become-a-nation-of-renters__0000",
+        "ahuri/2025-00_integrating-housing-policy-settlement-planning-and-disaster-management__0067",
+        "housing-australia-nhfic/unknown_state-nations-housing-2020__0056",
+        "ahuri/2014-00_housing-affordability-dynamics-new-insights-from-the-last-decade__0006"
+      ],
+      "gold_ranks": {
+        "proptrack/unknown_is-australia-on-track-to-become-a-nation-of-renters__0000": 7
+      },
+      "recall@5": 0.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.14285714285714285,
+      "ndcg@10": 0.3333333333333333,
+      "latency_ms": 186.49749999894993
+    },
+    {
+      "query": "By how much did Australia's new housing supply fall short in FY2024, and which states had the largest gaps?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "proptrack/2024-00_new-housing-supply-falls-short-by-62000-homes-in-2024__0001"
+      ],
+      "retrieved_chunk_ids": [
+        "sqm-research/unknown_sydney-and-melbourne-housing-prices-to-fall__0003",
+        "rba/2020-00_the-rental-market-and-covid-19__0000",
+        "ahuri/2023-00_innovations-in-stock-matching-and-allocations-the-social-housing-challenge__0039",
+        "sqm-research/2008-11_christopher-comments-on-how-property-will-stand-up-in-the-global-crisis-and-disp__0001",
+        "sqm-research/2008-11_christopher-comments-on-how-property-will-stand-up-in-the-global-crisis-and-disp__0000",
+        "ahuri/2021-00_pathways-to-regional-housing-recovery-from-covid-19__0097",
+        "proptrack/unknown_from-second-to-fifth-place-why-melbourne-homes-are-now-more-affordable__0001",
+        "proptrack/unknown_why-surging-population-growth-is-having-a-big-impact-on-home-prices-in-one-state__0001",
+        "housing-australia-nhfic/unknown_state-nations-housing-2021-22__0042",
+        "ahuri/2026-00_the-indigenous-housing-system-in-australia-case-study-evidence__0083"
+      ],
+      "gold_ranks": {
+        "proptrack/2024-00_new-housing-supply-falls-short-by-62000-homes-in-2024__0001": null
+      },
+      "recall@5": 0.0,
+      "recall@10": 0.0,
+      "mrr@10": 0.0,
+      "ndcg@10": 0.0,
+      "latency_ms": 311.31959999947867
+    },
+    {
+      "query": "Are Australian buyers increasingly enquiring on interstate properties in search of affordability?",
+      "persona": "homebuyer",
+      "gold_chunk_ids": [
+        "proptrack/2024-00_buyers-look-further-afield-in-hunt-for-affordability__0000"
+      ],
+      "retrieved_chunk_ids": [
+        "proptrack/2024-00_buyers-look-further-afield-in-hunt-for-affordability__0000",
+        "proptrack/2024-00_buyers-look-further-afield-in-hunt-for-affordability__0001",
+        "proptrack/unknown_skip-to-content_e79b8041__0000",
+        "proptrack/unknown_skip-to-main-navigation_2c60f847__0000",
+        "proptrack/unknown_why-regional-areas-are-outpacing-capital-cities-on-home-price-growth__0000",
+        "proptrack/2026-00_proptrack-westpac-investor-report-2026__0006",
+        "proptrack/unknown_rising-keyword-searches-reveal-emerging-home-buying-trends__0001",
+        "proptrack/unknown_where-more-first-home-buyers-are-turning-to-rentvesting-amid-affordability-crunc__0000",
+        "proptrack/unknown_skip-to-content_62664615__0000",
+        "proptrack/unknown_skip-to-main-navigation_71974ae5__0000"
+      ],
+      "gold_ranks": {
+        "proptrack/2024-00_buyers-look-further-afield-in-hunt-for-affordability__0000": 1
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0,
+      "latency_ms": 183.0790000003617
+    },
+    {
+      "query": "What ESG reporting standard did CHIA and NHFIC develop for the Australian community housing sector?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "housing-australia-nhfic/unknown_environmental-social-and-governance-esg-reporting-standard__0000"
+      ],
+      "retrieved_chunk_ids": [
+        "housing-australia-nhfic/unknown_environmental-social-and-governance-esg-reporting-standard__0000",
+        "ahuri/2020-00_responding-to-the-pandemic-can-building-homes-rebuild-australia__0133",
+        "ahuri/2022-00_private-sector-involvement-in-social-and-affordable-housing__0005",
+        "ahuri/2020-00_responding-to-the-pandemic-can-building-homes-rebuild-australia__0134",
+        "ahuri/2026-00_workplace-trauma-on-the-social-housing-and-homelessness-frontline__0026",
+        "ahuri/2024-00_the-role-of-outcomes-based-frameworks-in-social-housing-provision-in-australia__0006",
+        "housing-australia-nhfic/unknown_australias-social-and-affordable-housing-sector-resilient-response-covid-19__0000",
+        "ahuri/2022-00_private-sector-involvement-in-social-and-affordable-housing__0030",
+        "ahuri/2020-00_responding-to-the-pandemic-can-building-homes-rebuild-australia__0131",
+        "ahuri/2021-00_towards-an-australian-social-housing-best-practice-asset-management-framework__0069"
+      ],
+      "gold_ranks": {
+        "housing-australia-nhfic/unknown_environmental-social-and-governance-esg-reporting-standard__0000": 1
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0,
+      "latency_ms": 246.46459999894432
+    },
+    {
+      "query": "How did investor lending commitments fall across Australian states during 2022?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "housing-australia-nhfic/unknown_state-nations-housing-report-2022-23__0025"
+      ],
+      "retrieved_chunk_ids": [
+        "housing-australia-nhfic/unknown_state-nations-housing-2021-22__0024",
+        "housing-australia-nhfic/unknown_state-nations-housing-report-2022-23__0024",
+        "housing-australia-nhfic/unknown_state-nations-housing-2021-22__0025",
+        "housing-australia-nhfic/unknown_state-nations-housing-report-2022-23__0027",
+        "housing-australia-nhfic/unknown_state-nations-housing-report-2022-23__0025",
+        "housing-australia-nhfic/unknown_state-nations-housing-report-2022-23__0029",
+        "housing-australia-nhfic/unknown_state-nations-housing-2021-22__0028",
+        "housing-australia-nhfic/unknown_state-nations-housing-report-2022-23__0028",
+        "housing-australia-nhfic/unknown_state-nations-housing-2021-22__0027",
+        "housing-australia-nhfic/unknown_state-nations-housing-2021-22__0029"
+      ],
+      "gold_ranks": {
+        "housing-australia-nhfic/unknown_state-nations-housing-report-2022-23__0025": 5
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.2,
+      "ndcg@10": 0.38685280723454163,
+      "latency_ms": 188.41249999968568
+    },
+    {
+      "query": "How did rental affordability change across Australian capital cities from mid-2020 to September 2021 by income quintile?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "housing-australia-nhfic/unknown_state-nations-housing-2021-22__0113"
+      ],
+      "retrieved_chunk_ids": [
+        "housing-australia-nhfic/unknown_major-city-and-regional-area-housing-affordability__0001",
+        "housing-australia-nhfic/unknown_major-city-and-regional-area-housing-affordability__0002",
+        "housing-australia-nhfic/unknown_state-nations-housing-2021-22__0109",
+        "housing-australia-nhfic/unknown_major-city-and-regional-area-housing-affordability__0004",
+        "housing-australia-nhfic/unknown_state-nations-housing-2021-22__0110",
+        "housing-australia-nhfic/unknown_major-city-and-regional-area-housing-affordability__0003",
+        "housing-australia-nhfic/unknown_major-city-and-regional-area-housing-affordability__0000",
+        "housing-australia-nhfic/unknown_state-nations-housing-2021-22__0121",
+        "housing-australia-nhfic/unknown_state-nations-housing-2021-22__0112",
+        "housing-australia-nhfic/unknown_state-nations-housing-2021-22__0111"
+      ],
+      "gold_ranks": {
+        "housing-australia-nhfic/unknown_state-nations-housing-2021-22__0113": null
+      },
+      "recall@5": 0.0,
+      "recall@10": 0.0,
+      "mrr@10": 0.0,
+      "ndcg@10": 0.0,
+      "latency_ms": 338.75799999987066
+    },
+    {
+      "query": "How has the gap between social housing rent and lower-end private rent changed over the past decade in NSW and Victoria?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "housing-australia-nhfic/unknown_analysis-australias-rental-markets__0002"
+      ],
+      "retrieved_chunk_ids": [
+        "housing-australia-nhfic/unknown_analysis-australias-rental-markets__0002",
+        "rba/2023-00_renters-rent-inflation-and-renter-stress__0007",
+        "ahuri/2022-00_filtering-as-a-source-of-low-income-housing-in-australia-conceptualisation-and-t__0086",
+        "housing-australia-nhfic/unknown_analysis-australias-rental-markets__0001",
+        "ahuri/2014-00_social-housing-exits-incidence-motivations-and-consequences__0082",
+        "ahuri/2022-00_australias-covid-19-pandemic-housing-policy-responses__0023",
+        "ahuri/2026-00_australias-multiprovider-social-housing-system-contest-or-growth__0060",
+        "ahuri/2014-00_social-housing-exits-incidence-motivations-and-consequences__0065",
+        "ahuri/2017-00_developing-the-scale-and-capacity-of-australias-affordable-housing-industry__0033",
+        "proptrack/2025-00_rea-group-rental-affordability-report-2025__0011"
+      ],
+      "gold_ranks": {
+        "housing-australia-nhfic/unknown_analysis-australias-rental-markets__0002": 1
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0,
+      "latency_ms": 362.3468999994657
+    },
+    {
+      "query": "What happened to Australian residential property listings in January 2016, and how did Sydney prices compare year on year?",
+      "persona": "investor",
+      "gold_chunk_ids": [
+        "sqm-research/2016-00_national-listings-down-for-january-despite-mixed-capital-city-results-sqm-resear__0002"
+      ],
+      "retrieved_chunk_ids": [
+        "sqm-research/2016-00_national-listings-down-for-january-despite-mixed-capital-city-results-sqm-resear__0001",
+        "sqm-research/2024-00_total-property-listings-november-2024__0005",
+        "sqm-research/2016-00_sqm-research-stock-on-market-and-median-asking-prices-media-release-3rd-may-2016__0001",
+        "sqm-research/2016-00_national-listings-down-for-january-despite-mixed-capital-city-results-sqm-resear__0000",
+        "sqm-research/2024-02_normal-quiet-january-for-listings-5-february-2024__0000",
+        "sqm-research/2016-00_national-listings-down-for-january-despite-mixed-capital-city-results-sqm-resear__0002",
+        "sqm-research/2026-00_total-property-listings-february-2026__0000",
+        "sqm-research/2025-00_total-property-listings-january-2025__0000",
+        "sqm-research/2026-00_total-property-listings-january-2026__0000",
+        "sqm-research/2015-00_property-listings-rise-in-january-sydney-bucks-national-trend-sqm-stock-on-marke__0001"
+      ],
+      "gold_ranks": {
+        "sqm-research/2016-00_national-listings-down-for-january-despite-mixed-capital-city-results-sqm-resear__0002": 6
+      },
+      "recall@5": 0.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.16666666666666666,
+      "ndcg@10": 0.3562071871080222,
+      "latency_ms": 317.8012000007584
+    },
+    {
+      "query": "How did national residential listings and distressed listings change in October according to SQM Research?",
+      "persona": "investor",
+      "gold_chunk_ids": [
+        "sqm-research/unknown_asking-prices-hit-record-high-distressed-listings-jump-52__0000"
+      ],
+      "retrieved_chunk_ids": [
+        "sqm-research/2024-00_total-property-listings-october-2024__0002",
+        "sqm-research/2024-05_april-total-housing-listings-fell-by-64-7-may-2024__0001",
+        "sqm-research/unknown_05-03-24-total-property-listings-february-2024-final__0000",
+        "sqm-research/2024-00_total-property-listings-october-2024__0000",
+        "sqm-research/2024-04_march-total-housing-listings-rise-by-69-3-april-2024__0001",
+        "sqm-research/2024-00_total-property-listings-november-2024__0002",
+        "sqm-research/unknown_asking-prices-hit-record-high-distressed-listings-jump-52__0001",
+        "sqm-research/2024-05_april-total-housing-listings-fell-by-64-7-may-2024__0000",
+        "sqm-research/unknown_listings-and-asking-prices-steady-in-lead-up-to-market-hiatus__0003",
+        "sqm-research/2024-00_total-property-listings-november-2024__0000"
+      ],
+      "gold_ranks": {
+        "sqm-research/unknown_asking-prices-hit-record-high-distressed-listings-jump-52__0000": null
+      },
+      "recall@5": 0.0,
+      "recall@10": 0.0,
+      "mrr@10": 0.0,
+      "ndcg@10": 0.0,
+      "latency_ms": 307.7817999983381
+    },
+    {
+      "query": "What drove strong 5-year returns in the global listed property market through 2007 and how did regional REIT markets differ?",
+      "persona": "investor",
+      "gold_chunk_ids": [
+        "sqm-research/2008-00_the-adviser-edge-national-property-sector-review-january-2008__0053"
+      ],
+      "retrieved_chunk_ids": [
+        "sqm-research/2008-00_the-adviser-edge-national-property-sector-review-january-2008__0053",
+        "ahuri/2015-00_the-opportunity-of-unlisted-wholesale-residential-property-funds-in-enhancing-af__0029",
+        "sqm-research/2008-00_the-adviser-edge-national-property-sector-review-january-2008__0054",
+        "ahuri/2013-00_financing-rental-housing-through-institutional-investmentvolume-1__0004",
+        "ahuri/2015-00_the-opportunity-of-unlisted-wholesale-residential-property-funds-in-enhancing-af__0016",
+        "sqm-research/2008-00_the-adviser-edge-national-property-sector-review-january-2008__0021",
+        "sqm-research/2008-00_the-adviser-edge-national-property-sector-review-january-2008__0002",
+        "ahuri/2013-00_financing-rental-housing-through-institutional-investmentvolume-1__0003",
+        "sqm-research/2008-00_the-adviser-edge-national-property-sector-review-january-2008__0064",
+        "ahuri/2014-00_the-financing-of-residential-development-in-australia__0047"
+      ],
+      "gold_ranks": {
+        "sqm-research/2008-00_the-adviser-edge-national-property-sector-review-january-2008__0053": 1
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0,
+      "latency_ms": 433.6416000005556
+    },
+    {
+      "query": "What did APRA tell the House Economics Committee in October 2022 about the Financial Accountability Regime?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "apra/unknown_opening-statement-to-house-of-representatives-standing-committee-on-4__0001"
+      ],
+      "retrieved_chunk_ids": [
+        "apra/unknown_parliament-house-standing-committee-on-economics__0000",
+        "apra/unknown_apra-sets-out-stronger-more-transparent-approach-to-regulating-and__0014",
+        "apra/unknown_opening-statement-to-house-of-representatives-standing-committee-on-1__0014",
+        "apra/unknown_opening-statement-to-house-of-representatives-standing-committee-on-4__0001",
+        "apra/unknown_opening-statement-to-house-of-representatives-standing-committee-on-5__0000",
+        "apra/unknown_opening-statement-to-house-of-representatives-standing-committee-on-4__0000",
+        "apra/unknown_apra-sets-out-stronger-more-transparent-approach-to-regulating-and__0018",
+        "apra/unknown_opening-statement-to-house-of-representatives-standing-committee-on-1__0018",
+        "apra/unknown_opening-statement-to-house-of-representatives-standing-committee-on-economics__0000",
+        "apra/unknown_apra-sets-out-stronger-more-transparent-approach-to-regulating-and__0013"
+      ],
+      "gold_ranks": {
+        "apra/unknown_opening-statement-to-house-of-representatives-standing-committee-on-4__0001": 4
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.25,
+      "ndcg@10": 0.43067655807339306,
+      "latency_ms": 275.58890000000247
+    },
+    {
+      "query": "What capital add-on and remedial actions did APRA require of Bank of Queensland under its court-enforceable undertaking?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "apra/unknown_apra-agrees-to-court-enforceable-undertaking-from-bank-of-queensland__0003"
+      ],
+      "retrieved_chunk_ids": [
+        "rba/2023-00_download-pdf__0085",
+        "apra/unknown_apra-agrees-to-court-enforceable-undertaking-from-bank-of-queensland__0007",
+        "apra/unknown_apra-agrees-to-court-enforceable-undertaking-from-bank-of-queensland__0005",
+        "apra/unknown_apra-agrees-to-court-enforceable-undertaking-from-bank-of-queensland__0006",
+        "apra/unknown_apra-agrees-to-court-enforceable-undertaking-from-bank-of-queensland__0003",
+        "apra/unknown_apra-agrees-to-court-enforceable-undertaking-from-bank-of-queensland__0004",
+        "apra/unknown_apra-seeks-disqualification-of-former-trio-director-david-millhouse__0000",
+        "rba/2015-00_download_cb443d6a__0013",
+        "rba/2016-00_download_a80ad20d__0010",
+        "rba/2016-00_review_52e05e7b__0077"
+      ],
+      "gold_ranks": {
+        "apra/unknown_apra-agrees-to-court-enforceable-undertaking-from-bank-of-queensland__0003": 5
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.2,
+      "ndcg@10": 0.38685280723454163,
+      "latency_ms": 315.31209999957355
+    },
+    {
+      "query": "How does the US National Flood Insurance Program (NFIP) fill gaps in residential flood insurance, and is it sustainable?",
+      "persona": "homebuyer",
+      "gold_chunk_ids": [
+        "corelogic-cotality/unknown_podcast29-minhome-insurance-shortfalls-may-turn-cheap-homes-into-costly-futuresl__0005"
+      ],
+      "retrieved_chunk_ids": [
+        "corelogic-cotality/unknown_podcast29-minhome-insurance-shortfalls-may-turn-cheap-homes-into-costly-futuresl__0005",
+        "ahuri/2023-00_improving-australian-climate-change-adaptation-strategies-learning-from-internat__0049",
+        "ahuri/2023-00_improving-australian-climate-change-adaptation-strategies-learning-from-internat__0046",
+        "corelogic-cotality/unknown_podcast29-minhome-insurance-shortfalls-may-turn-cheap-homes-into-costly-futuresl__0004",
+        "ahuri/2025-00_improving-coordination-of-data-and-actors-for-disaster-responsive-housing-and-sa__0069",
+        "ahuri/2025-00_inquiry-into-housing-policy-and-disaster-better-coordinating-actors-responses-an__0063",
+        "ahuri/2025-00_inquiry-into-housing-policy-and-disaster-better-coordinating-actors-responses-an__0048",
+        "ahuri/2023-00_improving-australian-climate-change-adaptation-strategies-learning-from-internat__0005",
+        "ahuri/2023-00_improving-australian-climate-change-adaptation-strategies-learning-from-internat__0090",
+        "corelogic-cotality/unknown_hazard-hqmajor-february-winter-storm-impacts-the-northeast-with-severe-blizzard__0001"
+      ],
+      "gold_ranks": {
+        "corelogic-cotality/unknown_podcast29-minhome-insurance-shortfalls-may-turn-cheap-homes-into-costly-futuresl__0005": 1
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0,
+      "latency_ms": 313.03010000010545
+    },
+    {
+      "query": "How did Caple Properties RE/MAX combine automated prospecting (RiTA) with human outreach to convert leads?",
+      "persona": "investor",
+      "gold_chunk_ids": [
+        "corelogic-cotality/unknown_insight-geospatial-mappinghow-caple-properties-remax-delivered-a-multi-touchpoin__0001"
+      ],
+      "retrieved_chunk_ids": [
+        "corelogic-cotality/unknown_insight-geospatial-mappinghow-caple-properties-remax-delivered-a-multi-touchpoin__0000",
+        "corelogic-cotality/unknown_insight-geospatial-mappinghow-caple-properties-remax-delivered-a-multi-touchpoin__0001",
+        "corelogic-cotality/unknown_terms-conditions__0059",
+        "productivity-commission/unknown_greenhouse__0019",
+        "corelogic-cotality/unknown_terms-conditions__0058",
+        "corelogic-cotality/unknown_terms-conditions__0060",
+        "corelogic-cotality/unknown_terms-conditions__0057",
+        "corelogic-cotality/unknown_insights-analysiswhen-property-becomes-datawhat-happens-when-models-meet-real-li__0000",
+        "ahuri/2018-00_asset-portfolio-retirement-decisions-the-role-of-the-tax-and-transfer-system__0098",
+        "ahuri/2013-00_the-cost-of-homelessness-and-the-net-benefit-of-homelessness-programs-a-national_b82c22b5__0216"
+      ],
+      "gold_ranks": {
+        "corelogic-cotality/unknown_insight-geospatial-mappinghow-caple-properties-remax-delivered-a-multi-touchpoin__0001": 2
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.5,
+      "ndcg@10": 0.6309297535714575,
+      "latency_ms": 318.9056999999593
+    },
+    {
+      "query": "What do Australia's Social Housing Accelerator and the National Agreement on Social Housing and Homelessness (NASHH) fund?",
+      "persona": "researcher",
+      "gold_chunk_ids": [
+        "australian-treasury/unknown_social-and-affordable-housing__0001"
+      ],
+      "retrieved_chunk_ids": [
+        "ahuri/2025-00_inquiry-into-socially-supported-housing-pathways__0061",
+        "australian-treasury/unknown_social-and-affordable-housing__0001",
+        "ahuri/2025-00_indigenous-housing-support-in-australia-the-lay-of-the-land__0038",
+        "ahuri/2025-00_inquiry-into-socially-supported-housing-pathways__0004",
+        "ahuri/2025-00_indigenous-housing-support-in-australia-the-lay-of-the-land__0028",
+        "ahuri/2025-00_indigenous-housing-support-in-australia-the-lay-of-the-land__0006",
+        "ahuri/2025-00_indigenous-housing-support-in-australia-the-lay-of-the-land__0009",
+        "ahuri/2025-00_inquiry-into-socially-supported-housing-pathways__0038",
+        "ahuri/2026-00_the-indigenous-housing-system-in-australia-case-study-evidence__0007",
+        "ahuri/2026-00_a-framework-for-the-future-of-aboriginal-and-torres-strait-islander-housing-in-a__0015"
+      ],
+      "gold_ranks": {
+        "australian-treasury/unknown_social-and-affordable-housing__0001": 2
+      },
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr@10": 0.5,
+      "ndcg@10": 0.6309297535714575,
+      "latency_ms": 284.912399998575
+    }
+  ]
+}

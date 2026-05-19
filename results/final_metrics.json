@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "summary": "CadastreAI final metrics (Task 4.18). Retrieval evaluated against the honest synth split (n=40); agent evaluated against agent_queries.jsonl (n=30) with Claude-as-judge faithfulness.",
+  "retrieval": {
+    "queries": "data/eval/queries_synth.jsonl",
+    "n": 40,
+    "configs": {
+      "dense_bge_base": {
+        "recall@5": 0.75,
+        "recall@10": 0.825,
+        "mrr@10": 0.5915873015873017,
+        "ndcg@10": 0.6478458401365754,
+        "n": 40
+      },
+      "bm25_only": {
+        "recall@5": 0.575,
+        "recall@10": 0.775,
+        "mrr@10": 0.4546428571428572,
+        "ndcg@10": 0.5287028314770159,
+        "n": 40
+      },
+      "hybrid_bm25_dense_rrf": {
+        "recall@5": 0.825,
+        "recall@10": 0.9,
+        "mrr@10": 0.6367658730158731,
+        "ndcg@10": 0.7004704727942531,
+        "n": 40
+      },
+      "hybrid_plus_rerank": {
+        "recall@5": 0.85,
+        "recall@10": 0.875,
+        "mrr@10": 0.6965277777777777,
+        "ndcg@10": 0.7412053707184394,
+        "n": 40
+      }
+    }
+  },
+  "agent": {
+    "queries": "data/eval/agent_queries.jsonl",
+    "n": 30,
+    "version": "v6",
+    "with_judge": true,
+    "mean_tool_call_accuracy": 0.98,
+    "mean_tool_call_recall": 0.9888888888888889,
+    "mean_tool_call_precision": 0.9833333333333333,
+    "mean_publisher_recall": 0.7805555555555556,
+    "mean_trajectory_efficiency": 0.8111111111111111,
+    "mean_groundedness": 0.12432912600208927,
+    "mean_faithfulness": 0.7934826647571745
+  },
+  "deployment": {
+    "qdrant_url": "https://037b1242-50c1-4a40-ae90-5027efc0d002.australia-southeast1-0.gcp.cloud.qdrant.io",
+    "qdrant_collection": "cadastre_chunks",
+    "qdrant_points": 41959,
+    "hf_space_url": "https://huggingface.co/spaces/ericcha901/cadastreai",
+    "smoke_test": "3/5 PASS on content + latency; 2/5 correct cited answers, latency over 45s budget on local CPU"
+  }
+}
