@@ -223,5 +223,7 @@
 
 - [x] **Task X.01** — Maintain `progress.md` with status + notes per completed ticket (most recent refresh: PR #120)
 - [x] **Task X.02** — Keep `.env.example` in sync with any new secrets (ANTHROPIC_API_KEY, QDRANT_URL, etc.)
-- [ ] **Task X.03** — Enforce persistent "not financial advice" disclaimer in system prompt (proportional by persona)
-- [ ] **Task X.04** — Guardrails: block financial-product recommendations (mortgage/insurance); log refusals
+- [x] **Task X.03** — Enforce persistent "not financial advice" disclaimer in system prompt (proportional by persona)
+      - `src/agent/persona.py::persona_disclaimer()` returns a persona-specific DISCLAIMER POLICY block; `nodes.py:1218` appends it to the synthesizer system prompt every turn. Homebuyer/investor get the most explicit "consult a licensed professional" language; researcher/journalist get audience-appropriate caveats; `general` fallback always non-empty. Covered by `tests/test_persona_disclaimer.py` (passing).
+- [x] **Task X.04** — Guardrails: block financial-product recommendations (mortgage/insurance); log refusals
+      - `src/agent/guardrails.py::screen_query()` is a pure pattern-matching screen across 4 categories (mortgage_product, insurance_product, super_or_managed_fund, specific_security_pick). `guardrail_screen` is wired as the first node in `graph.py` (START → guardrail_screen → END on refusal, no LLM call on the hot path). Structured WARNING log via `log_refusal()`. Covered by `tests/test_guardrails.py` (passing).
