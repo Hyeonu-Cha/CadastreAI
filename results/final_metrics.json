@@ -1,6 +1,11 @@
 {
   "schema_version": 1,
   "summary": "CadastreAI final metrics (Task 4.18). Retrieval evaluated against the honest synth split (n=40); agent evaluated against agent_queries.jsonl (n=30) with Claude-as-judge faithfulness.",
+  "caveats": "Small eval sets: at n=40 one query moves recall by 0.025, at n=30 one query moves agent metrics by ~0.03. Adjacent configurations within one query of each other should be read as ties.",
+  "metric_notes": {
+    "mean_groundedness": "Strict regex formatting-contract check: % of numeric tokens with a citation literal within 50 characters. NOT an answer-quality measure — the synthesizer often cites at end of sentence, which the judge accepts and this regex does not. mean_faithfulness is the load-bearing quality number. See docs/report_v2.md section 3b.",
+    "mean_faithfulness": "Claude-as-judge, whole-answer claim support against retrieved evidence and tool results. Deductions are partial-support cases, not fabrications."
+  },
   "retrieval": {
     "queries": "data/eval/queries_synth.jsonl",
     "n": 40,
