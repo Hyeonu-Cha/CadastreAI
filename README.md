@@ -102,6 +102,11 @@ the win from R@10 to MRR/nDCG (it pulls the right hit *higher*, even
 when the top-10 set itself is comparable). The agent ships with
 hybrid + rerank as the default retriever.
 
+At n=40, one query is worth 0.025 of recall — the close calls in this
+table (0.900 vs 0.875, 0.825 vs 0.850) are within a single query and
+should be read as ties. The orderings that survive that noise floor:
+hybrid > either component alone, and rerank > no-rerank on MRR/nDCG.
+
 **Pooled (all 100 queries, for reference):**
 
 | Configuration                    | Recall@5  | Recall@10 | MRR@10    | nDCG@10   |
@@ -131,7 +136,14 @@ Agent eval over 30 queries with judge-graded faithfulness, six runs
 | trajectory_efficiency   | 0.299  | 0.672  | 0.722  | 0.717  | 0.719  | **0.811**    |
 | faithfulness (judge)    | 0.570  | 0.648  | 0.630  | 0.637  | 0.664  | **0.793**    |
 | publisher_recall        | 0.789  | 0.778  | 0.764  | 0.772  | **0.825** | 0.781    |
-| groundedness (regex)    | 0.373  | 0.296  | 0.240  | 0.368  | 0.316  | 0.124        |
+| groundedness (regex)\*  | 0.373  | 0.296  | 0.240  | 0.368  | 0.316  | 0.124        |
+
+\* *groundedness is a strict formatting-contract check — it requires a
+citation literal within 50 characters of every numeric token — not an
+answer-quality measure. Faithfulness (judge) is the quality number;
+see the v6 note below for why the two diverge. n=30 throughout, so
+single-query swings move any metric by ~0.03 — read deltas under that
+as noise.*
 
 v2 dropped `MAX_ITERATIONS` 4 → 2 and tightened the reflect/synth
 prompts (+0.37 trajectory, +0.08 faith). v3 swapped the retriever to

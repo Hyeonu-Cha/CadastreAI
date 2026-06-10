@@ -1,0 +1,35 @@
+name: tests
+
+# Unit tests on every PR and push to main. The suite is fully offline:
+# Anthropic/Qdrant calls are mocked, and the 7 live-API tests skip
+# themselves when ANTHROPIC_API_KEY is unset (which it is here — no
+# secrets are exposed to this workflow on purpose, so fork PRs are
+# safe to run). The nightly deploy_check.yml is the job that exercises
+# real network paths.
+#
+# `parse` extra (docling + vision models) is deliberately not
+# installed — nothing in tests/ imports it and it adds ~2 GB.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # 3.11 matches the deployed HF Space container.
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package + test deps
+        run: pip install -e ".[chunk,embed,index,agent,app,dev]"
+
+      - name: Run pytest
+        run: pytest tests/ -q

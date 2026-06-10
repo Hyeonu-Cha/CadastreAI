@@ -120,6 +120,11 @@ by LLM judge.
 | Publisher recall          | 0.789  | 0.778         | 0.764         | 0.772         | **0.825**     |
 | Groundedness (regex)      | 0.373  | 0.296         | 0.240         | **0.368**     | 0.316         |
 
+Groundedness is a strict formatting-contract check (citation literal
+within 50 chars of every numeric token), not an answer-quality
+measure — §3b unpacks why it diverges from the judge. At n=30 a
+single query moves any row by ~0.03; deltas under that are noise.
+
 ### 3a. What v2 changed
 
 Two prompt/graph fixes from `results/agent_failure_analysis.md`:
