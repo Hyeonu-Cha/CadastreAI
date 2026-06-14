@@ -13,7 +13,13 @@ Coverage:
 """
 from __future__ import annotations
 
-from src.app.followups import MAX_SUGGESTIONS, suggest_followups
+import src.agent.llm as llm_mod
+from src.app.followups import (
+    MAX_SUGGESTIONS,
+    ai_followups,
+    followup_questions,
+    suggest_followups,
+)
 
 # ---------- tool-driven rules ----------------------------------
 
@@ -178,3 +184,118 @@ def test_keyword_sweetener_for_vacancy_query():
         tool_results=[],
     )
     assert any("tightest rental" in s for s in suggestions)
+
+
+# ---------- AI-generated layer ---------------------------------
+
+
+def _stub_call_with_tool(questions):
+    """Build a call_with_tool stand-in returning a fixed questions list."""
+
+    def _stub(*, system, user, tool_def, tool_name, max_tokens, model):
+        return {"questions": questions}, {}
+
+    return _stub
+
+
+def test_ai_followups_returns_cleaned_questions(monkeypatch):
+    monkeypatch.setattr(
+        llm_mod,
+        "call_with_tool",
+        _stub_call_with_tool(
+            ["- What's the yield in Parramatta?", "How has vacancy moved there?"]
+        ),
+    )
+    out = ai_followups(
+        "Is Parramatta a good buy?",
+        persona="investor",
+        answer="Parramatta median is $1.1M with a 3.2% yield.",
+        tool_results=[],
+    )
+    # Leading bullet stripped, both kept, order preserved.
+    assert out == [
+        "What's the yield in Parramatta?",
+        "How has vacancy moved there?",
+    ]
+
+
+def test_ai_followups_empty_answer_skips_call(monkeypatch):
+    """No answer text → no LLM call, returns []."""
+
+    def _boom(**kwargs):
+        raise AssertionError("call_with_tool should not be invoked")
+
+    monkeypatch.setattr(llm_mod, "call_with_tool", _boom)
+    assert ai_followups("q", "investor", answer="", tool_results=[]) == []
+
+
+def test_ai_followups_swallows_provider_error(monkeypatch):
+    def _raise(**kwargs):
+        raise RuntimeError("ANTHROPIC_API_KEY is not set")
+
+    monkeypatch.setattr(llm_mod, "call_with_tool", _raise)
+    assert ai_followups("q", "investor", answer="some answer", tool_results=[]) == []
+
+
+def test_ai_followups_caps_and_dedupes(monkeypatch):
+    monkeypatch.setattr(
+        llm_mod,
+        "call_with_tool",
+        _stub_call_with_tool(["A?", "A?", "B?", "C?", "D?"]),
+    )
+    out = ai_followups("q", "general", answer="answer", tool_results=[])
+    assert out == ["A?", "B?", "C?"]  # deduped + capped at 3
+
+
+def test_followup_questions_prefers_ai_then_tops_up(monkeypatch):
+    """One AI question + deterministic top-up to fill the row."""
+    monkeypatch.setattr(
+        llm_mod, "call_with_tool", _stub_call_with_tool(["AI-only question?"])
+    )
+    out = followup_questions(
+        "What is the cash rate?",
+        persona="general",
+        answer="The cash rate is 4.10%.",
+        tool_results=[{"tool": "rba_cash_rate", "result": {}}],
+    )
+    assert out[0] == "AI-only question?"
+    assert len(out) == MAX_SUGGESTIONS
+    assert len(out) == len(set(out))
+
+
+def test_followup_questions_falls_back_when_ai_empty(monkeypatch):
+    """AI yields nothing → identical to the deterministic suggester."""
+
+    def _raise(**kwargs):
+        raise RuntimeError("provider down")
+
+    monkeypatch.setattr(llm_mod, "call_with_tool", _raise)
+    out = followup_questions(
+        "Stamp duty on $850k in NSW",
+        persona="first_home_buyer",
+        answer="NSW stamp duty is ~$33,000.",
+        tool_results=[{"tool": "compute_stamp_duty_nsw", "result": {}}],
+    )
+    deterministic = suggest_followups(
+        "Stamp duty on $850k in NSW",
+        persona="first_home_buyer",
+        tool_results=[{"tool": "compute_stamp_duty_nsw", "result": {}}],
+    )
+    assert out == deterministic
+
+
+def test_followup_questions_disabled_skips_ai(monkeypatch):
+    """CADASTRE_AI_FOLLOWUPS=0 → no LLM call, deterministic only."""
+    monkeypatch.setenv("CADASTRE_AI_FOLLOWUPS", "0")
+
+    def _boom(**kwargs):
+        raise AssertionError("AI layer should be disabled")
+
+    monkeypatch.setattr(llm_mod, "call_with_tool", _boom)
+    out = followup_questions(
+        "What is housing?",
+        persona="general",
+        answer="Housing is shelter.",
+        tool_results=[],
+    )
+    assert len(out) == MAX_SUGGESTIONS

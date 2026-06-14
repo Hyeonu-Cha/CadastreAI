@@ -34,7 +34,7 @@ from src.app.citations import (
     renumber_answer,
 )
 from src.app.disambiguation import apply_disambiguation, detect_ambiguity
-from src.app.followups import suggest_followups
+from src.app.followups import followup_questions
 from src.app.state import (
     UI_PERSONAS,
     TurnRecord,
@@ -182,9 +182,10 @@ def _render_followup_chips(turn: TurnRecord) -> None:
         return
     from src.app.state import ui_to_agent_persona
 
-    suggestions = suggest_followups(
+    suggestions = followup_questions(
         turn.query,
         ui_to_agent_persona(turn.persona),
+        answer=turn.answer,
         tool_results=turn.tool_results,
     )
     if not suggestions:
