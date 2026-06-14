@@ -67,4 +67,10 @@ jobs:
           # exact remote dependencies this check exists to monitor; the
           # deployed Space still runs full hybrid.
           CADASTRE_AGENT_RETRIEVER: dense
+          # The first doc query reloads the BGE model on this cold,
+          # CPU-only runner (~50s one-time); the warm Space never pays
+          # it. Raise the hard latency budget so the model-load penalty
+          # isn't a false failure — the soft WARN (20s) still surfaces
+          # in the log if something gets pathologically slow.
+          SMOKE_HARD_LATENCY_S: "90"
         run: bash scripts/deploy_check.sh
