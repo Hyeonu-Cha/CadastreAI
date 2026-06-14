@@ -54,9 +54,14 @@ from typing import Any
 
 # Latency budgets are wall-clock end-to-end. Tools (esp. ABS) can be
 # slow on cold cache; the soft/hard split lets us warn without failing
-# on a one-off slow upstream call.
-SOFT_LATENCY_BUDGET_S = 20.0
-HARD_LATENCY_BUDGET_S = 45.0
+# on a one-off slow upstream call. Both are env-overridable: a cold,
+# CPU-only CI runner reloads the BGE model on the first doc query and
+# pays a one-time penalty (~50s) that says nothing about the warm
+# deployed Space, so the nightly deploy_check raises the hard budget
+# while keeping the soft WARN for visibility. Defaults protect a
+# warm host.
+SOFT_LATENCY_BUDGET_S = float(os.environ.get("SMOKE_SOFT_LATENCY_S", "20.0"))
+HARD_LATENCY_BUDGET_S = float(os.environ.get("SMOKE_HARD_LATENCY_S", "45.0"))
 
 
 @dataclass
