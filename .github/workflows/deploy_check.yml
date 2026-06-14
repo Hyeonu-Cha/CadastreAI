@@ -57,4 +57,14 @@ jobs:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Dense-only retrieval for the health check. This job's job is
+          # to catch production *data-plane* failures — Qdrant Cloud
+          # down, ANTHROPIC_API_KEY expired, embedding model broken.
+          # The BM25 leg of the default hybrid retriever loads a 212 MB
+          # pickle (data/processed/bm25.pkl) that is gitignored on main
+          # and only shipped to the HF Space via LFS, so it can never be
+          # present on a clean CI checkout. Forcing dense exercises the
+          # exact remote dependencies this check exists to monitor; the
+          # deployed Space still runs full hybrid.
+          CADASTRE_AGENT_RETRIEVER: dense
         run: bash scripts/deploy_check.sh
