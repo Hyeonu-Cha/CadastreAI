@@ -1,0 +1,11 @@
+# CadastreAI Streamlit theme — base tokens from the design system.
+# Fine-grained styling (fonts, dark navy sidebar, citation chips, cards)
+# is layered on in src/app/theme.py via injected CSS; this file sets the
+# primitives Streamlit reads natively so widgets are on-brand before that
+# CSS loads.
+[theme]
+primaryColor = "#d97706"            # amber-600 — the "AI signal" / primary CTA
+backgroundColor = "#faf8f4"         # paper-50 — warm parchment, not cold gray
+secondaryBackgroundColor = "#ffffff" # paper-0 — cards / chat bubbles
+textColor = "#22303f"               # institutional ink
+font = "sans serif"                 # UI chrome; serif/mono applied per-element
