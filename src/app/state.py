@@ -65,6 +65,10 @@ class TurnRecord:
     iteration_count: int = 0
     elapsed_seconds: float | None = None
     error: str | None = None
+    # Memoized follow-up chips for this turn. `None` = not computed yet;
+    # a list (possibly empty) = computed. The render path fills this once
+    # so the Haiku follow-up call doesn't re-fire on every Streamlit rerun.
+    followups: list[str] | None = None
     created_at: str = field(
         default_factory=lambda: datetime.now(UTC).isoformat(timespec="seconds")
     )

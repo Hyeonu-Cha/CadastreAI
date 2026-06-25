@@ -182,12 +182,20 @@ def _render_followup_chips(turn: TurnRecord) -> None:
         return
     from src.app.state import ui_to_agent_persona
 
-    suggestions = followup_questions(
-        turn.query,
-        ui_to_agent_persona(turn.persona),
-        answer=turn.answer,
-        tool_results=turn.tool_results,
-    )
+    # Compute once per turn and memoize on the record. Streamlit re-runs
+    # the whole script on every interaction, so without this the Haiku
+    # follow-up call would re-fire on every unrelated rerun (toggling the
+    # trace, submitting the next query, clicking a chip) for the same
+    # turn — needless latency and cost. `is None` (not falsiness) is the
+    # guard so a legitimately empty result is cached too.
+    if turn.followups is None:
+        turn.followups = followup_questions(
+            turn.query,
+            ui_to_agent_persona(turn.persona),
+            answer=turn.answer,
+            tool_results=turn.tool_results,
+        )
+    suggestions = turn.followups
     if not suggestions:
         return
     st.caption("Try a follow-up:")
