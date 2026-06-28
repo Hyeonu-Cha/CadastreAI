@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import time
+from pathlib import Path
 
 import streamlit as st
 
@@ -44,11 +45,16 @@ from src.app.state import (
     reset_history,
     ui_to_agent_persona,
 )
+from src.app.theme import inject_theme, style_citation_markers
 from src.app.trace import TraceStep, build_trace_steps, chunks_table_rows
 
 log = logging.getLogger(__name__)
 
 PAGE_TITLE = "CadastreAI — Australian housing-market research agent"
+
+# Grid mark doubles as favicon and the assistant avatar (design system).
+# Absolute path so it resolves regardless of Streamlit's working directory.
+PAGE_ICON = str(Path(__file__).resolve().parents[2] / "assets" / "mark.svg")
 
 
 @st.cache_resource(show_spinner="Loading agent graph...")
@@ -209,13 +215,19 @@ def _render_followup_chips(turn: TurnRecord) -> None:
 def _render_turn(turn: TurnRecord) -> None:
     with st.chat_message("user"):
         st.markdown(turn.query)
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar=PAGE_ICON):
         if turn.error:
             st.error(turn.error)
         else:
             citations = parse_citations(turn.answer or "")
             display_text = renumber_answer(turn.answer or "", citations)
-            st.markdown(display_text or "_(no draft answer returned)_")
+            if display_text:
+                st.markdown(
+                    style_citation_markers(display_text, citations),
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown("_(no draft answer returned)_")
             if citations:
                 with st.expander(
                     f"Cited sources ({len(citations)})", expanded=False
@@ -243,7 +255,8 @@ def _render_turn(turn: TurnRecord) -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title=PAGE_TITLE, layout="wide")
+    st.set_page_config(page_title=PAGE_TITLE, page_icon=PAGE_ICON, layout="wide")
+    inject_theme(st)
     init_session_defaults(st.session_state)
 
     _render_sidebar()

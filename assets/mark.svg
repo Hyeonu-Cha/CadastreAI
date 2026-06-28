@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-7 -7 88 88" width="80" height="80">
+  <!-- CadastreAI mark: 9 cadastral-grid parcels forming a C, with the
+       single amber "AI" parcel highlighted. Square crop of the logo grid
+       for use as favicon and assistant avatar. -->
+  <defs>
+    <linearGradient id="parcelGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a5f"/>
+      <stop offset="100%" stop-color="#2d5a8f"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <rect x="0"  y="0"  width="22" height="22" fill="url(#parcelGrad)" rx="2"/>
+  <rect x="26" y="0"  width="22" height="22" fill="url(#parcelGrad)" rx="2"/>
+  <rect x="52" y="0"  width="22" height="22" fill="url(#parcelGrad)" rx="2"/>
+  <rect x="0"  y="26" width="22" height="22" fill="url(#parcelGrad)" rx="2"/>
+  <rect x="26" y="26" width="22" height="22" fill="url(#accentGrad)" rx="2"/>
+  <circle cx="37" cy="37" r="4" fill="#fff"/>
+  <rect x="0"  y="52" width="22" height="22" fill="url(#parcelGrad)" rx="2"/>
+  <rect x="26" y="52" width="22" height="22" fill="url(#parcelGrad)" rx="2"/>
+  <rect x="52" y="52" width="22" height="22" fill="url(#parcelGrad)" rx="2"/>
+</svg>
