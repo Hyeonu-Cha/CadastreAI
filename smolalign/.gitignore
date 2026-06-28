@@ -1,0 +1,33 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.uv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Training / model artifacts — these live on the HF Hub, never in git
+models/
+checkpoints/
+outputs/
+*.safetensors
+*.bin
+*.gguf
+adapter_model/
+
+# Data — raw/intermediate stays local; only small committed sets are tracked
+data/raw/
+data/sft/
+data/dpo/
+*.parquet
+
+# Experiment tracking
+wandb/
+runs/
+
+# OS
+.DS_Store

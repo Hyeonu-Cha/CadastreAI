@@ -1,0 +1,25 @@
+# DPO config (Phase 3). Reference-free via the peft adapter toggle (no second
+# model in memory) so it fits a free T4.
+model:
+  sft_checkpoint: <your-hf-username>/smolalign-sft   # from Phase 2
+  load_in_4bit: true
+  ref_free: true                    # disable adapter for the reference pass
+
+data:
+  dataset: HuggingFaceH4/ultrafeedback_binarized
+  subset_size: 10000
+  max_prompt_len: 1024
+  max_seq_len: 2048
+
+dpo:
+  beta: 0.1
+  loss_type: sigmoid                # plain DPO; try "ipo"/"kto" as ablations
+  epochs: 1
+  per_device_batch_size: 4
+  grad_accum_steps: 8
+  lr: 5.0e-6                        # low — DPO is sensitive
+  scheduler: cosine
+  warmup_ratio: 0.05
+  seed: 42
+  save_steps: 100
+  output_repo: <your-hf-username>/smolalign-dpo

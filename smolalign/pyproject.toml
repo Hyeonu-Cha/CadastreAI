@@ -1,0 +1,59 @@
+[project]
+name = "smolalign"
+version = "0.1.0"
+description = "Train, align, quantize and serve a small instruction-following LLM on free compute."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+# Core deps kept light; heavy training/serving stacks are optional extras so
+# CI (lint + CPU unit tests) stays fast and GPU libs only install where needed.
+dependencies = [
+    "datasets>=2.19",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    "huggingface-hub>=0.23",
+]
+
+[project.optional-dependencies]
+# Phase 2–3: QLoRA SFT + DPO (install in the Kaggle/Colab GPU notebook)
+train = [
+    "torch>=2.3",
+    "transformers>=4.44",
+    "peft>=0.12",
+    "trl>=0.9",
+    "bitsandbytes>=0.43",
+    "accelerate>=0.33",
+    "wandb>=0.17",
+]
+# Phase 4: evaluation (free-API judge + optional harness slice)
+eval = [
+    "groq>=0.9",
+    "google-generativeai>=0.7",
+    "numpy>=1.26",
+]
+# Phase 5–6: quantization + serving
+serve = [
+    "llama-cpp-python>=0.2.80",
+    "vllm>=0.5; sys_platform == 'linux'",
+]
+# Phase 6: demo UI
+app = [
+    "gradio>=4.0",
+    "llama-cpp-python>=0.2.80",
+]
+dev = [
+    "ruff>=0.5",
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

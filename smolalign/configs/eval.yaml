@@ -1,0 +1,18 @@
+# Evaluation config (Phase 4): position-swapped LLM-judge win-rate on a free API.
+judge:
+  provider: groq                    # groq | gemini  (matches JUDGE_PROVIDER in .env)
+  model: llama-3.3-70b-versatile    # gemini: gemini-1.5-flash
+  temperature: 0.0
+  max_retries: 5
+  position_swap: true               # judge A-vs-B AND B-vs-A; drop disagreements
+
+winrate:
+  prompts: data/eval_prompts.jsonl  # 300 held-out instructions
+  model_a: <your-hf-username>/smolalign-sft   # baseline
+  model_b: <your-hf-username>/smolalign-dpo   # aligned
+  ceiling: Qwen/Qwen2.5-1.5B-Instruct         # sanity ceiling
+  gen_max_new_tokens: 512
+  bootstrap_samples: 1000           # for the 95% CI
+
+preference_accuracy:
+  test_split: data/dpo/test.jsonl   # no API — pure logp comparison
