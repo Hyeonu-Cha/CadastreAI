@@ -155,6 +155,32 @@ section[data-testid="stSidebar"] .stButton > button:hover {{
 }}
 .cad-cite-doc {{ background: {_CHIP_DOC_BG}; color: {_CHIP_DOC_FG}; }}
 .cad-cite-tool {{ background: {_CHIP_TOOL_BG}; color: {_CHIP_TOOL_FG}; }}
+
+/* --- Notice callout: paper card w/ amber caution accent. ------------- */
+/* An on-brand replacement for st.warning so caveats read as part of the
+   design system (parchment card, hairline border, amber "signal" rail)
+   rather than Streamlit's default alert box. */
+.cad-notice {{
+  display: flex; gap: 0.6rem; align-items: flex-start;
+  background: var(--paper-0);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--amber-600);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  padding: 0.7rem 0.9rem;
+  margin: 0.15rem 0 0.6rem;
+  font-family: {_FONT_UI};
+  font-size: 0.88rem; line-height: 1.5;
+  color: var(--navy-800);
+}}
+/* Text-presentation glyph (no VS16) so it inherits the amber accent. */
+.cad-notice .cad-notice-icon {{
+  color: var(--amber-600); flex: 0 0 auto; font-size: 1rem;
+}}
+.cad-notice strong {{ color: var(--navy-800); }}
+.cad-notice a {{
+  color: var(--navy-600); text-decoration: underline; text-underline-offset: 2px;
+}}
 </style>
 """
 
@@ -185,3 +211,22 @@ def style_citation_markers(text: str, citations: list[Citation]) -> str:
 def inject_theme(st) -> None:  # noqa: ANN001 — st module, kept import-light
     """Inject the CadastreAI stylesheet. Call once, right after page config."""
     st.markdown(THEME_CSS, unsafe_allow_html=True)
+
+
+def notice(st, body_html: str, *, icon: str = "⚠") -> None:  # noqa: ANN001
+    """Render an on-brand caution callout (paper card, amber accent).
+
+    A themed stand-in for `st.warning` so caveats match the design system
+    instead of Streamlit's default alert box. `body_html` is trusted
+    inline HTML (the caller owns its content — bold, links, etc.), so
+    pass HTML rather than Markdown. Requires `inject_theme` to have run
+    so `.cad-notice` is defined. Use a text-presentation glyph for
+    `icon` (no VS16) so it inherits the amber accent colour.
+    """
+    st.markdown(
+        f'<div class="cad-notice">'
+        f'<span class="cad-notice-icon">{icon}</span>'
+        f"<div>{body_html}</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )

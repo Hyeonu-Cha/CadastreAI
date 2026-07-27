@@ -45,7 +45,7 @@ from src.app.state import (
     reset_history,
     ui_to_agent_persona,
 )
-from src.app.theme import inject_theme, style_citation_markers
+from src.app.theme import inject_theme, notice, style_citation_markers
 from src.app.trace import TraceStep, build_trace_steps, chunks_table_rows
 
 log = logging.getLogger(__name__)
@@ -266,13 +266,15 @@ def main() -> None:
         "Ask anything about Australian housing — interest rates, prices, lending, "
         "rental markets, or policy. Answers cite their sources."
     )
-    st.warning(
-        "**Note on tax content:** the document corpus predates the *Treasury Laws "
-        "Amendment (Tax Reform No. 1) Act 2026* (negative-gearing & CGT changes, "
-        "enacted 26 Jun 2026). Answers on negative gearing or capital gains tax "
-        "reflect the **pre-reform** rules — confirm current settings with the "
-        "[ATO](https://www.ato.gov.au) or a registered tax agent.",
-        icon="⚠️",
+    notice(
+        st,
+        "<strong>Note on tax content:</strong> the document corpus predates the "
+        "<em>Treasury Laws Amendment (Tax Reform No. 1) Act 2026</em> "
+        "(negative-gearing &amp; CGT changes, enacted 26 Jun 2026). Answers on "
+        "negative gearing or capital gains tax reflect the "
+        "<strong>pre-reform</strong> rules — confirm current settings with the "
+        '<a href="https://www.ato.gov.au" target="_blank" rel="noopener">ATO</a> '
+        "or a registered tax agent.",
     )
 
     for turn in st.session_state["history"]:
