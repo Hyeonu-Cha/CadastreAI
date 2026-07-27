@@ -7,8 +7,10 @@ Three functions, each returning the standard tool envelope:
   - `compute_mortgage_repayment(principal_aud, annual_rate_pct,
     term_years, frequency)` — standard amortising-loan repayment.
   - `compute_stamp_duty_nsw(purchase_price_aud, *, is_first_home_buyer)` —
-    NSW residential transfer duty using the 2025-26 brackets, with
-    optional First Home Buyers Assistance Scheme concession.
+    NSW residential transfer duty using the 2024-25 brackets (effective
+    1 July 2024; Revenue NSW indexes thresholds annually, so these are
+    dated — see `_NSW_BRACKETS`), with optional First Home Buyers
+    Assistance Scheme concession.
 
 These are deliberately simple closed-form formulas — no API calls, no
 caching needed. They exist so the agent doesn't have to reason about

@@ -1028,8 +1028,16 @@ _DISCLAIMER_BASELINE = (
     "produce personal financial, legal, or tax recommendations, and "
     "never recommend specific financial products (mortgages, "
     "insurance, super funds). Stick to summarising what the evidence "
-    "says. The persona-specific disclaimer policy below tells you "
-    "exactly what closing-line disclaimer to append to the answer."
+    "says. CURRENCY: The document corpus was assembled before the "
+    "Treasury Laws Amendment (Tax Reform No. 1) Act 2026 (enacted "
+    "26 Jun 2026), which changed negative gearing and the CGT discount. "
+    "Whenever the answer touches negative gearing, capital gains tax, or "
+    "other tax treatment, state plainly that the retrieved evidence "
+    "predates that reform and may be out of date, and direct the user to "
+    "the ATO or a registered tax agent for current settings — do not "
+    "present pre-reform tax rules as current. The persona-specific "
+    "disclaimer policy below tells you exactly what closing-line "
+    "disclaimer to append to the answer."
 )
 
 _SYNTHESIZER_SYSTEM = (

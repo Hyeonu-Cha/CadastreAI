@@ -219,6 +219,59 @@
 
 ---
 
+## WEEK 5 — Regime-change remediation (2026 housing tax reform)
+
+> Trigger: Treasury Laws Amendment (Tax Reform No. 1) Act 2026, enacted 26 Jun 2026.
+> Blocks a *clean* `v1.0.0`; see `docs/regime_change_gap_analysis.md` for findings F-1..F-10.
+> **Interim disclosure shipped ahead of v1.0.0** (banner, README caveat, synthesizer currency caveat, investor-persona reword, `compute.py` vintage consistency). The items below are the full post-launch remediation.
+
+### Day 31 — Stop the bleeding (eval + disclosure)
+
+- [ ] **Task 5.01** — Add `as_of` (ISO date) and `regime` (`pre_2026_reform` | `post_2026_reform` | `regime_neutral`) fields to the eval schema; backfill across `data/eval/queries*.jsonl` and `agent_queries.jsonl` (F-3)
+- [ ] **Task 5.02** — Audit all queries for tax dependence; move regime-dependent items to `data/eval/queries_legacy_regime.jsonl` and exclude from headline metrics in `src/eval/retrieval_eval.py` and `agent_eval.py` (F-3)
+- [ ] **Task 5.03** — Re-word the three malformed queries whose *premise* is now false (`queries_all.jsonl:29` "abolishing"; the 12-month CGT-cliff item; `agent_queries.jsonl:26` "proposed reforms") and re-annotate gold chunks (F-3)
+- [x] **Task 5.04** — Interim disclosure: corpus-vintage banner in `src/app/streamlit_app.py` + README §Disclaimer caveat stating the corpus predates the 2026 reform (F-6) — *done in this PR; supersede when 5.01–5.14 land.*
+
+### Day 32 — Primary-source ingestion
+
+- [ ] **Task 5.05** — Implement `src/ingest/scrapers/ato.py` — ATO new-legislation guidance, filtered to housing/CGT/rental topics (F-1)
+- [ ] **Task 5.06** — Implement `src/ingest/scrapers/legislation.py` — Federal Register of Legislation + APH bills pages; capture Act text and explanatory memoranda (F-1)
+- [ ] **Task 5.07** — Close the known Treasury scraper gap (`progress.md:485`) — follow `/publications?topic=...` pages out of the `/policy-topics/housing` hub (F-1)
+- [ ] **Task 5.08** — Add Budget-paper ingestion (2026-27 BP1/BP2 housing + revenue measures) to `treasury_pc.py` (F-1)
+- [ ] **Task 5.09** — Extend chunk metadata with `regime` and `supersedes` / `superseded_by`; backfill and re-upsert (F-1, F-2)
+
+### Day 33 — Date-aware retrieval
+
+- [ ] **Task 5.10** — Normalise the free-form `date` payload to a sortable ISO value at index time (F-2)
+- [ ] **Task 5.11** — Add a configurable recency prior to `src/index/hybrid.py` RRF scoring; off for `regime_neutral`, on for policy/tax (F-2)
+- [ ] **Task 5.12** — Implement supersession handling in `src/retrieval/retriever.py`: force a `superseded_by` successor into context and demote the predecessor (F-2)
+- [ ] **Task 5.13** — Add `as_of` / `regime` filter params to `retrieve()` and thread through `retrieve_or_tool` (F-2, F-10)
+- [ ] **Task 5.14** — Regression-test date-aware retrieval against the `current_regime` split; target post-reform gold chunk in top-3 for all tax queries (F-2, F-3)
+
+### Day 34 — Prompt stack + guardrails
+
+- [ ] **Task 5.15** — Inject current date into classifier / decomposer / router / reflector / synthesizer prompts in `src/agent/nodes.py` (F-5)
+- [ ] **Task 5.16** — Surface chunk publication date and `regime` in `_summarise_chunks_for_synth` evidence blocks (F-5)
+- [ ] **Task 5.17** — Amend `_REFLECTOR_SYSTEM` to admit "all retrieved evidence predates a known regime change" as a nameable gap (F-5)
+- [ ] **Task 5.18** — Add a `temporal_currency` guardrail category to `src/agent/guardrails.py`; action is **preamble injection**, not refusal (needs a new `GuardrailAction` "annotate") (F-7)
+- [~] **Task 5.19** — Regime-aware investor persona + currency caveat. *Partially done in this PR: reworded the investor addendum in `persona.py` and added a CURRENCY clause to `_DISCLAIMER_BASELINE`. Remaining: fuller `_PERSONA_DISCLAIMER` treatment.* (F-6)
+- [ ] **Task 5.20** — Add `acquisition_date` and `is_new_build` to `AgentState` + `Classification`; wire disambiguation in `src/app/disambiguation.py` (F-10)
+
+### Day 35 — Tools
+
+- [~] **Task 5.21** — NSW bracket vintage. *Partially done in this PR: aligned the four conflicting vintage strings in `compute.py` to 2024-25. Remaining: move brackets to a dated config keyed by financial year and refresh to current-year values.* (F-8)
+- [ ] **Task 5.22** — Implement `compute_cgt_indexed()` — cost-base indexation for gains from 1 Jul 2027; expose in `src/tools/schemas.py` (F-8)
+- [ ] **Task 5.23** — Implement `compute_gearing_position()` — deductible-vs-quarantined split keyed on `acquisition_date` / `is_new_build`; refuse when unknown (F-8, F-10)
+- [ ] **Task 5.24** — Structural-break annotation on `rba_stats` / `abs_stats` / `sqm` envelopes when the period spans 12 May 2026 (F-9)
+
+### Day 36 — Re-train + re-baseline
+
+- [ ] **Task 5.25** — Re-run `generate_pairs.py` post-ingestion with per-publisher **and** per-era caps (F-4)
+- [ ] **Task 5.26** — Re-run retrieval + agent eval on the corrected split; publish `results/regime_change_v1.md`; refresh README / `docs/report_v2.md` (F-3, F-4)
+- [ ] **Task 5.27** — CI check in `.github/workflows/tests.yml` asserting no `pre_2026_reform` query contributes to headline metrics (F-3)
+
+---
+
 ## Cross-cutting / Ongoing
 
 - [x] **Task X.01** — Maintain `progress.md` with status + notes per completed ticket (most recent refresh: PR #120)
@@ -227,3 +280,5 @@
       - `src/agent/persona.py::persona_disclaimer()` returns a persona-specific DISCLAIMER POLICY block; `nodes.py:1218` appends it to the synthesizer system prompt every turn. Homebuyer/investor get the most explicit "consult a licensed professional" language; researcher/journalist get audience-appropriate caveats; `general` fallback always non-empty. Covered by `tests/test_persona_disclaimer.py` (passing).
 - [x] **Task X.04** — Guardrails: block financial-product recommendations (mortgage/insurance); log refusals
       - `src/agent/guardrails.py::screen_query()` is a pure pattern-matching screen across 4 categories (mortgage_product, insurance_product, super_or_managed_fund, specific_security_pick). `guardrail_screen` is wired as the first node in `graph.py` (START → guardrail_screen → END on refusal, no LLM call on the hot path). Structured WARNING log via `log_refusal()`. Covered by `tests/test_guardrails.py` (passing).
+- [ ] **Task X.06** — Regime-change watch: quarterly re-run of `scripts/collect_sources.py` against ATO + legislation scrapers, with a diff report on any chunk whose `regime` tag would change (see `docs/regime_change_gap_analysis.md`)
+- [ ] **Task X.07** — Document the corpus `as_of` date prominently in README, `product.md`, and the Streamlit footer; treat "corpus vintage" as a first-class released artifact alongside `final_metrics.json`
