@@ -864,9 +864,11 @@ def _summarise_chunks(chunks: list[dict]) -> str:
         title = (payload.get("title") or "")[:80]
         section = (payload.get("section_heading") or "")[:60]
         date = payload.get("date")
+        publisher = payload.get("publisher", "?")
+        pub_label = f"{publisher} ({date})" if date else publisher
         text = (payload.get("text") or "")[:REFLECT_EVIDENCE_PREVIEW_CHARS]
         lines.append(
-            f"[{i}] {payload.get('publisher', '?')} ({date}) | {title}"
+            f"[{i}] {pub_label} | {title}"
             + (f" | {section}" if section else "")
             + f"\n    score={c.get('score', 0):.3f}  text={text!r}"
         )
