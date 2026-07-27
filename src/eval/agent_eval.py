@@ -36,6 +36,8 @@ import sys
 import time
 from pathlib import Path
 
+from src.eval.regime import NEUTRAL_REGIME, is_headline, regime_of
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -267,6 +269,7 @@ def evaluate_one(record: dict, final_state: dict, *, with_judge: bool = False) -
 
     out = {
         "id": record.get("id"),
+        "regime": regime_of(record),
         "query": record.get("query"),
         "expected_tools": expected_tools,
         "actual_tools": actual_tools,
@@ -354,10 +357,22 @@ def run_agent_eval(
         except Exception as e:  # noqa: BLE001 — record + continue
             log.exception("eval %s failed", rec["id"])
             failures.append({"id": rec["id"], "error": f"{type(e).__name__}: {e}"})
+    # Headline metrics exclude the quarantined pre-reform set (Task 5.02):
+    # those queries expect repealed-law answers, so counting them measures
+    # fidelity to a superseded statute. Legacy is still scored + reported.
+    headline_rows = [r for r in rows if is_headline(r.get("regime", NEUTRAL_REGIME))]
+    legacy_rows = [r for r in rows if not is_headline(r.get("regime", NEUTRAL_REGIME))]
+    by_regime = {
+        reg: aggregate([r for r in rows if r.get("regime", NEUTRAL_REGIME) == reg])
+        for reg in sorted({r.get("regime", NEUTRAL_REGIME) for r in rows})
+    }
     return {
         "queries_path": str(queries_path),
         "with_judge": with_judge,
-        "aggregate": aggregate(rows),
+        "aggregate": aggregate(headline_rows),
+        "aggregate_including_legacy": aggregate(rows),
+        "legacy_regime": aggregate(legacy_rows),
+        "by_regime": by_regime,
         "rows": rows,
         "failures": failures,
     }

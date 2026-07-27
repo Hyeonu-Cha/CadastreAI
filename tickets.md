@@ -227,9 +227,9 @@
 
 ### Day 31 — Stop the bleeding (eval + disclosure)
 
-- [ ] **Task 5.01** — Add `as_of` (ISO date) and `regime` (`pre_2026_reform` | `post_2026_reform` | `regime_neutral`) fields to the eval schema; backfill across `data/eval/queries*.jsonl` and `agent_queries.jsonl` (F-3)
-- [ ] **Task 5.02** — Audit all queries for tax dependence; move regime-dependent items to `data/eval/queries_legacy_regime.jsonl` and exclude from headline metrics in `src/eval/retrieval_eval.py` and `agent_eval.py` (F-3)
-- [ ] **Task 5.03** — Re-word the three malformed queries whose *premise* is now false (`queries_all.jsonl:29` "abolishing"; the 12-month CGT-cliff item; `agent_queries.jsonl:26` "proposed reforms") and re-annotate gold chunks (F-3)
+- [x] **Task 5.01** — Add a `regime` (`pre_2026_reform` | `post_2026_reform` | `regime_neutral`) field to the eval schema (`src/eval/regime.py`); backfill the regime-dependent queries in `queries_all.jsonl` + `agent_queries.jsonl` (F-3). *`as_of` and the secondary files (candidates/synth/persona) deferred — absent field defaults to `regime_neutral`, so they simply count as headline until tagged.*
+- [x] **Task 5.02** — Audited the tax-dependent queries (5 quarantined: retrieval NG after-tax cash flow / 12-month CGT cliff / abolishing-NG modelling; agent agent-010 + agent-026) and excluded them from headline metrics in `src/eval/retrieval_eval.py` and `agent_eval.py`. *Deviation: tagged in place + harness filters (with `legacy_regime` / `by_regime` / `*_including_legacy` reported) rather than moving to a separate file — no data duplication, one flag to flip. Covered by `tests/test_eval_regime.py`.* (F-3)
+- [ ] **Task 5.03** — Re-word the three malformed queries whose *premise* is now false (`queries_all.jsonl` "abolishing"; the 12-month CGT-cliff item; `agent_queries.jsonl:26` "proposed reforms") and re-annotate gold chunks — **blocked on F-1 ingestion** (no post-reform chunks exist yet to re-point at); exclusion via 5.02 already removes their headline harm (F-3)
 - [x] **Task 5.04** — Interim disclosure: corpus-vintage banner in `src/app/streamlit_app.py` + README §Disclaimer caveat stating the corpus predates the 2026 reform (F-6) — *done in this PR; supersede when 5.01–5.14 land.*
 
 ### Day 32 — Primary-source ingestion
