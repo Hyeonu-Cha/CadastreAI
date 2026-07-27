@@ -38,6 +38,7 @@ from src.index.hybrid import HybridRetriever
 from src.retrieval.rerank import DEFAULT_MODEL as DEFAULT_RERANKER_MODEL
 from src.retrieval.rerank import RerankedRetriever, Reranker
 from src.retrieval.retriever import Retriever
+from src.eval.regime import NEUTRAL_REGIME, is_headline, regime_of
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -84,6 +85,7 @@ class QueryResult:
     mrr_10: float
     ndcg_10: float
     latency_ms: float = 0.0
+    regime: str = NEUTRAL_REGIME
 
 
 def evaluate_query(
@@ -93,6 +95,7 @@ def evaluate_query(
     retrieved: list[str],
     k_values: tuple[int, ...] = (5, 10),
     latency_ms: float = 0.0,
+    regime: str = NEUTRAL_REGIME,
 ) -> QueryResult:
     gold_set = set(gold)
     ranks: dict[str, int | None] = {gid: None for gid in gold}
@@ -110,6 +113,7 @@ def evaluate_query(
         mrr_10=reciprocal_rank(retrieved, gold_set, 10),
         ndcg_10=ndcg_at_k(retrieved, gold_set, 10),
         latency_ms=latency_ms,
+        regime=regime,
     )
 
 
@@ -203,19 +207,32 @@ def run(
                 gold=rec.get("gold_chunk_ids") or [],
                 retrieved=retrieved_ids,
                 latency_ms=latency_ms,
+                regime=regime_of(rec),
             )
         )
         if i % 10 == 0 or i == len(queries):
             elapsed = time.time() - t0
             log.info("  %d/%d queries (%.1fs, %.2f q/s)", i, len(queries), elapsed, i / elapsed)
 
-    overall = aggregate(results)
+    # Headline metrics exclude the quarantined pre-reform set (Task 5.02):
+    # those queries gold-label repealed tax law, so scoring them inflates
+    # fidelity to a superseded statute. We still score the legacy set and
+    # report it separately so nothing is hidden.
+    headline = [r for r in results if is_headline(r.regime)]
+    legacy = [r for r in results if not is_headline(r.regime)]
+    overall = aggregate(headline)
+
     by_persona: dict[str, dict] = {}
     buckets: dict[str, list[QueryResult]] = defaultdict(list)
-    for r in results:
+    for r in headline:  # persona breakdown over the headline set, for consistency
         buckets[r.persona].append(r)
     for persona, rs in buckets.items():
         by_persona[persona] = aggregate(rs)
+
+    by_regime = {
+        reg: aggregate([r for r in results if r.regime == reg])
+        for reg in sorted({r.regime for r in results})
+    }
 
     latency = _latency_stats([r.latency_ms for r in results])
 
@@ -224,12 +241,16 @@ def run(
         "top_k": top_k,
         "retriever": _describe(retriever),
         "overall": overall,
+        "overall_including_legacy": aggregate(results),
+        "legacy_regime": aggregate(legacy),
+        "by_regime": by_regime,
         "latency": latency,
         "by_persona": by_persona,
         "per_query": [
             {
                 "query": r.query,
                 "persona": r.persona,
+                "regime": r.regime,
                 "gold_chunk_ids": r.gold_chunk_ids,
                 "retrieved_chunk_ids": r.retrieved_chunk_ids,
                 "gold_ranks": r.gold_ranks,
@@ -258,7 +279,7 @@ def run(
         latency["p95_ms"],
     )
     print(
-        f"n={overall['n']} "
+        f"n={overall['n']} (+{len(legacy)} legacy, excluded from headline) "
         f"R@5={overall['recall@5']:.3f} "
         f"R@10={overall['recall@10']:.3f} "
         f"MRR@10={overall['mrr@10']:.3f} "
