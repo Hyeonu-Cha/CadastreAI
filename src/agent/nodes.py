@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import re
+from datetime import datetime, timezone
 
 from src.agent import llm
 from src.agent.cost import log_cost
@@ -31,6 +32,40 @@ from src.agent.persona import (
 )
 
 log = logging.getLogger(__name__)
+
+
+# --- Temporal context (Task 5.15) ----------------------------------
+# The agent had no notion of "today", so it couldn't reason about recency
+# or whether cited evidence is still current. Inject the date into each
+# node's USER message rather than the system prompt: llm.py marks the
+# system block with cache_control=ephemeral, and a volatile date there
+# would bust that prompt cache. Australia/Sydney is the domain-correct
+# clock; fall back to UTC where the tz database isn't present (e.g. a
+# bare Windows runner without `tzdata`).
+try:
+    from zoneinfo import ZoneInfo
+
+    _AGENT_TZ = ZoneInfo("Australia/Sydney")
+    _AGENT_TZ_LABEL = "Australia/Sydney"
+except Exception:  # noqa: BLE001 — no tzdata → UTC is a fine fallback
+    _AGENT_TZ = timezone.utc
+    _AGENT_TZ_LABEL = "UTC"
+
+
+def _today_context() -> str:
+    """One-line current-date preamble prepended to a node's user prompt."""
+    today = datetime.now(_AGENT_TZ).strftime("%Y-%m-%d")
+    return (
+        f"[Context] Today's date is {today} ({_AGENT_TZ_LABEL}). Treat this "
+        "as the current date when judging recency or whether cited material "
+        "may be out of date.\n\n"
+    )
+
+
+def _with_today(user: str) -> str:
+    """Prepend the current-date context to a node's user prompt (Task 5.15)."""
+    return _today_context() + user
+
 
 # Per-node model defaults, resolved at call time via `_resolve_*_model()`
 # so the active provider (`CADASTRE_LLM_PROVIDER`) can swap between the
@@ -200,7 +235,7 @@ def classify_query(state: AgentState) -> dict:
     log.debug("classify_query → %s (%s)", model, llm.get_provider())
     cls_input, usage = llm.call_with_tool(
         system=_CLASSIFIER_SYSTEM,
-        user=query,
+        user=_with_today(query),
         tool_def=_CLASSIFY_TOOL,
         tool_name="submit_classification",
         max_tokens=CLASSIFIER_MAX_TOKENS,
@@ -287,7 +322,7 @@ def decompose(state: AgentState) -> dict:
     log.debug("decompose → %s (%s)", model, llm.get_provider())
     tool_input, usage = llm.call_with_tool(
         system=_DECOMPOSER_SYSTEM,
-        user=query,
+        user=_with_today(query),
         tool_def=_DECOMPOSE_TOOL,
         tool_name="submit_subquestions",
         max_tokens=DECOMPOSER_MAX_TOKENS,
@@ -521,7 +556,7 @@ def _plan_subquestion(query: str, persona: str | None = None) -> dict:
     log.debug("router → %s (%s, persona=%s)", model, llm.get_provider(), persona)
     plan, usage = llm.call_with_tool(
         system=system_prompt,
-        user=query,
+        user=_with_today(query),
         tool_def=_ROUTER_TOOL,
         tool_name="submit_routing_plan",
         max_tokens=ROUTER_MAX_TOKENS,
@@ -922,7 +957,7 @@ def reflect(state: AgentState) -> dict:
     try:
         raw, usage = llm.call_with_tool(
             system=_REFLECTOR_SYSTEM,
-            user=prompt,
+            user=_with_today(prompt),
             tool_def=_REFLECT_TOOL,
             tool_name="submit_reflection",
             max_tokens=REFLECTOR_MAX_TOKENS,
@@ -1245,7 +1280,7 @@ def synthesize(state: AgentState) -> dict:
     try:
         raw, usage = llm.call_text(
             system=system_prompt,
-            user=prompt,
+            user=_with_today(prompt),
             max_tokens=SYNTHESIZER_MAX_TOKENS,
             model=model,
         )
