@@ -863,9 +863,10 @@ def _summarise_chunks(chunks: list[dict]) -> str:
         payload = c.get("payload") or {}
         title = (payload.get("title") or "")[:80]
         section = (payload.get("section_heading") or "")[:60]
+        date = payload.get("date")
         text = (payload.get("text") or "")[:REFLECT_EVIDENCE_PREVIEW_CHARS]
         lines.append(
-            f"[{i}] {payload.get('publisher', '?')} | {title}"
+            f"[{i}] {payload.get('publisher', '?')} ({date}) | {title}"
             + (f" | {section}" if section else "")
             + f"\n    score={c.get('score', 0):.3f}  text={text!r}"
         )
@@ -1102,10 +1103,16 @@ def _summarise_chunks_for_synth(chunks: list[dict]) -> str:
         title = (payload.get("title") or "")[:120]
         section = (payload.get("section_heading") or "")[:80]
         page = payload.get("page")
+        date = payload.get("date")
         text = (payload.get("text") or "")[:SYNTH_CHUNK_TEXT_LIMIT]
-        header = f"[{i}] publisher={publisher!r} page={page!r} title={title!r}"
+        header = f"[{i}] publisher={publisher!r} date={date!r} page={page!r} title={title!r}"
         if section:
             header += f" section={section!r}"
+        # Chunk-level regime tag lands with Task 5.09; surface it when present
+        # so the synthesizer can flag pre-reform evidence explicitly (F-5).
+        regime = payload.get("regime")
+        if regime:
+            header += f" regime={regime!r}"
         lines.append(f"{header}\n    text={text!r}")
     if len(chunks) > SYNTH_MAX_CHUNKS_IN_PROMPT:
         lines.append(f"... and {len(chunks) - SYNTH_MAX_CHUNKS_IN_PROMPT} more chunks")

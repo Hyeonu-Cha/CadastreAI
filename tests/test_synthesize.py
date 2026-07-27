@@ -72,6 +72,34 @@ def test_build_synth_prompt_includes_evidence_and_question():
     assert "(none — answer the original question directly)" in prompt
 
 
+def test_synth_chunk_summary_surfaces_date_and_regime():
+    """The synth evidence block shows each chunk's vintage (Task 5.16) so the
+    currency caveat can be specific about pre-reform sources (F-5)."""
+    chunks = [
+        {
+            "payload": {
+                "publisher": "AHURI",
+                "title": "The income tax treatment of housing assets",
+                "date": "2018",
+                "regime": "pre_2026_reform",
+                "text": "The 50 per cent CGT discount applies to assets held...",
+            }
+        }
+    ]
+    out = nodes._summarise_chunks_for_synth(chunks)
+    assert "date='2018'" in out
+    assert "regime='pre_2026_reform'" in out
+
+
+def test_synth_chunk_summary_omits_regime_when_absent():
+    """`regime` only appears once chunk metadata carries it (Task 5.09); until
+    then the date still shows and no empty `regime=` clutters the prompt."""
+    chunks = [{"payload": {"publisher": "RBA", "title": "SMP", "date": "2026", "text": "x"}}]
+    out = nodes._summarise_chunks_for_synth(chunks)
+    assert "date='2026'" in out
+    assert "regime=" not in out
+
+
 def test_build_synth_prompt_caps_chunk_count(monkeypatch):
     state = initial_state("q")
     state["retrieved_chunks"] = [
