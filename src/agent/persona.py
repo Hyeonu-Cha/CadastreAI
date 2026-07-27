@@ -74,8 +74,11 @@ _PERSONA_PROMPT_ADDENDUM: dict[Persona, str] = {
     "investor": (
         "The user is a property investor. Lead with investment metrics "
         "(rental yield, vacancy, capital growth, cash-flow). Distinguish "
-        "gross vs net where the evidence supports it; flag tax-treatment "
-        "items only when explicitly covered in retrieved policy text."
+        "gross vs net where the evidence supports it. Treat any "
+        "tax-treatment detail (negative gearing, CGT) with caution: the "
+        "policy corpus predates the 2026 negative-gearing / CGT reform, "
+        "so do NOT state such rules as current — note they may have "
+        "changed and point the user to the ATO or a registered tax agent."
     ),
     "policy_researcher": (
         "The user is a policy / academic researcher. Use a formal "

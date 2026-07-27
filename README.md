@@ -292,6 +292,8 @@ CadastreAI/
 
 CadastreAI is a research and education tool. Nothing it produces constitutes financial advice. Property decisions should involve a licensed buyer's agent, mortgage broker, solicitor, and financial adviser. Data accuracy depends on upstream sources (RBA, ABS, etc.) and may be stale between cache refreshes.
 
+> **⚠️ Corpus vintage — tax content is pre-reform.** The document corpus was assembled before the *Treasury Laws Amendment (Tax Reform No. 1) Act 2026* (enacted 26 Jun 2026), which quarantines negative gearing to new builds and replaces the 50% CGT discount with CPI indexation from 1 Jul 2027. Answers touching **negative gearing** or **capital gains tax** reflect the **pre-reform** rules and should not be relied on as current — verify with the [ATO](https://www.ato.gov.au) or a registered tax agent. Full gap analysis and remediation plan: [`docs/regime_change_gap_analysis.md`](docs/regime_change_gap_analysis.md) (tracked as Week 5 in `tickets.md`).
+
 ---
 
 ## 📜 License

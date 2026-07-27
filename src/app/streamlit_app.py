@@ -253,6 +253,14 @@ def main() -> None:
         "Ask anything about Australian housing — interest rates, prices, lending, "
         "rental markets, or policy. Answers cite their sources."
     )
+    st.warning(
+        "**Note on tax content:** the document corpus predates the *Treasury Laws "
+        "Amendment (Tax Reform No. 1) Act 2026* (negative-gearing & CGT changes, "
+        "enacted 26 Jun 2026). Answers on negative gearing or capital gains tax "
+        "reflect the **pre-reform** rules — confirm current settings with the "
+        "[ATO](https://www.ato.gov.au) or a registered tax agent.",
+        icon="⚠️",
+    )
 
     for turn in st.session_state["history"]:
         _render_turn(turn)
