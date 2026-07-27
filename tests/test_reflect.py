@@ -77,6 +77,24 @@ def test_build_reflect_prompt_renders_all_sections():
     assert "4.10%" in prompt
 
 
+def test_reflect_chunk_summary_shows_date_when_present():
+    """Chunk vintage is surfaced to the reflector (Task 5.16) so it can weigh
+    whether the evidence is current."""
+    out = nodes._summarise_chunks(
+        [{"score": 0.5, "payload": {"publisher": "AHURI", "title": "Tax treatment", "date": "2018", "text": "x"}}]
+    )
+    assert "AHURI (2018) | Tax treatment" in out
+
+
+def test_reflect_chunk_summary_omits_date_when_absent():
+    """No date → no empty `(None)` clutter (keeps the pre-5.16 format)."""
+    out = nodes._summarise_chunks(
+        [{"score": 0.5, "payload": {"publisher": "RBA", "title": "SMP", "text": "x"}}]
+    )
+    assert "RBA | SMP" in out
+    assert "(None)" not in out
+
+
 def test_build_reflect_prompt_handles_empty_evidence():
     state = initial_state("anything")
     state["classification"] = {
