@@ -250,7 +250,7 @@
 
 ### Day 34 — Prompt stack + guardrails
 
-- [ ] **Task 5.15** — Inject current date into classifier / decomposer / router / reflector / synthesizer prompts in `src/agent/nodes.py` (F-5)
+- [x] **Task 5.15** — Inject current date into the classifier / decomposer / router / reflector / synthesizer prompts in `src/agent/nodes.py` (`_with_today`). *Placed in the USER message, not the system prompt, so the volatile date doesn't bust llm.py's `cache_control=ephemeral` system block; Australia/Sydney clock with a UTC fallback. Covered by `tests/test_agent_temporal_context.py`.* (F-5)
 - [ ] **Task 5.16** — Surface chunk publication date and `regime` in `_summarise_chunks_for_synth` evidence blocks (F-5)
 - [ ] **Task 5.17** — Amend `_REFLECTOR_SYSTEM` to admit "all retrieved evidence predates a known regime change" as a nameable gap (F-5)
 - [ ] **Task 5.18** — Add a `temporal_currency` guardrail category to `src/agent/guardrails.py`; action is **preamble injection**, not refusal (needs a new `GuardrailAction` "annotate") (F-7)
