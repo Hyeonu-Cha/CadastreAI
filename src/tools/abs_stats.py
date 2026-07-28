@@ -49,6 +49,8 @@ from pathlib import Path
 
 import httpx
 
+from src.tools.regime_break import annotate_structural_break
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -327,7 +329,7 @@ def abs_property_price_index(
             f"6432.0 record for {city} ({first['period_end']})"
         )
     retrieved_at = datetime.now(tz=UTC).isoformat(timespec="seconds")
-    return {
+    return annotate_structural_break({
         "data": {
             "capital_city": city,
             "median_house_price_aud": hit["median_house_aud"],
@@ -345,7 +347,7 @@ def abs_property_price_index(
             f"— Median Price of Transfers, {city}, "
             f"{hit['period_end'].isoformat()} ({ABS_6432_PAGE_URL})"
         ),
-    }
+    })
 
 
 def _parse_8731007(xlsx_path: Path, state: str) -> list[dict]:
@@ -524,7 +526,7 @@ def abs_lending_indicators(
         )
     retrieved_at = datetime.now(tz=UTC).isoformat(timespec="seconds")
     data = {**hit["values"], "frequency": "quarterly"}
-    return {
+    return annotate_structural_break({
         "data": data,
         "as_of": hit["period_end"].isoformat(),
         "queried_period": period,
@@ -537,7 +539,7 @@ def abs_lending_indicators(
             f"— New housing loan commitments, "
             f"{hit['period_end'].isoformat()} ({ABS_5601_PAGE_URL})"
         ),
-    }
+    })
 
 
 def _add_common_args(sub: argparse.ArgumentParser) -> None:
