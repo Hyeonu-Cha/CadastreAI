@@ -262,7 +262,7 @@
 - [~] **Task 5.21** — NSW bracket vintage. *Partially done in this PR: aligned the four conflicting vintage strings in `compute.py` to 2024-25. Remaining: move brackets to a dated config keyed by financial year and refresh to current-year values.* (F-8)
 - [ ] **Task 5.22** — Implement `compute_cgt_indexed()` — cost-base indexation for gains from 1 Jul 2027; expose in `src/tools/schemas.py` (F-8)
 - [ ] **Task 5.23** — Implement `compute_gearing_position()` — deductible-vs-quarantined split keyed on `acquisition_date` / `is_new_build`; refuse when unknown (F-8, F-10)
-- [ ] **Task 5.24** — Structural-break annotation on `rba_stats` / `abs_stats` / `sqm` envelopes when the period spans 12 May 2026 (F-9)
+- [x] **Task 5.24** — Structural-break annotation (`src/tools/regime_break.py`) on the three investor-driven envelopes — ABS prices, ABS lending, SQM vacancy — when the figure's `as_of` is on/after 12 May 2026. *The live tools are point-in-time (resolve to a single `as_of`), so there's no range to test; the note lands on the `citation` (source-card) surface, filling the gap where the 5.18 guardrail's keyword trigger doesn't fire for investor-data queries. Cash rate / building approvals not annotated. Covered by `tests/test_tools_regime_break.py`.* (F-9)
 
 ### Day 36 — Re-train + re-baseline
 

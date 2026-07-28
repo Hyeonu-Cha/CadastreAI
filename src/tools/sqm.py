@@ -33,6 +33,8 @@ from pathlib import Path
 
 import httpx
 
+from src.tools.regime_break import annotate_structural_break
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -232,7 +234,7 @@ def sqm_rental_vacancy(
         )
     retrieved_at = datetime.now(tz=UTC).isoformat(timespec="seconds")
     full_url = f"{url}?{httpx.QueryParams(params)}"
-    return {
+    return annotate_structural_break({
         "data": {
             "location": postcode_or_city,
             "vacancy_rate_pct": hit["vacancy_rate_pct"],
@@ -250,7 +252,7 @@ def sqm_rental_vacancy(
             f"SQM Research, Residential Vacancy Rates — {postcode_or_city}, "
             f"{hit['period_end'].isoformat()} ({full_url})"
         ),
-    }
+    })
 
 
 def main() -> None:
