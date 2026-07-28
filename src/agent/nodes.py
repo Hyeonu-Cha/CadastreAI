@@ -111,6 +111,11 @@ def guardrail_screen(state: AgentState) -> dict:
     decision = screen_query(user_query)
     if decision.action == "allow":
         return {}
+    if decision.action == "annotate":
+        # Non-blocking (Task 5.18): stamp a mandatory currency preamble the
+        # synthesizer will prepend, and let the query run the normal
+        # pipeline. `blocked` is intentionally unset so routing continues.
+        return {"currency_notice": decision.notice_text or ""}
     log_refusal(user_query, decision)
     refusal = decision.refusal_text or ""
     return {
@@ -1249,6 +1254,20 @@ def _enforce_citations(text: str, state: AgentState) -> tuple[str, list[str]]:
     return annotated, orphans
 
 
+def _prepend_currency_notice(answer: str, state: AgentState) -> str:
+    """Prepend the guardrail's mandatory currency preamble, if any (Task 5.18).
+
+    `guardrail_screen` stamps `currency_notice` on the non-blocking
+    annotate path (tax queries touching negative gearing / CGT). Prepending
+    it here makes the caveat deterministic — it appears regardless of
+    whether the model honoured the synthesizer prompt's currency clause.
+    """
+    notice = (state.get("currency_notice") or "").strip()
+    if not notice:
+        return answer
+    return f"{notice}\n\n{answer}"
+
+
 def synthesize(state: AgentState) -> dict:
     """Produce the user-facing answer with strict inline citations.
 
@@ -1312,9 +1331,10 @@ def synthesize(state: AgentState) -> dict:
     cleaned, orphans = _enforce_citations(raw, state)
     if orphans:
         log.info("synthesize: %d unverified citation(s): %s", len(orphans), orphans)
+    final = _prepend_currency_notice(cleaned, state)
     return {
-        "answer_draft": cleaned,
-        "messages": msgs + [{"role": "assistant", "content": cleaned}],
+        "answer_draft": final,
+        "messages": msgs + [{"role": "assistant", "content": final}],
     }
 
 

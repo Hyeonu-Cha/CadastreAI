@@ -118,6 +118,44 @@ def test_refusal_text_offers_redirection():
         assert "licensed" in text.lower() or "adviser" in text.lower() or "broker" in text.lower()
 
 
+# ---------- temporal-currency annotation (Task 5.18) ------------------
+
+
+ANNOTATE_CASES = [
+    "What is the effect of negative gearing on my after-tax cash flow?",
+    "How much capital gains tax will I pay on an investment property?",
+    "Explain the CGT discount for a property held over 12 months",
+    "How does negatively gearing a rental property work?",
+]
+
+
+@pytest.mark.parametrize("query", ANNOTATE_CASES)
+def test_screen_query_annotates_tax_currency(query):
+    decision = gr.screen_query(query)
+    assert decision.action == "annotate", f"expected annotate for {query!r}"
+    assert decision.category == "temporal_currency"
+    assert decision.notice_text and "ATO" in decision.notice_text
+    assert decision.refusal_text is None  # annotate never blocks
+
+
+def test_refuse_beats_annotate_when_both_match():
+    """A product pick that also mentions negative gearing still refuses —
+    refusal is the stronger action and runs first."""
+    decision = gr.screen_query(
+        "Which mortgage should I get to negatively gear an investment property?"
+    )
+    assert decision.action == "refuse"
+    assert decision.category == "mortgage_product"
+
+
+def test_capital_growth_is_not_a_tax_currency_match():
+    """`capital growth` (a price concept) must not trip the CGT pattern."""
+    decision = gr.screen_query(
+        "Which Sydney suburbs had the highest capital growth last year?"
+    )
+    assert decision.action == "allow"
+
+
 # ---------- logging side-effect ---------------------------------------
 
 
@@ -175,6 +213,28 @@ def test_guardrail_screen_node_short_circuits_blocked_query():
         m.get("role") == "assistant" and "can't recommend" in m["content"]
         for m in out["messages"]
     )
+
+
+def test_guardrail_screen_node_stamps_currency_notice_without_blocking():
+    """Annotate path (Task 5.18): node stamps a currency preamble and lets
+    the query continue — no block, no answer short-circuit."""
+    from src.agent import nodes
+
+    state = {
+        "messages": [{"role": "user", "content": "How does negative gearing work?"}],
+        "iteration_count": 0,
+    }
+    out = nodes.guardrail_screen(state)
+    assert "ATO" in out["currency_notice"]
+    assert "guardrail" not in out  # not blocked
+    assert "answer_draft" not in out  # not short-circuited
+
+
+def test_route_after_guardrail_continues_on_annotate():
+    from src.agent import graph as graph_mod
+
+    # Annotate leaves currency_notice but no guardrail.blocked → continue.
+    assert graph_mod._route_after_guardrail({"currency_notice": "x"}) == "continue"
 
 
 def test_route_after_guardrail():

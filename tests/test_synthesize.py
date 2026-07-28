@@ -100,6 +100,19 @@ def test_synth_chunk_summary_omits_regime_when_absent():
     assert "regime=" not in out
 
 
+def test_prepend_currency_notice_prepends_when_set():
+    """The guardrail's mandatory currency preamble leads the answer (Task 5.18)."""
+    state = {"currency_notice": "**Note:** tax rules changed in 2026."}
+    out = nodes._prepend_currency_notice("The CGT discount is 50%.", state)
+    assert out == "**Note:** tax rules changed in 2026.\n\nThe CGT discount is 50%."
+
+
+def test_prepend_currency_notice_noop_when_absent():
+    """No annotation → answer untouched (allow / non-tax queries)."""
+    assert nodes._prepend_currency_notice("Body.", {}) == "Body."
+    assert nodes._prepend_currency_notice("Body.", {"currency_notice": "   "}) == "Body."
+
+
 def test_build_synth_prompt_caps_chunk_count(monkeypatch):
     state = initial_state("q")
     state["retrieved_chunks"] = [
