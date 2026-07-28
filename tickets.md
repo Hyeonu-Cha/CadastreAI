@@ -268,7 +268,7 @@
 
 - [ ] **Task 5.25** — Re-run `generate_pairs.py` post-ingestion with per-publisher **and** per-era caps (F-4)
 - [ ] **Task 5.26** — Re-run retrieval + agent eval on the corrected split; publish `results/regime_change_v1.md`; refresh README / `docs/report_v2.md` (F-3, F-4)
-- [ ] **Task 5.27** — CI check in `.github/workflows/tests.yml` asserting no `pre_2026_reform` query contributes to headline metrics (F-3)
+- [x] **Task 5.27** — CI check in `.github/workflows/tests.yml` (named gate) asserting the eval quarantine holds: pre-reform queries stay tagged AND `is_headline` keeps them off the headline. Enforced by `tests/test_eval_headline_integrity.py`. (F-3)
 
 ---
 

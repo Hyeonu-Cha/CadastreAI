@@ -31,5 +31,12 @@ jobs:
       - name: Install package + test deps
         run: pip install -e ".[chunk,embed,index,agent,app,tools,dev]"
 
+      # Named gate (Task 5.27): fail fast if the 2026-reform eval quarantine
+      # regresses — a tag stripped from the data, or is_headline() drifting to
+      # count pre_2026_reform. Also runs inside the full suite below; kept
+      # explicit so the invariant is a visible, named CI check.
+      - name: Assert eval headline excludes pre-2026-reform queries
+        run: pytest tests/test_eval_headline_integrity.py -q
+
       - name: Run pytest
         run: pytest tests/ -q
