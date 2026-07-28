@@ -129,6 +129,9 @@ class AgentState(TypedDict, total=False):
     reflection: Reflection
     iteration_count: int
     guardrail: GuardrailMarker
+    # Mandatory currency preamble stamped by `guardrail_screen` on the
+    # non-blocking `annotate` path (Task 5.18); the synthesizer prepends it.
+    currency_notice: str
 
 
 def initial_state(query: str, *, user_persona: str | None = None) -> AgentState:

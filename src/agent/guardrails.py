@@ -35,12 +35,13 @@ from typing import Literal
 
 log = logging.getLogger(__name__)
 
-GuardrailAction = Literal["allow", "refuse"]
+GuardrailAction = Literal["allow", "refuse", "annotate"]
 GuardrailCategory = Literal[
     "mortgage_product",
     "insurance_product",
     "super_or_managed_fund",
     "specific_security_pick",
+    "temporal_currency",
 ]
 
 
@@ -51,12 +52,16 @@ class GuardrailDecision:
     On `allow`, all other fields are None and the agent runs normally.
     On `refuse`, `category`, `reason`, and `refusal_text` are populated
     and the graph short-circuits with `refusal_text` as the answer.
+    On `annotate` (Task 5.18), `category`, `reason`, and `notice_text`
+    are populated; the query is NOT blocked — it runs normally and the
+    synthesizer prepends `notice_text` as a mandatory preamble.
     """
 
     action: GuardrailAction
     category: GuardrailCategory | None = None
     reason: str | None = None
     refusal_text: str | None = None
+    notice_text: str | None = None
 
 
 # ---------------------------------------------------------------------
@@ -185,6 +190,36 @@ _REFUSAL_TEMPLATES: dict[GuardrailCategory, str] = {
 }
 
 
+# ---------------------------------------------------------------------
+# Temporal-currency annotation (Task 5.18)
+# ---------------------------------------------------------------------
+#
+# Unlike the refusal patterns, this one does NOT block the query — it
+# flags that the answer depends on tax settings the 2026 reform changed,
+# so the synthesizer prepends a fixed currency preamble. Deterministic
+# defence-in-depth for F-5/F-7: the synthesizer prompt already *asks* the
+# model to caveat pre-reform tax content (#149), but a regex on the hot
+# path *guarantees* the preamble regardless of what the model does.
+# Scoped to negative gearing / CGT — the federal settings this Act
+# actually changed. State taxes (stamp duty, land tax) are a separate,
+# milder vintage issue and deliberately not swept in here, since this
+# preamble points at the ATO and the 2026 reform specifically.
+_TEMPORAL_CURRENCY_PATTERN = re.compile(
+    r"\b(negative(?:ly)?[- ]?gear\w*|capital gains?(?: tax)?|cgt|quarantin\w*)\b",
+    re.IGNORECASE,
+)
+
+_CURRENCY_NOTICE = (
+    "**Note on currency:** Australia's negative-gearing and capital-gains-tax "
+    "rules were changed by the *Treasury Laws Amendment (Tax Reform No. 1) Act "
+    "2026* — CGT indexation replacing the 50% discount, and negative gearing "
+    "limited to new builds, from 1 July 2027 (grandfathered from 12 May 2026). "
+    "This assistant's evidence predates that reform, so any tax treatment "
+    "described below may be out of date — confirm the current rules with the "
+    "ATO (ato.gov.au) or a registered tax agent."
+)
+
+
 def screen_query(query: str) -> GuardrailDecision:
     """Run the pattern library against `query` and return a decision.
 
@@ -205,6 +240,16 @@ def screen_query(query: str) -> GuardrailDecision:
                 reason=reason,
                 refusal_text=_REFUSAL_TEMPLATES[category],
             )
+    # No refusal — check the non-blocking temporal-currency annotation. A
+    # product-pick that also mentions tax has already refused above, which
+    # is correct: refusal is the stronger action.
+    if _TEMPORAL_CURRENCY_PATTERN.search(query):
+        return GuardrailDecision(
+            action="annotate",
+            category="temporal_currency",
+            reason="answer depends on negative-gearing / CGT settings changed by the 2026 reform",
+            notice_text=_CURRENCY_NOTICE,
+        )
     return GuardrailDecision(action="allow")
 
 
