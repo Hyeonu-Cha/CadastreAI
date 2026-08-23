@@ -181,6 +181,20 @@ section[data-testid="stSidebar"] .stButton > button:hover {{
 .cad-notice a {{
   color: var(--navy-600); text-decoration: underline; text-underline-offset: 2px;
 }}
+
+/* --- Material icons: keep them rendering as glyphs. ----------------- */
+/* The broad `[class*="st-"]` base rule above also matches Streamlit's
+   Material-icon <span>s, clobbering the icon font so chevrons/arrows
+   render as their ligature text (e.g. "keyboard_arrow_left"). Re-assert
+   the icon font on those elements so ‹ › and expander/collapse arrows
+   show as icons again. */
+[data-testid="stIconMaterial"],
+span[data-testid="stIconMaterial"],
+.material-icons, .material-icons-outlined, .material-icons-rounded,
+[class*="material-symbols"] {{
+  font-family: "Material Symbols Rounded", "Material Symbols Outlined",
+               "Material Icons" !important;
+}}
 </style>
 """
 

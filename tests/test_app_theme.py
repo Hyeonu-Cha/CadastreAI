@@ -54,6 +54,14 @@ def test_theme_css_defines_notice_callout():
     assert ".cad-notice" in THEME_CSS
 
 
+def test_theme_css_protects_material_icon_font():
+    """The broad UI-font rule must not clobber Streamlit's Material icons —
+    THEME_CSS re-asserts the icon font so chevrons/arrows don't render as
+    ligature text like 'keyboard_arrow_left'."""
+    assert 'data-testid="stIconMaterial"' in THEME_CSS
+    assert "Material Symbols" in THEME_CSS
+
+
 class _FakeSt:
     """Minimal st stand-in that records markdown() calls."""
 
