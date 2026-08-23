@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import logging
 import time
-from pathlib import Path
 
 import streamlit as st
 
@@ -52,9 +51,12 @@ log = logging.getLogger(__name__)
 
 PAGE_TITLE = "CadastreAI — Australian housing-market research agent"
 
-# Grid mark doubles as favicon and the assistant avatar (design system).
-# Absolute path so it resolves regardless of Streamlit's working directory.
-PAGE_ICON = str(Path(__file__).resolve().parents[2] / "assets" / "mark.svg")
+# Favicon + assistant chat avatar. Streamlit loads avatars through Pillow,
+# which can't rasterise SVG (`avatar=...mark.svg` raises "Failed to load the
+# provided avatar value as an image"), so we use the house emoji — matching
+# the HF Space frontmatter (`emoji: 🏠`). Swap in a PNG of the grid mark if
+# brand fidelity on the avatar matters later.
+PAGE_ICON = "🏠"
 
 
 @st.cache_resource(show_spinner="Loading agent graph...")
