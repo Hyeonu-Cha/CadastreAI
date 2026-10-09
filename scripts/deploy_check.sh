@@ -7,16 +7,19 @@
 #
 # What it does:
 #   1. Checks that all required env vars are set (fails fast with a
-#      clear message if not — saves a confusing Python traceback),
-#      then makes one 1-token Anthropic call to catch a key with no
-#      credit or a revoked key before the smoke queries run.
+#      clear message if not — saves a confusing Python traceback).
+#      If ANTHROPIC_API_KEY is set, makes one 1-token call to catch a
+#      key with no credit or a revoked key.
 #   2. Pings the Qdrant cluster and verifies the `cadastre_chunks`
 #      collection exists with the expected point count (~42k).
-#   3. Runs scripts/smoke_prod.py — the 5-query smoke test.
+#   3. Embeds one query with BGE and searches Qdrant (no API key).
+#   4. If ANTHROPIC_API_KEY is set, runs scripts/smoke_prod.py — the
+#      5-query agent smoke test. Without a key, steps 1b and 4 are
+#      skipped and the run checks the data plane only (free).
 #
 # Exit codes mirror smoke_prod.py:
 #   0  — all checks passed
-#   1  — one or more smoke queries failed
+#   1  — one or more smoke queries failed, or retrieval returned nothing
 #   2  — environment misconfigured, Anthropic key rejected / out of
 #        credit, OR Qdrant unreachable / collection missing
 #
@@ -25,6 +28,8 @@
 #   QDRANT_API_KEY=<key> \
 #   ANTHROPIC_API_KEY=sk-... \
 #   ./scripts/deploy_check.sh
+#
+# ANTHROPIC_API_KEY is optional: leave it out for a free data-plane check.
 #
 # Or with a .env file:
 #   set -a; source .env; set +a; ./scripts/deploy_check.sh
@@ -57,7 +62,7 @@ MIN_POINTS=40000
 step "Checking required environment variables"
 
 missing=()
-for var in QDRANT_URL ANTHROPIC_API_KEY; do
+for var in QDRANT_URL; do
     if [[ -z "${!var:-}" ]]; then
         missing+=("$var")
     fi
@@ -82,7 +87,13 @@ if (( ${#missing[@]} > 0 )); then
     exit 2
 fi
 ok "QDRANT_URL=${QDRANT_URL}"
-ok "ANTHROPIC_API_KEY set (${#ANTHROPIC_API_KEY} chars)"
+if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+    ok "ANTHROPIC_API_KEY set (${#ANTHROPIC_API_KEY} chars)"
+    RUN_LLM=1
+else
+    warn "ANTHROPIC_API_KEY unset — skipping the Anthropic preflight and the LLM smoke queries"
+    RUN_LLM=0
+fi
 [[ -n "${QDRANT_API_KEY:-}" ]] && ok "QDRANT_API_KEY set"
 
 # ---- Step 1b: Anthropic key preflight --------------------------------
@@ -97,7 +108,7 @@ gha_error() {
     fi
 }
 
-if [[ "${CADASTRE_LLM_PROVIDER:-anthropic}" == "anthropic" ]]; then
+if [[ "$RUN_LLM" == 1 && "${CADASTRE_LLM_PROVIDER:-anthropic}" == "anthropic" ]]; then
     step "Preflighting ANTHROPIC_API_KEY"
 
     anthropic_check_output=$(python - <<'PY'
@@ -227,7 +238,53 @@ case "$qdrant_check_output" in
         ;;
 esac
 
-# ---- Step 3: smoke queries -------------------------------------------
+# ---- Step 3: retrieval probe (no LLM, no key) -------------------------
+# Embeds one query with BGE and searches Qdrant. Proves the embedding
+# model loads and the stored vectors answer a real query — the data
+# plane the agent depends on — without spending any API credit.
+step "Probing dense retrieval (BGE + Qdrant)"
+
+retrieval_check_output=$(python - <<'PY'
+import sys
+
+try:
+    from src.retrieval.retriever import retrieve
+    hits = retrieve("How does the First Home Owner Grant work in NSW?", k=3)
+except Exception as exc:
+    print(f"ERROR\t{type(exc).__name__}: {exc}")
+    sys.exit(0)
+if not hits:
+    print("EMPTY")
+else:
+    payload, score = hits[0]
+    print(f"OK\t{len(hits)}\t{score:.3f}\t{payload.get('publisher', '?')}")
+PY
+) || { fail "retrieval probe subprocess failed"; exit 2; }
+
+case "$retrieval_check_output" in
+    OK*)
+        n=$(printf '%s' "$retrieval_check_output" | cut -f2)
+        top=$(printf '%s' "$retrieval_check_output" | cut -f3)
+        pub=$(printf '%s' "$retrieval_check_output" | cut -f4)
+        ok "retrieval returned ${n} hits (top score ${top}, ${pub})"
+        ;;
+    EMPTY)
+        fail "retrieval returned no hits for a known-answerable query"
+        exit 1
+        ;;
+    *)
+        fail "retrieval probe failed: $(printf '%s' "$retrieval_check_output" | cut -f2)"
+        exit 2
+        ;;
+esac
+
+# ---- Step 4: smoke queries (needs ANTHROPIC_API_KEY) ------------------
+if [[ "$RUN_LLM" != 1 ]]; then
+    warn "smoke queries skipped (no ANTHROPIC_API_KEY) — data plane only"
+    printf '\n%sData plane healthy: Qdrant + embeddings OK. Agent/LLM path not exercised.%s\n' "${GREEN}${BOLD}" "${RESET}"
+    exit 0
+fi
+
 step "Running 5-query smoke test"
 
 if python -m scripts.smoke_prod; then
