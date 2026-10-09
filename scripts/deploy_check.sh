@@ -7,7 +7,9 @@
 #
 # What it does:
 #   1. Checks that all required env vars are set (fails fast with a
-#      clear message if not — saves a confusing Python traceback).
+#      clear message if not — saves a confusing Python traceback),
+#      then makes one 1-token Anthropic call to catch a key with no
+#      credit or a revoked key before the smoke queries run.
 #   2. Pings the Qdrant cluster and verifies the `cadastre_chunks`
 #      collection exists with the expected point count (~42k).
 #   3. Runs scripts/smoke_prod.py — the 5-query smoke test.
@@ -15,7 +17,8 @@
 # Exit codes mirror smoke_prod.py:
 #   0  — all checks passed
 #   1  — one or more smoke queries failed
-#   2  — environment misconfigured OR Qdrant unreachable / collection missing
+#   2  — environment misconfigured, Anthropic key rejected / out of
+#        credit, OR Qdrant unreachable / collection missing
 #
 # Usage:
 #   QDRANT_URL=https://<cluster>.qdrant.io \
@@ -81,6 +84,84 @@ fi
 ok "QDRANT_URL=${QDRANT_URL}"
 ok "ANTHROPIC_API_KEY set (${#ANTHROPIC_API_KEY} chars)"
 [[ -n "${QDRANT_API_KEY:-}" ]] && ok "QDRANT_API_KEY set"
+
+# ---- Step 1b: Anthropic key preflight --------------------------------
+# One 1-token call before anything expensive. A key with no credit or a
+# revoked key otherwise surfaces as five identical smoke failures two
+# minutes later, which reads like an agent regression. Classify it here
+# and say exactly which secret to fix. Skipped for the OpenAI provider.
+gha_error() {
+    # GitHub Actions annotation so the cause shows on the run summary page.
+    if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+        printf '::error title=%s::%s\n' "$1" "$2"
+    fi
+}
+
+if [[ "${CADASTRE_LLM_PROVIDER:-anthropic}" == "anthropic" ]]; then
+    step "Preflighting ANTHROPIC_API_KEY"
+
+    anthropic_check_output=$(python - <<'PY'
+import os
+import sys
+
+try:
+    import anthropic
+except ImportError:
+    print("IMPORT_ERROR")
+    sys.exit(0)
+
+model = os.environ.get("CADASTRE_PREFLIGHT_MODEL", "claude-haiku-4-5")
+try:
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    client.messages.create(
+        model=model,
+        max_tokens=1,
+        messages=[{"role": "user", "content": "ping"}],
+    )
+    print("OK")
+except anthropic.AuthenticationError as exc:
+    print(f"AUTH\t{exc}")
+except anthropic.BadRequestError as exc:
+    msg = str(exc)
+    kind = "CREDIT" if "credit balance" in msg.lower() else "ERROR"
+    print(f"{kind}\t{msg}")
+except Exception as exc:
+    print(f"ERROR\t{type(exc).__name__}: {exc}")
+PY
+    ) || { fail "anthropic preflight subprocess failed"; exit 2; }
+
+    detail=$(printf '%s' "$anthropic_check_output" | head -1 | cut -f2)
+    case "$anthropic_check_output" in
+        OK*)
+            ok "ANTHROPIC_API_KEY accepted"
+            ;;
+        IMPORT_ERROR)
+            fail "anthropic SDK not installed; run: pip install -e '.[agent]'"
+            exit 2
+            ;;
+        CREDIT*)
+            fail "ANTHROPIC_API_KEY has no credit balance — this is billing, not an agent regression"
+            printf '       top up at console.anthropic.com, or point the secret at a funded key:\n'
+            printf '         gh secret set ANTHROPIC_API_KEY\n'
+            gha_error "Anthropic credit exhausted" \
+                "The ANTHROPIC_API_KEY repo secret has no credit balance. Top it up or replace it (gh secret set ANTHROPIC_API_KEY). Not a code regression."
+            exit 2
+            ;;
+        AUTH*)
+            fail "ANTHROPIC_API_KEY rejected (invalid or revoked): ${detail}"
+            printf '       replace the secret with a current key:\n'
+            printf '         gh secret set ANTHROPIC_API_KEY\n'
+            gha_error "Anthropic key invalid" \
+                "The ANTHROPIC_API_KEY repo secret was rejected (invalid or revoked). Replace it with gh secret set ANTHROPIC_API_KEY."
+            exit 2
+            ;;
+        *)
+            fail "Anthropic preflight failed: ${detail}"
+            gha_error "Anthropic preflight failed" "${detail}"
+            exit 2
+            ;;
+    esac
+fi
 
 # ---- Step 2: Qdrant reachability + collection sanity -----------------
 step "Probing Qdrant collection ${EXPECTED_COLLECTION}"
