@@ -1,10 +1,14 @@
 name: deploy_check
 
-# Nightly health check (Task 4.16 follow-up): exercises the agent code
-# path end-to-end against the production Qdrant Cloud cluster. Catches:
-#   - Qdrant Cloud cluster going down or losing the collection
+# Nightly health check (Task 4.16 follow-up) against the production
+# Qdrant Cloud cluster. The nightly run is keyless and free; it catches:
+#   - Qdrant Cloud cluster going down, being suspended, or losing the
+#     collection
+#   - the embedding model failing to load or retrieve
+# A manual run with the `llm_smoke` input ticked also exercises the full
+# agent with the 5 smoke queries, which catches:
 #   - ANTHROPIC_API_KEY expiry / quota burn
-#   - Agent regressions that don't show up in unit tests
+#   - agent regressions that don't show up in unit tests
 #
 # This does NOT verify the deployed HF Space itself — that would be a
 # separate curl-the-Space-URL job. For now we trust the Space's own
@@ -15,18 +19,23 @@ name: deploy_check
 # Required repository secrets (Settings → Secrets and variables → Actions):
 #   QDRANT_URL          Qdrant Cloud cluster URL
 #   QDRANT_API_KEY      Qdrant Cloud API key
-#   ANTHROPIC_API_KEY   Anthropic console key
+#   ANTHROPIC_API_KEY   Anthropic console key (only read by llm_smoke runs)
 #
-# Cost per run: ~$0.05 in Anthropic tokens (5 smoke queries) + a few
-# GHA minutes. Cheap enough to run nightly; expensive enough to not
-# run on every PR.
+# Cost: the nightly run spends no API credit, only a few GHA minutes.
+# An llm_smoke run adds ~$0.05 in Anthropic tokens:
+#   gh workflow run deploy_check -f llm_smoke=true
 
 on:
   schedule:
     # 03:00 UTC daily — well outside any sensible Australian work hours,
     # so a failure paging the maintainer doesn't wake them up.
     - cron: "0 3 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      llm_smoke:
+        description: "Also run the 5 agent smoke queries (uses ANTHROPIC_API_KEY, costs a few cents)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -56,7 +65,10 @@ jobs:
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Only passed on a manual run with llm_smoke ticked. The nightly
+          # schedule runs keyless: Qdrant + embeddings only, no API spend,
+          # so an empty or expired Anthropic key can't fail it.
+          ANTHROPIC_API_KEY: ${{ (github.event_name == 'workflow_dispatch' && inputs.llm_smoke) && secrets.ANTHROPIC_API_KEY || '' }}
           # Dense-only retrieval for the health check. This job's job is
           # to catch production *data-plane* failures — Qdrant Cloud
           # down, ANTHROPIC_API_KEY expired, embedding model broken.
